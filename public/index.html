@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ERBELLO Artifact Gallery</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  :root {
+    --bg: #080908;
+    --bg-2: #0d0f0d;
+    --panel: #111411;
+    --panel-2: #161a16;
+    --line: #252d23;
+    --line-2: #35402f;
+    --text: #f2f5ed;
+    --muted: #899182;
+    --muted-2: #626b5b;
+    --accent: #c7ff4f;
+    --accent-2: #e8ff9f;
+    --danger: #ff6b6b;
+    --shadow: 0 24px 80px rgba(0,0,0,.45);
+    --radius: 22px;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(199,255,79,.12), transparent 34rem),
+      radial-gradient(circle at 78% 12%, rgba(125,180,255,.08), transparent 30rem),
+      linear-gradient(180deg, var(--bg), #050505 70%);
+    color: var(--text);
+    font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    letter-spacing: -0.01em;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: .38;
+    background-image:
+      linear-gradient(rgba(255,255,255,.028) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.024) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, #000, transparent 86%);
+  }
+  button, input, textarea, select { font: inherit; }
+  button { cursor: pointer; }
+  .shell { position: relative; z-index: 1; width: min(1480px, 100%); margin: 0 auto; padding: 28px; }
+  .hero {
+    min-height: 330px;
+    border: 1px solid rgba(199,255,79,.18);
+    background: linear-gradient(135deg, rgba(17,20,17,.88), rgba(12,14,12,.78));
+    border-radius: 30px;
+    box-shadow: var(--shadow);
+    padding: clamp(26px, 5vw, 58px);
+    display: grid;
+    grid-template-columns: 1.2fr .8fr;
+    gap: 28px;
+    overflow: hidden;
+    position: relative;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    width: 420px;
+    height: 420px;
+    right: -160px;
+    bottom: -220px;
+    border-radius: 999px;
+    border: 1px solid rgba(199,255,79,.24);
+    box-shadow: inset 0 0 90px rgba(199,255,79,.05);
+  }
+  .eyebrow {
+    color: var(--accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .18em;
+    margin-bottom: 18px;
+  }
+  h1 { margin: 0; font-size: clamp(56px, 10vw, 134px); line-height: .84; letter-spacing: -.08em; }
+  h1 span { display: block; color: transparent; -webkit-text-stroke: 1px rgba(242,245,237,.72); text-stroke: 1px rgba(242,245,237,.72); }
+  .hero-copy { color: var(--muted); max-width: 700px; margin: 24px 0 0; font-size: 16px; line-height: 1.75; }
+  .hero-side { align-self: end; display: grid; gap: 14px; z-index: 1; }
+  .status-card {
+    border: 1px solid var(--line);
+    background: rgba(8,9,8,.58);
+    border-radius: 22px;
+    padding: 18px;
+  }
+  .status-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .status-line:last-child { border-bottom: 0; }
+  .label { color: var(--muted-2); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+  .value { color: var(--text); font-size: 13px; text-align: right; }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 7px 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    color: var(--muted);
+    background: rgba(255,255,255,.025);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 11px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .pill.ok { color: #0b0b0b; background: var(--accent); border-color: var(--accent); }
+  .toolbar {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 14px;
+    align-items: center;
+  }
+  .search-wrap { position: relative; }
+  .search-wrap svg { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--muted-2); }
+  .search {
+    width: 100%;
+    height: 52px;
+    padding: 0 16px 0 46px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: rgba(17,20,17,.9);
+    color: var(--text);
+    outline: none;
+  }
+  .search:focus { border-color: rgba(199,255,79,.75); box-shadow: 0 0 0 4px rgba(199,255,79,.08); }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+  .btn {
+    min-height: 44px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: rgba(17,20,17,.9);
+    color: var(--text);
+    transition: transform .16s ease, border-color .16s ease, background .16s ease;
+  }
+  .btn:hover { transform: translateY(-1px); border-color: rgba(199,255,79,.58); }
+  .btn.primary { background: var(--accent); color: #0b0b0b; border-color: var(--accent); font-weight: 750; }
+  .btn.danger { color: var(--danger); border-color: rgba(255,107,107,.28); }
+  .btn.ghost { background: transparent; }
+  .admin-only { display: none !important; }
+  .owner-only { display: none !important; }
+  body.owner-mode .owner-only { display: inline-flex !important; }
+  body.admin-on .admin-only { display: inline-flex !important; }
+  body.admin-on #adminBtn { border-color: rgba(199,255,79,.55); color: var(--accent); }
+  .filters { margin-top: 14px; display: flex; gap: 9px; flex-wrap: wrap; align-items: center; }
+  .filter-btn {
+    min-height: 38px;
+    padding: 0 13px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(17,20,17,.78);
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .filter-btn.active { color: #0b0b0b; background: var(--accent); border-color: var(--accent); }
+  .stats { margin: 18px 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .stat { border: 1px solid var(--line); border-radius: 20px; padding: 16px; background: rgba(17,20,17,.68); }
+  .stat strong { display: block; font-size: 28px; letter-spacing: -.04em; margin-top: 8px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(282px, 1fr)); gap: 14px; padding-bottom: 70px; }
+  .card {
+    min-height: 292px;
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(22,26,22,.9), rgba(12,14,12,.9));
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .card:hover { transform: translateY(-3px); border-color: rgba(199,255,79,.6); box-shadow: 0 22px 70px rgba(0,0,0,.32); }
+  .preview {
+    min-height: 132px;
+    position: relative;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    background:
+      radial-gradient(circle at 20% 25%, rgba(199,255,79,.18), transparent 34%),
+      linear-gradient(135deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+    display: flex;
+    align-items: flex-end;
+    padding: 16px;
+  }
+  .preview::before { content: ""; position: absolute; inset: 16px; border: 1px solid rgba(255,255,255,.07); border-radius: 16px; }
+  .type-mark { position: relative; z-index: 1; color: rgba(242,245,237,.76); font-size: 42px; font-weight: 900; letter-spacing: -.08em; }
+  .tag-row { position: absolute; top: 13px; left: 13px; right: 13px; display: flex; justify-content: space-between; gap: 8px; z-index: 2; }
+  .tag {
+    display: inline-flex; align-items: center; min-height: 26px; padding: 0 9px; border-radius: 999px;
+    background: rgba(8,9,8,.72); border: 1px solid rgba(255,255,255,.08); color: var(--accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+  }
+  .card-body { padding: 18px; display: flex; flex: 1; flex-direction: column; }
+  .card-title { margin: 0; font-size: 18px; line-height: 1.35; letter-spacing: -.02em; }
+  .card-desc { color: var(--muted); font-size: 13px; line-height: 1.65; margin: 9px 0 0; flex: 1; }
+  .card-footer { margin-top: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted-2); font-size: 12px; }
+  .open-hint { color: var(--accent); }
+  .empty { grid-column: 1 / -1; border: 1px dashed var(--line-2); border-radius: 24px; padding: 72px 24px; text-align: center; background: rgba(17,20,17,.45); }
+  .empty h2 { margin: 0 0 8px; }
+  .empty p { margin: 0; color: var(--muted); }
+
+  .overlay { position: fixed; inset: 0; z-index: 50; display: none; background: rgba(0,0,0,.72); backdrop-filter: blur(12px); padding: 22px; }
+  .overlay.open { display: flex; }
+  .modal {
+    width: min(760px, 100%);
+    max-height: calc(100vh - 44px);
+    margin: auto;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 26px;
+    background: #101310;
+    box-shadow: var(--shadow);
+  }
+  .modal-head { padding: 20px 22px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: 0; background: #101310; z-index: 2; }
+  .modal-title { margin: 0; font-size: 20px; letter-spacing: -.03em; }
+  .modal-body { padding: 22px; }
+  .field { display: grid; gap: 8px; margin-bottom: 16px; }
+  .field label { color: var(--muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; text-transform: uppercase; letter-spacing: .12em; }
+  .input, .textarea, .select {
+    width: 100%; border: 1px solid var(--line); border-radius: 14px; background: #090a09; color: var(--text); outline: none;
+    padding: 13px 14px;
+  }
+  .textarea { min-height: 280px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; line-height: 1.55; font-size: 13px; }
+  .input:focus, .textarea:focus, .select:focus { border-color: rgba(199,255,79,.75); box-shadow: 0 0 0 4px rgba(199,255,79,.08); }
+  .two { display: grid; grid-template-columns: 1fr 220px; gap: 12px; }
+  .drop {
+    border: 1px dashed var(--line-2);
+    border-radius: 16px;
+    padding: 15px;
+    background: rgba(255,255,255,.025);
+  }
+  .drop.drag { border-color: var(--accent); background: rgba(199,255,79,.06); }
+  .hint { color: var(--muted-2); font-size: 12px; line-height: 1.6; }
+  .error { color: var(--danger); min-height: 18px; font-size: 13px; margin-top: 8px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; flex-wrap: wrap; }
+
+  .viewer { position: fixed; inset: 0; z-index: 40; display: none; background: #050505; }
+  .viewer.open { display: grid; grid-template-rows: auto 1fr; }
+  .viewer-bar { min-height: 62px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: rgba(17,20,17,.98); display: flex; align-items: center; gap: 10px; }
+  .viewer-info { min-width: 0; flex: 1; display: grid; gap: 2px; }
+  .viewer-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 750; }
+  .viewer-desc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; }
+  .viewer iframe { width: 100%; height: 100%; border: 0; background: white; }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 18px); opacity: 0; z-index: 90; border-radius: 999px; padding: 12px 16px; background: var(--accent); color: #0b0b0b; font-weight: 750; transition: opacity .18s ease, transform .18s ease; }
+  .toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+  @media (max-width: 860px) {
+    .shell { padding: 16px; }
+    .hero { grid-template-columns: 1fr; min-height: auto; }
+    .toolbar { grid-template-columns: 1fr; }
+    .actions { justify-content: stretch; }
+    .actions .btn { flex: 1; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .two { grid-template-columns: 1fr; }
+    .viewer-bar { flex-wrap: wrap; }
+    .viewer-info { flex-basis: 100%; }
+  }
+  @media (max-width: 520px) {
+    .stats { grid-template-columns: 1fr; }
+    .grid { grid-template-columns: 1fr; }
+    h1 { font-size: 58px; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <section class="hero">
+    <div>
+      <div class="eyebrow">HTML · JSX · React · Interactive Archive</div>
+      <h1>ERBELLO<span>GALLERY</span></h1>
+      <p class="hero-copy">완성된 HTML 페이지, React/JSX 아티팩트, 작은 게임과 도구를 한곳에 저장하고 카드형 갤러리로 공유하는 개인 웹앱 저장소입니다.</p>
+    </div>
+    <aside class="hero-side">
+      <div class="status-card">
+        <div class="status-line"><span class="label">Archive</span><span class="value">Interactive Web</span></div>
+        <div class="status-line"><span class="label">Format</span><span class="value">HTML · JSX</span></div>
+        <div class="status-line"><span class="label">Share</span><span class="value">Direct Links</span></div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span class="pill ok">ERBELLO</span>
+        <span class="pill">HTML Upload</span>
+        <span class="pill">JSX Runtime</span>
+      </div>
+    </aside>
+  </section>
+
+  <section class="toolbar" aria-label="Gallery tools">
+    <div class="search-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
+      <input id="searchInput" class="search" type="search" placeholder="제목, 설명, 타입으로 검색" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button class="btn" id="refreshBtn">Refresh</button>
+      <button class="btn owner-only" id="adminBtn">Owner</button>
+      <button class="btn primary admin-only" id="addBtn">+ Add Artifact</button>
+    </div>
+  </section>
+
+  <section class="filters" id="filters" aria-label="Category filters"></section>
+
+  <section class="stats">
+    <div class="stat"><span class="label">Total</span><strong id="statTotal">0</strong></div>
+    <div class="stat"><span class="label">JSX</span><strong id="statJsx">0</strong></div>
+    <div class="stat"><span class="label">HTML</span><strong id="statHtml">0</strong></div>
+    <div class="stat"><span class="label">Visible</span><strong id="statVisible">0</strong></div>
+  </section>
+
+  <main class="grid" id="grid" aria-live="polite"></main>
+</div>
+
+<section class="viewer" id="viewer" aria-label="Artifact viewer">
+  <div class="viewer-bar">
+    <span class="tag" id="viewerTag">TYPE</span>
+    <div class="viewer-info">
+      <div class="viewer-title" id="viewerTitle">Artifact</div>
+      <div class="viewer-desc" id="viewerDesc"></div>
+    </div>
+    <button class="btn ghost" id="copyRunBtn">Copy Link</button>
+    <button class="btn ghost" id="openRunBtn">Open Page</button>
+    <button class="btn ghost admin-only" id="editBtn">Edit</button>
+    <button class="btn danger admin-only" id="deleteBtn">Delete</button>
+    <button class="btn" id="closeViewerBtn">Close</button>
+  </div>
+  <iframe id="viewerFrame" sandbox="allow-scripts allow-forms allow-popups allow-modals allow-downloads"></iframe>
+</section>
+
+<div class="overlay" id="adminModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-head">
+      <h2 class="modal-title">Admin Unlock</h2>
+      <button class="btn ghost" data-close="adminModal">Close</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="passwordInput">Password</label>
+        <input class="input" id="passwordInput" type="password" placeholder="관리자 비밀번호" autocomplete="current-password">
+      </div>
+      <div class="hint">관리자 화면은 사이트 소유자 전용입니다. 이 탭을 닫으면 다시 잠깁니다.</div>
+      <div class="error" id="adminError"></div>
+      <div class="modal-actions">
+        <button class="btn" data-close="adminModal">Cancel</button>
+        <button class="btn primary" id="unlockBtn">Unlock</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="artifactModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h2 class="modal-title" id="artifactModalTitle">New Artifact</h2>
+      <button class="btn ghost" data-close="artifactModal">Close</button>
+    </div>
+    <div class="modal-body">
+      <div class="two">
+        <div class="field">
+          <label for="titleInput">Title *</label>
+          <input class="input" id="titleInput" type="text" maxlength="80" placeholder="예: 오늘의 타로">
+        </div>
+        <div class="field">
+          <label for="typeInput">Category</label>
+          <select class="select" id="typeInput">
+            <option value="react">React / JSX</option>
+            <option value="html">HTML Page</option>
+            <option value="chart">Chart / Data</option>
+            <option value="game">Game</option>
+            <option value="tool">Tool</option>
+            <option value="experiment">Experiment</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="descInput">Description</label>
+        <input class="input" id="descInput" type="text" maxlength="240" placeholder="짧은 설명을 적어주세요">
+      </div>
+      <div class="field">
+        <label for="fileInput">Load file</label>
+        <div class="drop" id="dropZone">
+          <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.tsx,.txt" class="input">
+          <div class="hint" style="margin-top:8px">HTML, JSX, TSX 파일을 선택하거나 이 영역으로 드래그하세요. 파일 내용은 아래 코드 칸에 들어갑니다.</div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="codeInput">Code *</label>
+        <textarea class="textarea" id="codeInput" spellcheck="false" placeholder="HTML 전체 파일 또는 JSX 코드를 붙여넣으세요."></textarea>
+        <div class="hint" id="detectHint">감지 대기 중</div>
+      </div>
+      <div class="error" id="artifactError"></div>
+      <div class="modal-actions">
+        <button class="btn" data-close="artifactModal">Cancel</button>
+        <button class="btn primary" id="saveArtifactBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Done</div>
+
+<script>
+const CATEGORY = {
+  all: 'All', react: 'React', html: 'HTML', chart: 'Chart', game: 'Game', tool: 'Tool', experiment: 'Experiment', other: 'Other'
+};
+const TYPE_MARK = { react: 'JSX', html: 'HTML', chart: 'DATA', game: 'PLAY', tool: 'TOOL', experiment: 'LAB', other: 'APP' };
+
+let artifacts = [];
+let currentFilter = 'all';
+let searchQuery = '';
+let currentId = null;
+let editingId = null;
+let adminToken = '';
+const ownerModeRequested = new URLSearchParams(location.search).has('admin') || location.hash.toLowerCase() === '#admin';
+
+const $ = id => document.getElementById(id);
+
+function esc(value) {
+  return String(value || '').replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+}
+function fmtDate(value) {
+  if (!value) return '';
+  try { return new Date(value).toLocaleDateString('ko-KR', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch (_) { return ''; }
+}
+function runUrl(id) { return `${location.origin}/run/${id}`; }
+function categoryLabel(type) { return CATEGORY[type] || 'Other'; }
+function showToast(message) {
+  const toast = $('toast');
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(showToast._timer);
+  showToast._timer = setTimeout(() => toast.classList.remove('show'), 2200);
+}
+function openModal(id) { $(id).classList.add('open'); }
+function closeModal(id) { $(id).classList.remove('open'); }
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (_) {
+    const input = document.createElement('input');
+    input.value = text;
+    document.body.appendChild(input);
+    input.select();
+    document.execCommand('copy');
+    input.remove();
+  }
+  showToast('링크를 복사했어요');
+}
+
+async function api(path, options = {}) {
+  const res = await fetch(path, {
+    ...options,
+    headers: {
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      ...(options.headers || {})
+    }
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch (_) { data = { error: text }; }
+  if (!res.ok) throw new Error(data && data.error ? data.error : 'Request failed');
+  return data;
+}
+
+function setAdminUI(on) {
+  const isOn = Boolean(on);
+  document.body.classList.toggle('admin-on', isOn);
+  document.body.classList.toggle('owner-mode', isOn || ownerModeRequested);
+  $('adminBtn').textContent = isOn ? 'Owner On' : 'Owner';
+}
+
+async function verifyExistingAdmin() {
+  if (!adminToken) return setAdminUI(false);
+  try {
+    await api('/api/admin/verify', { method: 'POST', body: JSON.stringify({ password: adminToken }) });
+    setAdminUI(true);
+  } catch (_) {
+    adminToken = '';
+    setAdminUI(false);
+  }
+}
+
+async function unlockAdmin() {
+  const password = $('passwordInput').value;
+  $('adminError').textContent = '';
+  if (!password) { $('adminError').textContent = '비밀번호를 입력해주세요.'; return; }
+  try {
+    await api('/api/admin/verify', { method: 'POST', body: JSON.stringify({ password }) });
+    adminToken = password;
+    $('passwordInput').value = '';
+    closeModal('adminModal');
+    setAdminUI(true);
+    showToast('소유자 모드가 켜졌어요');
+  } catch (error) {
+    $('adminError').textContent = error.message.includes('configured') ? '서버에 관리자 비밀번호가 설정되어 있지 않습니다.' : '비밀번호가 맞지 않습니다.';
+  }
+}
+
+function requireAdmin(next) {
+  if (adminToken && document.body.classList.contains('admin-on')) { next(); return; }
+  $('adminError').textContent = '';
+  $('passwordInput').value = '';
+  openModal('adminModal');
+  window.__afterAdmin = next;
+}
+
+function renderFilters() {
+  $('filters').innerHTML = Object.entries(CATEGORY).map(([key, label]) =>
+    `<button class="filter-btn ${key === currentFilter ? 'active' : ''}" data-filter="${key}">${label}</button>`
+  ).join('');
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      currentFilter = btn.dataset.filter;
+      renderFilters();
+      renderGrid();
+    });
+  });
+}
+
+function filteredArtifacts() {
+  const q = searchQuery.trim().toLowerCase();
+  return artifacts.filter(item => {
+    const typeMatch = currentFilter === 'all' || item.type === currentFilter;
+    if (!typeMatch) return false;
+    if (!q) return true;
+    return [item.title, item.description, item.type, item.is_jsx ? 'jsx react' : 'html'].join(' ').toLowerCase().includes(q);
+  });
+}
+
+function renderStats(visible) {
+  $('statTotal').textContent = artifacts.length;
+  $('statJsx').textContent = artifacts.filter(a => a.is_jsx).length;
+  $('statHtml').textContent = artifacts.filter(a => !a.is_jsx).length;
+  $('statVisible').textContent = visible;
+}
+
+function renderGrid() {
+  const items = filteredArtifacts();
+  renderStats(items.length);
+  if (!items.length) {
+    $('grid').innerHTML = `<div class="empty"><h2>저장된 항목이 없습니다</h2><p>관리자 모드에서 HTML 또는 JSX 아티팩트를 추가해보세요.</p></div>`;
+    return;
+  }
+  $('grid').innerHTML = items.map(item => `
+    <article class="card" data-id="${esc(item.id)}" tabindex="0">
+      <div class="preview">
+        <div class="tag-row">
+          <span class="tag">${esc(categoryLabel(item.type))}</span>
+          <span class="tag">${item.is_jsx ? 'JSX' : 'HTML'}</span>
+        </div>
+        <div class="type-mark">${esc(TYPE_MARK[item.type] || 'APP')}</div>
+      </div>
+      <div class="card-body">
+        <h2 class="card-title">${esc(item.title)}</h2>
+        <p class="card-desc">${esc(item.description || '설명이 아직 없습니다.')}</p>
+        <div class="card-footer">
+          <span>${esc(fmtDate(item.created_at))}</span>
+          <span class="open-hint">Open →</span>
+        </div>
+      </div>
+    </article>
+  `).join('');
+  document.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => openViewer(card.dataset.id));
+    card.addEventListener('keydown', e => { if (e.key === 'Enter') openViewer(card.dataset.id); });
+  });
+}
+
+async function loadStatus() {
+  try {
+    await api('/api/status');
+  } catch (_) {
+    // The gallery still renders its shell even if the API is offline.
+  }
+}
+
+async function loadArtifacts() {
+  $('grid').innerHTML = `<div class="empty"><h2>불러오는 중</h2><p>갤러리 데이터를 확인하고 있습니다.</p></div>`;
+  try {
+    artifacts = await api('/api/artifacts');
+    renderGrid();
+  } catch (error) {
+    $('grid').innerHTML = `<div class="empty"><h2>불러오기 실패</h2><p>${esc(error.message)}</p></div>`;
+  }
+}
+
+function openViewer(id) {
+  const item = artifacts.find(a => String(a.id) === String(id));
+  if (!item) return;
+  currentId = id;
+  $('viewerTag').textContent = `${categoryLabel(item.type)} · ${item.is_jsx ? 'JSX' : 'HTML'}`;
+  $('viewerTitle').textContent = item.title;
+  $('viewerDesc').textContent = item.description || runUrl(id);
+  $('viewerFrame').src = `/run/${encodeURIComponent(id)}`;
+  $('viewer').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeViewer() {
+  $('viewer').classList.remove('open');
+  $('viewerFrame').src = 'about:blank';
+  document.body.style.overflow = '';
+  currentId = null;
+}
+
+function detectCodeKind(code) {
+  const t = String(code || '').trim();
+  if (!t) return '감지 대기 중';
+  if (/^<!doctype\s+html/i.test(t) || /^<html[\s>]/i.test(t) || /<body[\s>]/i.test(t) || /<script[\s>]/i.test(t)) return 'HTML로 감지됨';
+  if (/from\s+['"]react['"]|export\s+default|use(State|Effect|Ref|Memo|Callback)|className\s*=|return\s*\(?\s*</i.test(t)) return 'JSX/React로 감지됨';
+  if (/^</.test(t)) return 'HTML 조각으로 감지됨';
+  return '일반 코드로 감지됨. 실행 결과는 코드 형태에 따라 달라질 수 있습니다.';
+}
+function updateDetectHint() { $('detectHint').textContent = detectCodeKind($('codeInput').value); }
+
+function resetArtifactForm() {
+  editingId = null;
+  $('artifactModalTitle').textContent = 'New Artifact';
+  $('titleInput').value = '';
+  $('descInput').value = '';
+  $('typeInput').value = 'react';
+  $('fileInput').value = '';
+  $('codeInput').value = '';
+  $('artifactError').textContent = '';
+  updateDetectHint();
+}
+function openNewArtifact() {
+  resetArtifactForm();
+  openModal('artifactModal');
+  setTimeout(() => $('titleInput').focus(), 50);
+}
+async function openEditArtifact() {
+  if (!currentId) return;
+  requireAdmin(async () => {
+    try {
+      const item = await api(`/api/admin/artifacts/${encodeURIComponent(currentId)}`, { headers: { 'x-admin-token': adminToken } });
+      editingId = currentId;
+      $('artifactModalTitle').textContent = 'Edit Artifact';
+      $('titleInput').value = item.title || '';
+      $('descInput').value = item.description || '';
+      $('typeInput').value = item.type || 'other';
+      $('fileInput').value = '';
+      $('codeInput').value = item.code || '';
+      $('artifactError').textContent = '';
+      updateDetectHint();
+      openModal('artifactModal');
+    } catch (error) {
+      showToast('편집 데이터를 불러오지 못했어요');
+    }
+  });
+}
+async function saveArtifact() {
+  const title = $('titleInput').value.trim();
+  const code = $('codeInput').value.trim();
+  $('artifactError').textContent = '';
+  if (!title || !code) { $('artifactError').textContent = 'Title과 Code는 필수입니다.'; return; }
+  const payload = {
+    title,
+    description: $('descInput').value.trim(),
+    type: $('typeInput').value,
+    code
+  };
+  try {
+    const path = editingId ? `/api/admin/artifacts/${encodeURIComponent(editingId)}` : '/api/admin/artifacts';
+    await api(path, {
+      method: editingId ? 'PUT' : 'POST',
+      headers: { 'x-admin-token': adminToken },
+      body: JSON.stringify(payload)
+    });
+    closeModal('artifactModal');
+    await loadArtifacts();
+    showToast(editingId ? '수정 완료' : '추가 완료');
+    if (editingId) {
+      const id = editingId;
+      editingId = null;
+      closeViewer();
+      openViewer(id);
+    }
+  } catch (error) {
+    $('artifactError').textContent = error.message;
+  }
+}
+async function deleteCurrent() {
+  if (!currentId) return;
+  requireAdmin(async () => {
+    const item = artifacts.find(a => String(a.id) === String(currentId));
+    if (!confirm(`삭제할까요?\n\n${item ? item.title : currentId}`)) return;
+    try {
+      await api(`/api/admin/artifacts/${encodeURIComponent(currentId)}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-token': adminToken }
+      });
+      closeViewer();
+      await loadArtifacts();
+      showToast('삭제 완료');
+    } catch (error) {
+      showToast('삭제 실패');
+    }
+  });
+}
+
+function inferFromFile(file, text) {
+  if (!$('titleInput').value.trim()) {
+    $('titleInput').value = file.name.replace(/\.(html?|jsx?|tsx?|txt)$/i, '').replace(/[-_]+/g, ' ');
+  }
+  if (/\.(jsx|tsx|js)$/i.test(file.name)) $('typeInput').value = 'react';
+  if (/\.html?$/i.test(file.name) || /^<!doctype\s+html/i.test(text) || /^<html[\s>]/i.test(text)) $('typeInput').value = 'html';
+}
+function readFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const text = String(reader.result || '');
+    $('codeInput').value = text;
+    inferFromFile(file, text);
+    updateDetectHint();
+  };
+  reader.onerror = () => { $('artifactError').textContent = '파일을 읽지 못했습니다.'; };
+  reader.readAsText(file);
+}
+
+$('adminBtn').addEventListener('click', () => {
+  if (document.body.classList.contains('admin-on')) {
+    adminToken = '';
+    setAdminUI(false);
+    showToast('소유자 모드를 껐어요');
+  } else {
+    openModal('adminModal');
+    setTimeout(() => $('passwordInput').focus(), 50);
+  }
+});
+$('unlockBtn').addEventListener('click', async () => {
+  await unlockAdmin();
+  if (document.body.classList.contains('admin-on') && window.__afterAdmin) {
+    const cb = window.__afterAdmin;
+    window.__afterAdmin = null;
+    cb();
+  }
+});
+$('passwordInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('unlockBtn').click(); });
+$('addBtn').addEventListener('click', () => requireAdmin(openNewArtifact));
+$('refreshBtn').addEventListener('click', loadArtifacts);
+$('searchInput').addEventListener('input', e => { searchQuery = e.target.value; renderGrid(); });
+$('closeViewerBtn').addEventListener('click', closeViewer);
+$('copyRunBtn').addEventListener('click', () => { if (currentId) copyText(runUrl(currentId)); });
+$('openRunBtn').addEventListener('click', () => { if (currentId) window.open(runUrl(currentId), '_blank', 'noopener,noreferrer'); });
+$('editBtn').addEventListener('click', openEditArtifact);
+$('deleteBtn').addEventListener('click', deleteCurrent);
+$('saveArtifactBtn').addEventListener('click', saveArtifact);
+$('codeInput').addEventListener('input', updateDetectHint);
+$('fileInput').addEventListener('change', e => readFile(e.target.files[0]));
+
+const dropZone = $('dropZone');
+['dragenter', 'dragover'].forEach(eventName => dropZone.addEventListener(eventName, e => { e.preventDefault(); dropZone.classList.add('drag'); }));
+['dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, e => { e.preventDefault(); dropZone.classList.remove('drag'); }));
+dropZone.addEventListener('drop', e => readFile(e.dataTransfer.files[0]));
+
+document.querySelectorAll('[data-close]').forEach(btn => btn.addEventListener('click', () => closeModal(btn.dataset.close)));
+document.querySelectorAll('.overlay').forEach(overlay => overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(overlay.id); }));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  if ($('artifactModal').classList.contains('open')) closeModal('artifactModal');
+  else if ($('adminModal').classList.contains('open')) closeModal('adminModal');
+  else if ($('viewer').classList.contains('open')) closeViewer();
+});
+
+setAdminUI(false);
+renderFilters();
+loadStatus();
+verifyExistingAdmin();
+loadArtifacts();
+</script>
+</body>
+</html>
