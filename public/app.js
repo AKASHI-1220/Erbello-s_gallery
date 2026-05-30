@@ -1,14 +1,14 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v12 contact manager + admin stats';
+  const VERSION = 'ERBELLO Gallery v13 ZIP upload + multi tags';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
   const COLORS = ['crimson','sky','lavender','yellowblue','cream','rose','ocean','aurora','mint','pixel'];
   const LANGS = ['ko','en','ja','zh'];
   const ROUTES = ['home','projects','about','contact'];
-  const CATEGORIES = ['all', 'html', 'react', 'game', 'tool', 'daily', 'design', 'chart', 'experiment', 'other'];
+  const CATEGORIES = ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other'];
   const SCHEME_META_COLORS = { black:'#050912', white:'#f8fafc' };
   const LOCALE = { ko:'ko-KR', en:'en-US', ja:'ja-JP', zh:'zh-CN' };
   const $ = (id) => document.getElementById(id);
@@ -31,7 +31,7 @@
       sectionKicker:'프로젝트', galleryTitle:'프로젝트 갤러리', searchPlaceholder:'프로젝트 검색...', searchAria:'프로젝트 검색', filterAria:'카테고리 필터', viewerAria:'소유자 미리보기', viewerFrameTitle:'프로젝트 미리보기', ownerPreview:'소유자 미리보기', openProject:'프로젝트 열기', copyLink:'링크 복사', openNewTab:'새 탭 열기', edit:'수정', delete:'삭제', close:'닫기',
       cancel:'취소', login:'로그인', save:'저장', adminHint:'프로젝트 추가, 수정, 삭제는 소유자 모드에서만 가능합니다.', passwordLabel:'관리자 비밀번호', passwordPlaceholder:'Vercel에 설정한 ADMIN_PASSWORD',
       pageModalTitle:'페이지 내용 편집', pageLabel:'페이지', scriptLabel:'말풍선 문구', eyebrowLabel:'작은 제목', infoTitleLabel:'정보 박스 제목', pageTitleLabel:'큰 제목', bodyLabel:'본문', blocksLabel:'정보 항목', blockTextLabel:'내용', emailLabel:'이메일', linksLabel:'링크', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'연락처 링크', contactLinkName:'표시 이름', contactLinkUrl:'링크 주소', contactAddLink:'링크 추가', contactRemoveLink:'삭제', contactLinkHint:'연락처 페이지에는 링크 주소가 있는 항목만 표시됩니다. 이름은 비워도 주소를 보고 자동으로 채워집니다.', contactEmpty:'아직 등록된 연락처 링크가 없습니다.', manageContactLinks:'연락처 링크 관리', adminStatsTitle:'소유자 통계', statProjects:'프로젝트', statViews:'전체 조회수', statTop:'최고 조회 프로젝트', noStats:'아직 통계가 없습니다.', pageEditHint:'현재 선택한 언어의 페이지 문구만 저장됩니다.', pageSaved:'페이지를 저장했습니다.', pageLoadError:'페이지 내용을 불러오지 못했습니다.', pageSaveError:'페이지 저장 중 오류가 발생했습니다.',
-      artifactModalTitleAdd:'프로젝트 추가', artifactModalTitleEdit:'프로젝트 수정', titleLabel:'제목', titlePlaceholder:'예: 오늘의 타로', categoryLabel:'카테고리', descriptionLabel:'설명', descriptionPlaceholder:'카드에 표시될 짧은 소개 문구', dropText:'HTML, JSX, TSX 파일을 이곳에 끌어다 놓거나 선택하세요.', codeLabel:'코드', codePlaceholder:'HTML 전체 코드 또는 React/JSX 코드를 붙여넣으세요.', detectWaiting:'감지 대기 중',
+      artifactModalTitleAdd:'프로젝트 추가', artifactModalTitleEdit:'프로젝트 수정', titleLabel:'제목', titlePlaceholder:'예: 오늘의 타로', categoryLabel:'대표 분류', descriptionLabel:'설명', descriptionPlaceholder:'카드에 표시될 짧은 소개 문구', tagsLabel:'태그', tagsPlaceholder:'예: HTML, 도구, 타로', tagsHint:'카테고리는 하나만 고르고, 나머지 분류는 태그로 여러 개 붙일 수 있습니다.', zipProcessing:'ZIP 파일을 정리하는 중입니다...', zipLoaded:'ZIP 프로젝트를 불러왔습니다.', zipNoIndex:'ZIP 안에서 index.html을 찾지 못했습니다.', zipTooLarge:'ZIP 파일이 너무 큽니다. 작은 앱부터 올려주세요.', zipReaderError:'ZIP을 읽지 못했습니다. 다시 압축하거나 단일 HTML로 올려주세요.', detectZip:'ZIP 프로젝트로 감지했습니다.', formatLabel:'파일 형식', formatHtml:'HTML', formatJsx:'JSX', formatZip:'ZIP', tagsLabel:'태그', tagsPlaceholder:'예: HTML, 도구, 타로', tagHint:'대표 카테고리는 하나만 고르고, 추가 태그로 여러 분류를 같이 넣을 수 있습니다.', quickTags:'빠른 태그', zipLoading:'ZIP 파일을 읽는 중입니다...', zipDone:'ZIP 파일을 단일 HTML로 변환했습니다.', zipNoIndex:'ZIP 안에서 index.html을 찾지 못했습니다.', zipUnsupported:'ZIP 업로드 도구를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.', zipTooLarge:'ZIP 파일이 너무 큽니다. 이미지가 많은 경우 단일 HTML 변환 후 용량이 커질 수 있습니다.', dropText:'HTML, JSX, TSX, ZIP 파일을 이곳에 끌어다 놓거나 선택하세요.', codeLabel:'코드', codePlaceholder:'HTML 전체 코드 또는 React/JSX 코드를 붙여넣으세요.', detectWaiting:'감지 대기 중',
       emptyPublicTitle:'아직 공개된 프로젝트가 없습니다.', emptyPublicText:'곧 ERBELLO의 프로젝트가 이곳에 정리됩니다.', emptyOwnerTitle:'첫 프로젝트를 추가해보세요.', emptyOwnerText:'소유자 모드에서 HTML 또는 JSX 파일을 등록하면 카드가 만들어집니다.', emptyHomeTitle:'최근 프로젝트가 아직 없습니다.', emptyHomeText:'프로젝트를 추가하면 홈에도 최신 카드가 표시됩니다.',
       untitled:'제목 없음', noDescription:'설명이 없습니다.', noDate:'날짜 없음', views:'조회수', copied:'링크를 복사했습니다.', ownerOn:'소유자 모드가 켜졌습니다.', ownerOffMsg:'소유자 모드를 종료했습니다.', previewNoSave:'미리보기 파일에서는 저장되지 않습니다.', needPassword:'비밀번호를 입력해주세요.', notConfigured:'서버에 관리자 비밀번호가 설정되지 않았습니다.', wrongPassword:'비밀번호가 맞지 않습니다.', required:'제목과 코드를 입력해주세요.', saveError:'저장 중 오류가 발생했습니다.', loadError:'프로젝트를 불러오지 못했습니다.', confirmDelete:'정말 삭제할까요? 이 작업은 되돌릴 수 없습니다.', saved:'저장했습니다.', deleted:'삭제했습니다.', fileLoaded:'파일을 불러왔습니다.', detectHtml:'HTML 프로젝트로 감지했습니다.', detectJsx:'React / JSX 프로젝트로 감지했습니다.',
       typeHtml:'HTML', typeReact:'React / JSX', typeGame:'게임', typeTool:'도구', typeDaily:'일상', typeDesign:'디자인', typeChart:'차트', typeExperiment:'실험', typeOther:'기타',
@@ -45,17 +45,17 @@
       samples:[['sample-receipt','영수증 뽑기 🧾','간편하게 영수증을 생성하고 다운로드해 보세요!','tool'],['sample-tarot','오늘의 타로 🔮','오늘의 운세를 타로 카드로 확인해 보세요.','daily'],['sample-typing','타자 속도 측정기 ⚡','나의 타자 속도와 정확도를 측정해 보세요.','tool'],['sample-pudding','푸딩 게임 🎮','귀여운 푸딩을 모아 최고 점수에 도전하세요!','game'],['sample-note','Mini Note 📝','간단한 메모를 빠르게 작성하고 관리하세요.','daily'],['sample-box','Random Box 🎁','랜덤 박스를 열어 오늘의 행운을 만나보세요!','experiment'],['sample-night','Night Sky Diary ⭐','밤하늘의 감성과 생각을 기록하는 다이어리.','daily'],['sample-cherry','Cherry Blossom Timer 🌸','벚꽃이 흩날리는 집중 타이머로 생산성을 높여보세요.','tool'],['sample-ocean','Ocean Mood Board 🌊','바다의 분위기를 담은 무드보드 모음.','design']]
     },
     en: {
-      pageTitle:'ERBELLO Gallery', metaDescription:'A personal project gallery by ERBELLO.', brandAria:'Go to ERBELLO home', brandSubtitle:'Project Gallery', navAria:'Primary navigation', navHome:'Home', navProjects:'Projects', navAbout:'About', navContact:'Contact', topControlsAria:'Language and theme settings', languageLabel:'Language', languageAria:'Choose language', themeLabel:'Theme', themeAria:'Choose theme', schemeLabel:'Background', colorLabel:'Accent color', schemeBlack:'Black', schemeWhite:'White', ownerLogin:'Owner Login', ownerLogout:'Exit Owner Mode', editPage:'Edit Page', addProject:'Add Project', previewBadge:'Preview', previewNotice:'This file is for design preview. Saving works on the deployed site.', lastUpdate:'LAST UPDATE', recentKicker:'Recent', recentProjects:'Recent Projects', viewAllProjects:'View All Projects', sectionKicker:'Projects', galleryTitle:'Project Gallery', searchPlaceholder:'Search projects...', searchAria:'Search projects', filterAria:'Category filter', viewerAria:'Owner preview', viewerFrameTitle:'Project preview', ownerPreview:'Owner Preview', openProject:'Open project', copyLink:'Copy Link', openNewTab:'Open New Tab', edit:'Edit', delete:'Delete', close:'Close', cancel:'Cancel', login:'Log in', save:'Save', adminHint:'Adding, editing and deleting projects is available only in owner mode.', passwordLabel:'Admin password', passwordPlaceholder:'ADMIN_PASSWORD set in Vercel', pageModalTitle:'Edit Page Content', pageLabel:'Page', scriptLabel:'Speech bubble text', eyebrowLabel:'Small title', infoTitleLabel:'Info box title', pageTitleLabel:'Main title', bodyLabel:'Body', blocksLabel:'Info Items', blockTextLabel:'Text', emailLabel:'Email', linksLabel:'Links', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'Contact Links', contactLinkName:'Display name', contactLinkUrl:'Link URL', contactAddLink:'Add Link', contactRemoveLink:'Remove', contactLinkHint:'Only items with a URL appear on the contact page. If the name is blank, it will be filled from the URL.', contactEmpty:'No contact links have been added yet.', manageContactLinks:'Manage Contact Links', adminStatsTitle:'Owner Stats', statProjects:'Projects', statViews:'Total Views', statTop:'Top Project', noStats:'No stats yet.', pageEditHint:'Only the selected language content will be saved.', pageSaved:'Page saved.', pageLoadError:'Could not load page content.', pageSaveError:'Could not save page content.', artifactModalTitleAdd:'Add Project', artifactModalTitleEdit:'Edit Project', titleLabel:'Title', titlePlaceholder:'Example: Daily Tarot', categoryLabel:'Category', descriptionLabel:'Description', descriptionPlaceholder:'Short intro shown on the card', dropText:'Drag an HTML, JSX or TSX file here, or choose one.', codeLabel:'Code', codePlaceholder:'Paste a full HTML document or React/JSX code.', detectWaiting:'Waiting for detection', emptyPublicTitle:'No public projects yet.', emptyPublicText:'ERBELLO projects will appear here soon.', emptyOwnerTitle:'Add your first project.', emptyOwnerText:'Upload an HTML or JSX file in owner mode to create a card.', emptyHomeTitle:'No recent projects yet.', emptyHomeText:'When projects are added, recent cards will appear on the home page.', untitled:'Untitled', noDescription:'No description.', noDate:'No date', views:'Views', copied:'Link copied.', ownerOn:'Owner mode is on.', ownerOffMsg:'Owner mode has ended.', previewNoSave:'Preview files do not save changes.', needPassword:'Please enter the password.', notConfigured:'Admin password is not configured on the server.', wrongPassword:'Wrong password.', required:'Please enter a title and code.', saveError:'An error occurred while saving.', loadError:'Could not load projects.', confirmDelete:'Delete this project? This cannot be undone.', saved:'Saved.', deleted:'Deleted.', fileLoaded:'File loaded.', detectHtml:'Detected as an HTML project.', detectJsx:'Detected as a React / JSX project.', typeHtml:'HTML', typeReact:'React / JSX', typeGame:'Game', typeTool:'Tool', typeDaily:'Daily', typeDesign:'Design', typeChart:'Chart', typeExperiment:'Experiment', typeOther:'Other', categories:{all:'All', html:'Web App', react:'JSX', game:'Game', tool:'Tool', daily:'Daily', design:'Design', chart:'Chart', experiment:'Experiment', other:'Other'}, colors:COMMON.colors, schemes:COMMON.schemes,
+      pageTitle:'ERBELLO Gallery', metaDescription:'A personal project gallery by ERBELLO.', brandAria:'Go to ERBELLO home', brandSubtitle:'Project Gallery', navAria:'Primary navigation', navHome:'Home', navProjects:'Projects', navAbout:'About', navContact:'Contact', topControlsAria:'Language and theme settings', languageLabel:'Language', languageAria:'Choose language', themeLabel:'Theme', themeAria:'Choose theme', schemeLabel:'Background', colorLabel:'Accent color', schemeBlack:'Black', schemeWhite:'White', ownerLogin:'Owner Login', ownerLogout:'Exit Owner Mode', editPage:'Edit Page', addProject:'Add Project', previewBadge:'Preview', previewNotice:'This file is for design preview. Saving works on the deployed site.', lastUpdate:'LAST UPDATE', recentKicker:'Recent', recentProjects:'Recent Projects', viewAllProjects:'View All Projects', sectionKicker:'Projects', galleryTitle:'Project Gallery', searchPlaceholder:'Search projects...', searchAria:'Search projects', filterAria:'Category filter', viewerAria:'Owner preview', viewerFrameTitle:'Project preview', ownerPreview:'Owner Preview', openProject:'Open project', copyLink:'Copy Link', openNewTab:'Open New Tab', edit:'Edit', delete:'Delete', close:'Close', cancel:'Cancel', login:'Log in', save:'Save', adminHint:'Adding, editing and deleting projects is available only in owner mode.', passwordLabel:'Admin password', passwordPlaceholder:'ADMIN_PASSWORD set in Vercel', pageModalTitle:'Edit Page Content', pageLabel:'Page', scriptLabel:'Speech bubble text', eyebrowLabel:'Small title', infoTitleLabel:'Info box title', pageTitleLabel:'Main title', bodyLabel:'Body', blocksLabel:'Info Items', blockTextLabel:'Text', emailLabel:'Email', linksLabel:'Links', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'Contact Links', contactLinkName:'Display name', contactLinkUrl:'Link URL', contactAddLink:'Add Link', contactRemoveLink:'Remove', contactLinkHint:'Only items with a URL appear on the contact page. If the name is blank, it will be filled from the URL.', contactEmpty:'No contact links have been added yet.', manageContactLinks:'Manage Contact Links', adminStatsTitle:'Owner Stats', statProjects:'Projects', statViews:'Total Views', statTop:'Top Project', noStats:'No stats yet.', pageEditHint:'Only the selected language content will be saved.', pageSaved:'Page saved.', pageLoadError:'Could not load page content.', pageSaveError:'Could not save page content.', artifactModalTitleAdd:'Add Project', artifactModalTitleEdit:'Edit Project', titleLabel:'Title', titlePlaceholder:'Example: Daily Tarot', categoryLabel:'Main Category', descriptionLabel:'Description', descriptionPlaceholder:'Short intro shown on the card', tagsLabel:'Tags', tagsPlaceholder:'Example: HTML, tool, tarot', tagsHint:'Choose one main category, then add multiple tags for the rest.', zipProcessing:'Preparing ZIP project...', zipLoaded:'ZIP project loaded.', zipNoIndex:'Could not find index.html inside the ZIP.', zipTooLarge:'This ZIP is too large. Please try a smaller project first.', zipReaderError:'Could not read the ZIP. Try zipping again or upload a single HTML file.', detectZip:'Detected as a ZIP project.', formatLabel:'File format', formatHtml:'HTML', formatJsx:'JSX', formatZip:'ZIP', tagsLabel:'Tags', tagsPlaceholder:'Example: HTML, tool, tarot', tagHint:'Choose one primary category, then add extra tags to show a project in multiple groups.', quickTags:'Quick tags', zipLoading:'Reading ZIP file...', zipDone:'Converted the ZIP into a single HTML file.', zipNoIndex:'Could not find index.html inside the ZIP.', zipUnsupported:'Could not load the ZIP upload tool. Please try again later.', zipTooLarge:'The ZIP file is too large. Image-heavy ZIPs can become large after conversion.', dropText:'Drag an HTML, JSX, TSX or ZIP file here, or choose one.', codeLabel:'Code', codePlaceholder:'Paste a full HTML document or React/JSX code.', detectWaiting:'Waiting for detection', emptyPublicTitle:'No public projects yet.', emptyPublicText:'ERBELLO projects will appear here soon.', emptyOwnerTitle:'Add your first project.', emptyOwnerText:'Upload an HTML or JSX file in owner mode to create a card.', emptyHomeTitle:'No recent projects yet.', emptyHomeText:'When projects are added, recent cards will appear on the home page.', untitled:'Untitled', noDescription:'No description.', noDate:'No date', views:'Views', copied:'Link copied.', ownerOn:'Owner mode is on.', ownerOffMsg:'Owner mode has ended.', previewNoSave:'Preview files do not save changes.', needPassword:'Please enter the password.', notConfigured:'Admin password is not configured on the server.', wrongPassword:'Wrong password.', required:'Please enter a title and code.', saveError:'An error occurred while saving.', loadError:'Could not load projects.', confirmDelete:'Delete this project? This cannot be undone.', saved:'Saved.', deleted:'Deleted.', fileLoaded:'File loaded.', detectHtml:'Detected as an HTML project.', detectJsx:'Detected as a React / JSX project.', typeHtml:'HTML', typeReact:'React / JSX', typeGame:'Game', typeTool:'Tool', typeDaily:'Daily', typeDesign:'Design', typeChart:'Chart', typeExperiment:'Experiment', typeOther:'Other', categories:{all:'All', html:'Web App', react:'JSX', game:'Game', tool:'Tool', daily:'Daily', design:'Design', chart:'Chart', experiment:'Experiment', other:'Other'}, colors:COMMON.colors, schemes:COMMON.schemes,
       defaultPages:{ home:{script:'Welcome!', eyebrow:'Personal Project Gallery', title:'ERBELLO | GALLERY', body:'A small project gallery. Feel free to look around!', infoTitle:'ERBELLO.INFO', blocks:[{title:'Personal Project Collection', text:'A collection of projects that started from small ideas.'},{title:'Experiments and Records', text:'Sharing the process of learning, making and recording.'},{title:'Continuous Updates', text:'New projects are added little by little.'}]}, projects:{eyebrow:'Projects', title:'Project Gallery', body:'Open a card to view a project, or copy a link to share it.', infoTitle:'', blocks:[]}, about:{eyebrow:'ABOUT', title:'About ERBELLO', body:'ERBELLO is a personal project gallery for completed HTML pages, React/JSX artifacts, small games and tools.', infoTitle:'ABOUT.INFO', blocks:[{title:'Small Projects', text:'Ideas are stored in a form that can be opened and shared.'},{title:'Gallery for Viewing', text:'Projects are organized as cards so visitors can browse them easily.'},{title:'A Growing Archive', text:'New work is added gradually as it is made.'}]}, contact:{eyebrow:'CONTACT', title:'Contact', body:'Use the links below for project questions or messages.', infoTitle:'CONTACT.INFO', email:'', links:[], blocks:[]} },
       samples:[['sample-receipt','Receipt Maker 🧾','Create a simple receipt and download it.','tool'],['sample-tarot','Daily Tarot 🔮','Check today’s mood with tarot cards.','daily'],['sample-typing','Typing Speed Test ⚡','Measure typing speed and accuracy.','tool'],['sample-pudding','Pudding Game 🎮','Collect cute pudding and aim for a high score.','game'],['sample-note','Mini Note 📝','Write and manage quick notes.','daily'],['sample-box','Random Box 🎁','Open a random box and meet today’s luck.','experiment'],['sample-night','Night Sky Diary ⭐','A diary for night-sky moods and thoughts.','daily'],['sample-cherry','Cherry Blossom Timer 🌸','A focus timer with falling cherry blossoms.','tool'],['sample-ocean','Ocean Mood Board 🌊','A mood board filled with ocean atmosphere.','design']]
     },
     ja: {
-      pageTitle:'ERBELLO Gallery', metaDescription:'ERBELLOの個人プロジェクトギャラリーです。', brandAria:'ERBELLOホームへ移動', brandSubtitle:'Project Gallery', navAria:'メインメニュー', navHome:'ホーム', navProjects:'プロジェクト', navAbout:'紹介', navContact:'連絡先', topControlsAria:'言語とテーマ設定', languageLabel:'言語', languageAria:'言語を選択', themeLabel:'テーマ', themeAria:'テーマを選択', schemeLabel:'背景', colorLabel:'アクセントカラー', schemeBlack:'Black', schemeWhite:'White', ownerLogin:'オーナーログイン', ownerLogout:'オーナーモード終了', editPage:'ページ編集', addProject:'プロジェクト追加', previewBadge:'プレビュー', previewNotice:'このファイルはデザイン確認用です。保存は公開サイトで行われます。', lastUpdate:'LAST UPDATE', recentKicker:'最近', recentProjects:'最近のプロジェクト', viewAllProjects:'すべて見る', sectionKicker:'プロジェクト', galleryTitle:'プロジェクトギャラリー', searchPlaceholder:'プロジェクト検索...', searchAria:'プロジェクト検索', filterAria:'カテゴリー絞り込み', viewerAria:'オーナープレビュー', viewerFrameTitle:'プロジェクトプレビュー', ownerPreview:'オーナープレビュー', openProject:'開く', copyLink:'リンクコピー', openNewTab:'新しいタブで開く', edit:'編集', delete:'削除', close:'閉じる', cancel:'キャンセル', login:'ログイン', save:'保存', adminHint:'追加・編集・削除はオーナーモードでのみ利用できます。', passwordLabel:'管理者パスワード', passwordPlaceholder:'Vercelで設定したADMIN_PASSWORD', pageModalTitle:'ページ内容編集', pageLabel:'ページ', scriptLabel:'吹き出し文', eyebrowLabel:'小見出し', infoTitleLabel:'情報ボックス名', pageTitleLabel:'大見出し', bodyLabel:'本文', blocksLabel:'情報項目', blockTextLabel:'内容', emailLabel:'メール', linksLabel:'リンク', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'連絡先リンク', contactLinkName:'表示名', contactLinkUrl:'リンクURL', contactAddLink:'リンク追加', contactRemoveLink:'削除', contactLinkHint:'連絡先ページにはURLがある項目だけ表示されます。名前が空の場合はURLから自動入力されます。', contactEmpty:'連絡先リンクはまだ登録されていません。', manageContactLinks:'連絡先リンク管理', adminStatsTitle:'オーナー統計', statProjects:'プロジェクト', statViews:'総閲覧数', statTop:'最多閲覧プロジェクト', noStats:'まだ統計がありません。', pageEditHint:'選択した言語のページ文言だけ保存されます。', pageSaved:'ページを保存しました。', pageLoadError:'ページ内容を読み込めませんでした。', pageSaveError:'ページ保存中にエラーが発生しました。', artifactModalTitleAdd:'プロジェクト追加', artifactModalTitleEdit:'プロジェクト編集', titleLabel:'タイトル', titlePlaceholder:'例：今日のタロット', categoryLabel:'カテゴリー', descriptionLabel:'説明', descriptionPlaceholder:'カードに表示する短い紹介文', dropText:'HTML、JSX、TSXファイルをここにドラッグするか選択してください。', codeLabel:'コード', codePlaceholder:'HTML全文またはReact/JSXコードを貼り付けてください。', detectWaiting:'検出待ち', emptyPublicTitle:'まだ公開プロジェクトはありません。', emptyPublicText:'まもなくここにERBELLOのプロジェクトが並びます。', emptyOwnerTitle:'最初のプロジェクトを追加しましょう。', emptyOwnerText:'オーナーモードでHTMLまたはJSXを登録するとカードが作成されます。', emptyHomeTitle:'最近のプロジェクトはまだありません。', emptyHomeText:'プロジェクトを追加するとホームに最新カードが表示されます。', untitled:'無題', noDescription:'説明はありません。', noDate:'日付なし', views:'閲覧数', copied:'リンクをコピーしました。', ownerOn:'オーナーモードがオンになりました。', ownerOffMsg:'オーナーモードを終了しました。', previewNoSave:'プレビューファイルでは保存されません。', needPassword:'パスワードを入力してください。', notConfigured:'サーバーに管理者パスワードが設定されていません。', wrongPassword:'パスワードが正しくありません。', required:'タイトルとコードを入力してください。', saveError:'保存中にエラーが発生しました。', loadError:'プロジェクトを読み込めませんでした。', confirmDelete:'本当に削除しますか？この操作は元に戻せません。', saved:'保存しました。', deleted:'削除しました。', fileLoaded:'ファイルを読み込みました。', detectHtml:'HTMLプロジェクトとして検出しました。', detectJsx:'React / JSXプロジェクトとして検出しました。', typeHtml:'HTML', typeReact:'React / JSX', typeGame:'ゲーム', typeTool:'ツール', typeDaily:'日常', typeDesign:'デザイン', typeChart:'チャート', typeExperiment:'実験', typeOther:'その他', categories:{all:'すべて', html:'Web App', react:'JSX', game:'ゲーム', tool:'ツール', daily:'日常', design:'デザイン', chart:'チャート', experiment:'実験', other:'その他'}, colors:COMMON.colors, schemes:{black:'Black', white:'White'},
+      pageTitle:'ERBELLO Gallery', metaDescription:'ERBELLOの個人プロジェクトギャラリーです。', brandAria:'ERBELLOホームへ移動', brandSubtitle:'Project Gallery', navAria:'メインメニュー', navHome:'ホーム', navProjects:'プロジェクト', navAbout:'紹介', navContact:'連絡先', topControlsAria:'言語とテーマ設定', languageLabel:'言語', languageAria:'言語を選択', themeLabel:'テーマ', themeAria:'テーマを選択', schemeLabel:'背景', colorLabel:'アクセントカラー', schemeBlack:'Black', schemeWhite:'White', ownerLogin:'オーナーログイン', ownerLogout:'オーナーモード終了', editPage:'ページ編集', addProject:'プロジェクト追加', previewBadge:'プレビュー', previewNotice:'このファイルはデザイン確認用です。保存は公開サイトで行われます。', lastUpdate:'LAST UPDATE', recentKicker:'最近', recentProjects:'最近のプロジェクト', viewAllProjects:'すべて見る', sectionKicker:'プロジェクト', galleryTitle:'プロジェクトギャラリー', searchPlaceholder:'プロジェクト検索...', searchAria:'プロジェクト検索', filterAria:'カテゴリー絞り込み', viewerAria:'オーナープレビュー', viewerFrameTitle:'プロジェクトプレビュー', ownerPreview:'オーナープレビュー', openProject:'開く', copyLink:'リンクコピー', openNewTab:'新しいタブで開く', edit:'編集', delete:'削除', close:'閉じる', cancel:'キャンセル', login:'ログイン', save:'保存', adminHint:'追加・編集・削除はオーナーモードでのみ利用できます。', passwordLabel:'管理者パスワード', passwordPlaceholder:'Vercelで設定したADMIN_PASSWORD', pageModalTitle:'ページ内容編集', pageLabel:'ページ', scriptLabel:'吹き出し文', eyebrowLabel:'小見出し', infoTitleLabel:'情報ボックス名', pageTitleLabel:'大見出し', bodyLabel:'本文', blocksLabel:'情報項目', blockTextLabel:'内容', emailLabel:'メール', linksLabel:'リンク', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'連絡先リンク', contactLinkName:'表示名', contactLinkUrl:'リンクURL', contactAddLink:'リンク追加', contactRemoveLink:'削除', contactLinkHint:'連絡先ページにはURLがある項目だけ表示されます。名前が空の場合はURLから自動入力されます。', contactEmpty:'連絡先リンクはまだ登録されていません。', manageContactLinks:'連絡先リンク管理', adminStatsTitle:'オーナー統計', statProjects:'プロジェクト', statViews:'総閲覧数', statTop:'最多閲覧プロジェクト', noStats:'まだ統計がありません。', pageEditHint:'選択した言語のページ文言だけ保存されます。', pageSaved:'ページを保存しました。', pageLoadError:'ページ内容を読み込めませんでした。', pageSaveError:'ページ保存中にエラーが発生しました。', artifactModalTitleAdd:'プロジェクト追加', artifactModalTitleEdit:'プロジェクト編集', titleLabel:'タイトル', titlePlaceholder:'例：今日のタロット', categoryLabel:'代表カテゴリー', descriptionLabel:'説明', descriptionPlaceholder:'カードに表示する短い紹介文', tagsLabel:'タグ', tagsPlaceholder:'例：HTML、ツール、タロット', tagsHint:'メインカテゴリーは1つ選び、他の分類はタグで複数追加できます。', zipProcessing:'ZIPファイルを準備しています...', zipLoaded:'ZIPプロジェクトを読み込みました。', zipNoIndex:'ZIP内にindex.htmlが見つかりません。', zipTooLarge:'ZIPファイルが大きすぎます。まずは小さなプロジェクトを試してください。', zipReaderError:'ZIPを読み込めませんでした。再圧縮するか単一HTMLでアップロードしてください。', detectZip:'ZIPプロジェクトとして検出しました。', formatLabel:'ファイル形式', formatHtml:'HTML', formatJsx:'JSX', formatZip:'ZIP', tagsLabel:'タグ', tagsPlaceholder:'例：HTML、ツール、タロット', tagHint:'代表カテゴリーを1つ選び、追加タグで複数の分類に表示できます。', quickTags:'クイックタグ', zipLoading:'ZIPファイルを読み込んでいます...', zipDone:'ZIPを単一HTMLに変換しました。', zipNoIndex:'ZIP内にindex.htmlが見つかりません。', zipUnsupported:'ZIPアップロードツールを読み込めませんでした。しばらくしてから再度お試しください。', zipTooLarge:'ZIPファイルが大きすぎます。画像が多い場合、変換後のHTMLが大きくなることがあります。', dropText:'HTML、JSX、TSX、ZIPファイルをここにドラッグするか選択してください。', codeLabel:'コード', codePlaceholder:'HTML全文またはReact/JSXコードを貼り付けてください。', detectWaiting:'検出待ち', emptyPublicTitle:'まだ公開プロジェクトはありません。', emptyPublicText:'まもなくここにERBELLOのプロジェクトが並びます。', emptyOwnerTitle:'最初のプロジェクトを追加しましょう。', emptyOwnerText:'オーナーモードでHTMLまたはJSXを登録するとカードが作成されます。', emptyHomeTitle:'最近のプロジェクトはまだありません。', emptyHomeText:'プロジェクトを追加するとホームに最新カードが表示されます。', untitled:'無題', noDescription:'説明はありません。', noDate:'日付なし', views:'閲覧数', copied:'リンクをコピーしました。', ownerOn:'オーナーモードがオンになりました。', ownerOffMsg:'オーナーモードを終了しました。', previewNoSave:'プレビューファイルでは保存されません。', needPassword:'パスワードを入力してください。', notConfigured:'サーバーに管理者パスワードが設定されていません。', wrongPassword:'パスワードが正しくありません。', required:'タイトルとコードを入力してください。', saveError:'保存中にエラーが発生しました。', loadError:'プロジェクトを読み込めませんでした。', confirmDelete:'本当に削除しますか？この操作は元に戻せません。', saved:'保存しました。', deleted:'削除しました。', fileLoaded:'ファイルを読み込みました。', detectHtml:'HTMLプロジェクトとして検出しました。', detectJsx:'React / JSXプロジェクトとして検出しました。', typeHtml:'HTML', typeReact:'React / JSX', typeGame:'ゲーム', typeTool:'ツール', typeDaily:'日常', typeDesign:'デザイン', typeChart:'チャート', typeExperiment:'実験', typeOther:'その他', categories:{all:'すべて', html:'Web App', react:'JSX', game:'ゲーム', tool:'ツール', daily:'日常', design:'デザイン', chart:'チャート', experiment:'実験', other:'その他'}, colors:COMMON.colors, schemes:{black:'Black', white:'White'},
       defaultPages:{ home:{script:'ようこそ！', eyebrow:'個人プロジェクトギャラリー', title:'ERBELLO | GALLERY', body:'小さく作ったプロジェクトギャラリーです！自由にご覧ください。', infoTitle:'ERBELLO.INFO', blocks:[{title:'個人プロジェクトコレクション', text:'小さなアイデアから始まったさまざまなプロジェクトを集めました。'},{title:'実験と記録', text:'学び、作り、記録する過程を共有します。'},{title:'継続的な更新', text:'新しいプロジェクトが少しずつ追加されます。'}]}, projects:{eyebrow:'プロジェクト', title:'プロジェクトギャラリー', body:'カードを開いてプロジェクトを確認し、リンクで共有できます。', infoTitle:'', blocks:[]}, about:{eyebrow:'ABOUT', title:'ERBELLOについて', body:'ERBELLOは完成したHTMLページ、React/JSXアーティファクト、小さなゲームやツールを集める個人プロジェクトギャラリーです。', infoTitle:'ABOUT.INFO', blocks:[{title:'小さく始めたプロジェクト', text:'アイデアを開いて共有できる形で保存します。'},{title:'見せやすいギャラリー', text:'プロジェクトをカードで整理し、訪問者が見やすいようにします。'},{title:'育っていく保存庫', text:'新しい作品ができるたびに少しずつ更新されます。'}]}, contact:{eyebrow:'CONTACT', title:'連絡先', body:'プロジェクトのお問い合わせやメッセージは下のリンクをご利用ください。', infoTitle:'CONTACT.INFO', email:'', links:[], blocks:[]} },
       samples:[['sample-receipt','レシート作成 🧾','シンプルなレシートを作成して保存できます。','tool'],['sample-tarot','今日のタロット 🔮','今日の気分をタロットカードで確認できます。','daily'],['sample-typing','タイピング速度測定 ⚡','タイピング速度と正確さを測定します。','tool'],['sample-pudding','プリンゲーム 🎮','かわいいプリンを集めて高得点を目指します。','game'],['sample-note','Mini Note 📝','小さなメモをすばやく管理できます。','daily'],['sample-box','Random Box 🎁','ランダムボックスで今日の運を開けます。','experiment'],['sample-night','Night Sky Diary ⭐','夜空の気分を記録する日記。','daily'],['sample-cherry','Cherry Blossom Timer 🌸','桜が舞う集中タイマーです。','tool'],['sample-ocean','Ocean Mood Board 🌊','海の雰囲気を集めたムードボード。','design']]
     },
     zh: {
-      pageTitle:'ERBELLO Gallery', metaDescription:'ERBELLO 的个人项目画廊。', brandAria:'前往 ERBELLO 首页', brandSubtitle:'Project Gallery', navAria:'主导航', navHome:'首页', navProjects:'项目', navAbout:'介绍', navContact:'联系', topControlsAria:'语言和主题设置', languageLabel:'语言', languageAria:'选择语言', themeLabel:'主题', themeAria:'选择主题', schemeLabel:'背景', colorLabel:'强调色', schemeBlack:'Black', schemeWhite:'White', ownerLogin:'所有者登录', ownerLogout:'退出所有者模式', editPage:'编辑页面', addProject:'添加项目', previewBadge:'预览', previewNotice:'此文件仅用于设计预览。保存功能请在已部署的网站中使用。', lastUpdate:'LAST UPDATE', recentKicker:'最近', recentProjects:'最近项目', viewAllProjects:'查看全部项目', sectionKicker:'项目', galleryTitle:'项目画廊', searchPlaceholder:'搜索项目...', searchAria:'搜索项目', filterAria:'分类筛选', viewerAria:'所有者预览', viewerFrameTitle:'项目预览', ownerPreview:'所有者预览', openProject:'打开', copyLink:'复制链接', openNewTab:'在新标签页打开', edit:'编辑', delete:'删除', close:'关闭', cancel:'取消', login:'登录', save:'保存', adminHint:'添加、编辑和删除项目仅限所有者模式使用。', passwordLabel:'管理员密码', passwordPlaceholder:'在 Vercel 中设置的 ADMIN_PASSWORD', pageModalTitle:'编辑页面内容', pageLabel:'页面', scriptLabel:'气泡文字', eyebrowLabel:'小标题', infoTitleLabel:'信息框标题', pageTitleLabel:'大标题', bodyLabel:'正文', blocksLabel:'信息项目', blockTextLabel:'内容', emailLabel:'邮箱', linksLabel:'链接', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'联系方式链接', contactLinkName:'显示名称', contactLinkUrl:'链接地址', contactAddLink:'添加链接', contactRemoveLink:'删除', contactLinkHint:'联系页只显示带有链接地址的项目。名称为空时会根据链接自动填写。', contactEmpty:'尚未添加联系方式链接。', manageContactLinks:'管理联系方式链接', adminStatsTitle:'所有者统计', statProjects:'项目', statViews:'总浏览量', statTop:'最高浏览项目', noStats:'暂无统计。', pageEditHint:'只会保存当前选择语言的页面文案。', pageSaved:'页面已保存。', pageLoadError:'无法加载页面内容。', pageSaveError:'保存页面时发生错误。', artifactModalTitleAdd:'添加项目', artifactModalTitleEdit:'编辑项目', titleLabel:'标题', titlePlaceholder:'例如：今日塔罗', categoryLabel:'分类', descriptionLabel:'说明', descriptionPlaceholder:'显示在卡片上的简短介绍', dropText:'将 HTML、JSX 或 TSX 文件拖到这里，或选择文件。', codeLabel:'代码', codePlaceholder:'粘贴完整 HTML 文档或 React/JSX 代码。', detectWaiting:'等待检测', emptyPublicTitle:'还没有公开项目。', emptyPublicText:'ERBELLO 的项目很快会整理在这里。', emptyOwnerTitle:'添加第一个项目吧。', emptyOwnerText:'在所有者模式中上传 HTML 或 JSX 文件后，这里会生成项目卡片。', emptyHomeTitle:'还没有最近项目。', emptyHomeText:'添加项目后，首页会显示最新卡片。', untitled:'未命名', noDescription:'暂无说明。', noDate:'无日期', views:'浏览量', copied:'链接已复制。', ownerOn:'所有者模式已开启。', ownerOffMsg:'所有者模式已关闭。', previewNoSave:'预览文件不会保存更改。', needPassword:'请输入密码。', notConfigured:'服务器尚未设置管理员密码。', wrongPassword:'密码不正确。', required:'请输入标题和代码。', saveError:'保存时发生错误。', loadError:'无法加载项目。', confirmDelete:'确定要删除吗？此操作无法撤销。', saved:'已保存。', deleted:'已删除。', fileLoaded:'文件已读取。', detectHtml:'检测为 HTML 项目。', detectJsx:'检测为 React / JSX 项目。', typeHtml:'HTML', typeReact:'React / JSX', typeGame:'游戏', typeTool:'工具', typeDaily:'日常', typeDesign:'设计', typeChart:'图表', typeExperiment:'实验', typeOther:'其他', categories:{all:'全部', html:'Web App', react:'JSX', game:'游戏', tool:'工具', daily:'日常', design:'设计', chart:'图表', experiment:'实验', other:'其他'}, colors:COMMON.colors, schemes:{black:'Black', white:'White'},
+      pageTitle:'ERBELLO Gallery', metaDescription:'ERBELLO 的个人项目画廊。', brandAria:'前往 ERBELLO 首页', brandSubtitle:'Project Gallery', navAria:'主导航', navHome:'首页', navProjects:'项目', navAbout:'介绍', navContact:'联系', topControlsAria:'语言和主题设置', languageLabel:'语言', languageAria:'选择语言', themeLabel:'主题', themeAria:'选择主题', schemeLabel:'背景', colorLabel:'强调色', schemeBlack:'Black', schemeWhite:'White', ownerLogin:'所有者登录', ownerLogout:'退出所有者模式', editPage:'编辑页面', addProject:'添加项目', previewBadge:'预览', previewNotice:'此文件仅用于设计预览。保存功能请在已部署的网站中使用。', lastUpdate:'LAST UPDATE', recentKicker:'最近', recentProjects:'最近项目', viewAllProjects:'查看全部项目', sectionKicker:'项目', galleryTitle:'项目画廊', searchPlaceholder:'搜索项目...', searchAria:'搜索项目', filterAria:'分类筛选', viewerAria:'所有者预览', viewerFrameTitle:'项目预览', ownerPreview:'所有者预览', openProject:'打开', copyLink:'复制链接', openNewTab:'在新标签页打开', edit:'编辑', delete:'删除', close:'关闭', cancel:'取消', login:'登录', save:'保存', adminHint:'添加、编辑和删除项目仅限所有者模式使用。', passwordLabel:'管理员密码', passwordPlaceholder:'在 Vercel 中设置的 ADMIN_PASSWORD', pageModalTitle:'编辑页面内容', pageLabel:'页面', scriptLabel:'气泡文字', eyebrowLabel:'小标题', infoTitleLabel:'信息框标题', pageTitleLabel:'大标题', bodyLabel:'正文', blocksLabel:'信息项目', blockTextLabel:'内容', emailLabel:'邮箱', linksLabel:'链接', linksPlaceholder:'GitHub | https://github.com/...\nInstagram | https://instagram.com/...', contactLinksTitle:'联系方式链接', contactLinkName:'显示名称', contactLinkUrl:'链接地址', contactAddLink:'添加链接', contactRemoveLink:'删除', contactLinkHint:'联系页只显示带有链接地址的项目。名称为空时会根据链接自动填写。', contactEmpty:'尚未添加联系方式链接。', manageContactLinks:'管理联系方式链接', adminStatsTitle:'所有者统计', statProjects:'项目', statViews:'总浏览量', statTop:'最高浏览项目', noStats:'暂无统计。', pageEditHint:'只会保存当前选择语言的页面文案。', pageSaved:'页面已保存。', pageLoadError:'无法加载页面内容。', pageSaveError:'保存页面时发生错误。', artifactModalTitleAdd:'添加项目', artifactModalTitleEdit:'编辑项目', titleLabel:'标题', titlePlaceholder:'例如：今日塔罗', categoryLabel:'主分类', descriptionLabel:'说明', descriptionPlaceholder:'显示在卡片上的简短介绍', tagsLabel:'标签', tagsPlaceholder:'例如：HTML、工具、塔罗', tagsHint:'主分类只选一个，其余分类可以作为多个标签添加。', zipProcessing:'正在整理 ZIP 项目...', zipLoaded:'ZIP 项目已读取。', zipNoIndex:'ZIP 中找不到 index.html。', zipTooLarge:'ZIP 文件太大。请先尝试较小的项目。', zipReaderError:'无法读取 ZIP。请重新压缩或上传单个 HTML 文件。', detectZip:'检测为 ZIP 项目。', formatLabel:'文件格式', formatHtml:'HTML', formatJsx:'JSX', formatZip:'ZIP', tagsLabel:'标签', tagsPlaceholder:'例如：HTML、工具、塔罗', tagHint:'选择一个主分类，再用标签让项目出现在多个分类中。', quickTags:'快速标签', zipLoading:'正在读取 ZIP 文件...', zipDone:'已将 ZIP 转换为单个 HTML 文件。', zipNoIndex:'在 ZIP 中找不到 index.html。', zipUnsupported:'无法加载 ZIP 上传工具。请稍后重试。', zipTooLarge:'ZIP 文件太大。包含大量图片时，转换后的 HTML 可能会变大。', dropText:'将 HTML、JSX、TSX 或 ZIP 文件拖到这里，或选择文件。', codeLabel:'代码', codePlaceholder:'粘贴完整 HTML 文档或 React/JSX 代码。', detectWaiting:'等待检测', emptyPublicTitle:'还没有公开项目。', emptyPublicText:'ERBELLO 的项目很快会整理在这里。', emptyOwnerTitle:'添加第一个项目吧。', emptyOwnerText:'在所有者模式中上传 HTML 或 JSX 文件后，这里会生成项目卡片。', emptyHomeTitle:'还没有最近项目。', emptyHomeText:'添加项目后，首页会显示最新卡片。', untitled:'未命名', noDescription:'暂无说明。', noDate:'无日期', views:'浏览量', copied:'链接已复制。', ownerOn:'所有者模式已开启。', ownerOffMsg:'所有者模式已关闭。', previewNoSave:'预览文件不会保存更改。', needPassword:'请输入密码。', notConfigured:'服务器尚未设置管理员密码。', wrongPassword:'密码不正确。', required:'请输入标题和代码。', saveError:'保存时发生错误。', loadError:'无法加载项目。', confirmDelete:'确定要删除吗？此操作无法撤销。', saved:'已保存。', deleted:'已删除。', fileLoaded:'文件已读取。', detectHtml:'检测为 HTML 项目。', detectJsx:'检测为 React / JSX 项目。', typeHtml:'HTML', typeReact:'React / JSX', typeGame:'游戏', typeTool:'工具', typeDaily:'日常', typeDesign:'设计', typeChart:'图表', typeExperiment:'实验', typeOther:'其他', categories:{all:'全部', html:'Web App', react:'JSX', game:'游戏', tool:'工具', daily:'日常', design:'设计', chart:'图表', experiment:'实验', other:'其他'}, colors:COMMON.colors, schemes:{black:'Black', white:'White'},
       defaultPages:{ home:{script:'欢迎！', eyebrow:'个人项目画廊', title:'ERBELLO | GALLERY', body:'这是一个小小的项目画廊！欢迎自由参观。', infoTitle:'ERBELLO.INFO', blocks:[{title:'个人项目合集', text:'这里收集了从小想法开始的各种项目。'},{title:'实验与记录', text:'分享学习、制作和记录的过程。'},{title:'持续更新', text:'新的项目会慢慢添加进来。'}]}, projects:{eyebrow:'项目', title:'项目画廊', body:'打开卡片即可查看项目，也可以复制链接直接分享。', infoTitle:'', blocks:[]}, about:{eyebrow:'ABOUT', title:'关于 ERBELLO', body:'ERBELLO 是一个个人项目画廊，用来收集完成的 HTML 页面、React/JSX 作品、小型游戏和工具。', infoTitle:'ABOUT.INFO', blocks:[{title:'从小项目开始', text:'把想法保存成可以打开和分享的形式。'},{title:'适合展示的画廊', text:'用卡片整理项目，让访客更容易浏览。'},{title:'持续成长的收藏库', text:'新的作品会随着制作慢慢更新。'}]}, contact:{eyebrow:'CONTACT', title:'联系', body:'如有项目问题或想分享的信息，请使用下面的链接。', infoTitle:'CONTACT.INFO', email:'', links:[], blocks:[]} },
       samples:[['sample-receipt','收据生成器 🧾','轻松生成小收据并下载。','tool'],['sample-tarot','今日塔罗 🔮','用塔罗卡看看今天的心情。','daily'],['sample-typing','打字速度测试 ⚡','测量你的打字速度和准确度。','tool'],['sample-pudding','布丁游戏 🎮','收集可爱的布丁，挑战高分。','game'],['sample-note','Mini Note 📝','快速记录和整理简短备忘。','daily'],['sample-box','Random Box 🎁','打开随机盒子，遇见今天的好运。','experiment'],['sample-night','Night Sky Diary ⭐','记录夜空心情与想法的日记。','daily'],['sample-cherry','Cherry Blossom Timer 🌸','樱花飘落的专注计时器。','tool'],['sample-ocean','Ocean Mood Board 🌊','收藏海边氛围的灵感板。','design']]
     }
@@ -79,7 +79,46 @@
   function schemeLabel(scheme) { return (dict().schemes && dict().schemes[scheme]) || (I18N.en.schemes && I18N.en.schemes[scheme]) || scheme; }
   function esc(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
   function compact(value, max = 150) { const text = String(value || '').replace(/\s+/g, ' ').trim(); return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text; }
-  function typeKey(value) { const t = String(value || 'other').toLowerCase(); return CATEGORIES.includes(t) && t !== 'all' ? t : 'other'; }
+  function typeKey(value) { const t = String(value || 'other').toLowerCase(); if (t === 'html' || t === 'react') return 'tool'; return CATEGORIES.includes(t) && t !== 'all' ? t : 'other'; }
+  function cleanTags(value) {
+    const raw = Array.isArray(value) ? value : String(value || '').split(/[#,，、\n]+/);
+    const seen = new Set();
+    const tags = [];
+    for (const item of raw) {
+      const tag = String(item || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0, 28);
+      const key = tag.toLowerCase();
+      if (!tag || seen.has(key)) continue;
+      seen.add(key); tags.push(tag);
+      if (tags.length >= 20) break;
+    }
+    return tags;
+  }
+  function tagsText(value) { return cleanTags(value).join(', '); }
+  function formatKey(item = {}) {
+    if (typeof item === 'string') return ['html','jsx','zip'].includes(item) ? item : 'html';
+    const raw = String(item.source_kind || item.format || '').toLowerCase();
+    if (['html','jsx','zip'].includes(raw)) return raw;
+    return item.is_jsx ? 'jsx' : 'html';
+  }
+  function formatLabel(item = {}) { const f = formatKey(item); return f === 'zip' ? tr('formatZip') : (f === 'jsx' ? tr('formatJsx') : tr('formatHtml')); }
+  function categoryTerms(key) {
+    const terms = new Set([key]);
+    Object.values(I18N).forEach(dict => { if (dict.categories && dict.categories[key]) terms.add(String(dict.categories[key]).toLowerCase()); });
+    ({ tool:['tool','도구','ツール','工具'], game:['game','게임','ゲーム','游戏'], daily:['daily','일상','日常'], design:['design','디자인','デザイン','设计'], chart:['chart','차트','图表'], experiment:['experiment','실험','実験','实验'], other:['other','기타','その他','其他'] }[key] || []).forEach(v => terms.add(v.toLowerCase()));
+    return terms;
+  }
+  function matchesFilter(item, filter) {
+    if (filter === 'all') return true;
+    const type = typeKey(item.type);
+    const terms = cleanTags(item.tags).map(tag => tag.toLowerCase());
+    const allowed = categoryTerms(filter);
+    return type === filter || terms.some(tag => allowed.has(tag));
+  }
+  function normalizeTags(value) { return cleanTags(value); }
+  function normalizeTagValue(value) { return String(value || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').toLowerCase(); }
+  function tagMatchesCategory(tag, key) { const normalized = normalizeTagValue(tag); return normalized === key || categoryTerms(key).has(normalized); }
+  function artifactTags(item) { return cleanTags(item && item.tags); }
+  function itemMatchesFilter(item, filter) { return matchesFilter(item, filter); }
   function isAdminOn() { return document.body.classList.contains('admin-on'); }
   function runUrl(id) { return PREVIEW_MODE ? `#preview-${encodeURIComponent(id)}` : `${location.origin}/run/${encodeURIComponent(id)}`; }
   function pageUrl(route) { return route === 'home' ? '/' : `/${route}`; }
@@ -113,8 +152,8 @@
     const fallback = { main:'ERBELLO', sub:'GALLERY', aria:'ERBELLO Gallery' };
     if (!raw) return fallback;
     const parts = raw.includes('|') ? raw.split('|').map(part => part.trim()).filter(Boolean) : raw.split(/\n+/).map(part => part.trim()).filter(Boolean);
-    if (parts.length >= 2) return { main: parts[0] || fallback.main, sub: parts[1] || fallback.sub, aria: parts.join(' ') || fallback.aria };
-    if (/erbello/i.test(raw) && /gallery/i.test(raw)) return { main:'ERBELLO', sub:'GALLERY', aria: raw };
+    if (parts.length >= 2) return { main:parts[0] || fallback.main, sub:parts[1] || fallback.sub, aria:parts.join(' ') || fallback.aria };
+    if (/erbello/i.test(raw) && /gallery/i.test(raw)) return { main:'ERBELLO', sub:'GALLERY', aria:raw };
     return fallback;
   }
 
@@ -238,6 +277,7 @@
     if ($('artifactModalTitle')) $('artifactModalTitle').textContent = editingId ? tr('artifactModalTitleEdit') : tr('artifactModalTitleAdd');
     if (PREVIEW_MODE) artifacts = getPreviewItems();
     renderFilters();
+    renderQuickTags();
     renderRoute();
     updateDetectHint();
   }
@@ -300,7 +340,7 @@
 
   function getPreviewItems() {
     const base = new Date('2026-05-12T00:00:00Z').getTime();
-    return (dict().samples || I18N.ko.samples).map(([id, title, description, type], index) => ({ id, title, description, type, is_jsx:id.includes('tarot') || id.includes('pudding'), view_count: Math.max(0, 1280 - index * 117), created_at:new Date(base - index * 86400000).toISOString(), code:previewDocument(title, description) }));
+    return (dict().samples || I18N.ko.samples).map(([id, title, description, type], index) => ({ id, title, description, type, tags:[catLabel(type), id.includes('tarot') ? '타로' : '', id.includes('typing') ? '타자' : '', id.includes('pudding') ? '게임' : ''].filter(Boolean), format:id.includes('tarot') || id.includes('pudding') ? 'jsx' : 'html', is_jsx:id.includes('tarot') || id.includes('pudding'), view_count: Math.max(0, 1280 - index * 117), created_at:new Date(base - index * 86400000).toISOString(), code:previewDocument(title, description) }));
   }
 
   function previewDocument(title, text) {
@@ -481,9 +521,10 @@
     const q = searchQuery.trim().toLowerCase();
     return artifacts.filter((item) => {
       const type = typeKey(item.type);
-      if (currentFilter !== 'all' && type !== currentFilter) return false;
+      const tags = artifactTags(item);
+      if (!itemMatchesFilter(item, currentFilter)) return false;
       if (!q) return true;
-      return [item.title, item.description, type, item.is_jsx ? 'jsx react' : 'html'].join(' ').toLowerCase().includes(q);
+      return [item.title, item.description, type, tags.join(' '), item.is_jsx ? 'jsx react' : 'html'].join(' ').toLowerCase().includes(q);
     });
   }
 
@@ -493,7 +534,7 @@
   }
 
   function visualProfile(item) {
-    const hay = `${item.title || ''} ${item.description || ''} ${item.type || ''}`.toLowerCase();
+    const hay = `${item.title || ''} ${item.description || ''} ${item.type || ''} ${artifactTags(item).join(' ')}`.toLowerCase();
     const checks = [ ['visual-receipt','🧾',['receipt','영수증','收据','レシート']], ['visual-tarot','🔮',['tarot','타로','塔罗','タロット']], ['visual-typing','⌨️',['typing','타자','타이핑','打字','タイピング']], ['visual-pudding','🍮',['pudding','푸딩','布丁','プリン']], ['visual-note','📝',['note','memo','메모','ノート','备忘']], ['visual-box','🎁',['random','box','랜덤','박스','随机','ボックス']], ['visual-night','🌙',['night','sky','diary','밤하늘','夜空']], ['visual-cherry','🌸',['cherry','blossom','벚꽃','桜','樱花']], ['visual-ocean','🌊',['ocean','sea','바다','오션','海']] ];
     for (const [klass, icon, words] of checks) if (words.some((word) => hay.includes(word.toLowerCase()))) return { klass, icon };
     const fallback = { html:['visual-cherry','🌐'], react:['visual-tarot','✨'], game:['visual-pudding','🎮'], tool:['visual-receipt','🛠️'], daily:['visual-note','📝'], design:['visual-ocean','🎨'], chart:['visual-ocean','📊'], experiment:['visual-box','🧪'], other:['visual-default','✦'] }[typeKey(item.type)] || ['visual-default','✦'];
@@ -506,9 +547,11 @@
     const desc = item.description || tr('noDescription');
     const profile = visualProfile(item);
     const views = Number(item.view_count || 0);
+    const extraTags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
+    const tagHtml = extraTags.length ? `<div class="card-tags">${extraTags.map(tag => `<span class="card-tag-chip">${esc(tag)}</span>`).join('')}</div>` : '';
     return `<article class="card ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
       <div class="card-visual ${esc(profile.klass)}"><span class="visual-title">${esc(catLabel(type))}</span><span class="visual-emoji" aria-hidden="true">${esc(profile.icon)}</span><span class="tag">${esc(catLabel(type))}</span></div>
-      <div class="card-body"><h3 class="card-title">${esc(title)}</h3><p class="card-desc">${esc(compact(desc, 118))}</p>
+      <div class="card-body"><h3 class="card-title">${esc(title)}</h3><p class="card-desc">${esc(compact(desc, 118))}</p>${tagHtml}
         <div class="card-foot"><span class="card-date" title="${esc(fmtDate(item.created_at))}">▣ ${esc(fmtDate(item.created_at))}</span><span class="view-count admin-only">◉ ${esc(tr('views'))} ${views}</span>
           <div class="card-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div>
         </div></div></article>`;
@@ -557,7 +600,7 @@
     const item = findArtifact(id);
     if (!item) return;
     currentId = id;
-    $('viewerTag').textContent = `${catLabel(typeKey(item.type))} · ${item.is_jsx ? 'JSX' : 'HTML'}`;
+    $('viewerTag').textContent = [catLabel(typeKey(item.type)), ...artifactTags(item).slice(0, 3), formatLabel(item)].filter(Boolean).join(' · ');
     $('viewerTitle').textContent = item.title || tr('untitled');
     $('viewerDesc').textContent = item.description || tr('ownerPreview');
     if ($('viewerViews')) $('viewerViews').textContent = `${tr('views')}: ${Number(item.view_count || 0)}`;
@@ -608,9 +651,11 @@
     if (!node) return;
     const code = $('codeInput')?.value || '';
     if (!code.trim()) { node.textContent = tr('detectWaiting'); return; }
+    if (formatKey($('formatInput')?.value || '') === 'zip') { node.textContent = tr('detectZip'); return; }
     const jsx = looksLikeJsx(code);
     node.textContent = jsx ? tr('detectJsx') : tr('detectHtml');
-    if (jsx && $('typeInput')) $('typeInput').value = 'react';
+    if ($('formatInput')) $('formatInput').value = jsx ? 'jsx' : 'html';
+    if ($('formatBadge')) $('formatBadge').textContent = jsx ? tr('formatJsx') : tr('formatHtml');
   }
 
   function resetArtifactForm() {
@@ -618,7 +663,10 @@
     $('artifactModalTitle').textContent = tr('artifactModalTitleAdd');
     $('titleInput').value = '';
     $('descInput').value = '';
-    $('typeInput').value = 'html';
+    $('typeInput').value = 'tool';
+    if ($('tagsInput')) $('tagsInput').value = '';
+    if ($('formatInput')) $('formatInput').value = 'html';
+    if ($('formatBadge')) $('formatBadge').textContent = tr('formatHtml');
     $('codeInput').value = '';
     $('fileInput').value = '';
     $('detectHint').textContent = tr('detectWaiting');
@@ -635,7 +683,10 @@
       $('artifactModalTitle').textContent = tr('artifactModalTitleEdit');
       $('titleInput').value = item.title || '';
       $('descInput').value = item.description || '';
-      $('typeInput').value = typeKey(item.type);
+      { const itemType = typeKey(item.type); $('typeInput').value = $('typeInput').querySelector(`option[value="${itemType}"]`) ? itemType : 'other'; }
+      if ($('tagsInput')) $('tagsInput').value = tagsText(item.tags || []);
+      if ($('formatInput')) $('formatInput').value = formatKey(item);
+      if ($('formatBadge')) $('formatBadge').textContent = formatLabel(item);
       $('codeInput').value = item.code || '';
       $('fileInput').value = '';
       $('artifactError').textContent = '';
@@ -649,11 +700,13 @@
     const title = $('titleInput').value.trim();
     const description = $('descInput').value.trim();
     const type = $('typeInput').value;
+    const tags = collectArtifactTags();
     const code = normalizeCode($('codeInput').value);
     $('artifactError').textContent = '';
     if (!title || !code) { $('artifactError').textContent = tr('required'); return; }
     try {
-      const payload = { title, description, type, code };
+      const format = ($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html');
+      const payload = { title, description, type, tags, format, code };
       if (editingId) await api(`/api/admin/artifacts/${encodeURIComponent(editingId)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       else await api('/api/admin/artifacts', { method:'POST', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       closeModal('artifactModal');
@@ -672,12 +725,179 @@
     } catch (error) { console.error(error); toast(error.message || tr('saveError')); }
   }
 
-  function handleFile(file) {
+  function renderQuickTags() {
+    const node = $('quickTags');
+    if (!node) return;
+    const selected = normalizeTags($('tagsInput')?.value || '').map(normalizeTagValue);
+    node.innerHTML = CATEGORIES.filter(key => key !== 'all').map((key) => {
+      const label = catLabel(key);
+      const active = selected.includes(normalizeTagValue(label)) || selected.includes(key);
+      return `<button class="quick-tag ${active ? 'active' : ''}" type="button" data-quick-tag="${esc(label)}">#${esc(label)}</button>`;
+    }).join('');
+  }
+
+  function collectArtifactTags() {
+    return normalizeTags($('tagsInput')?.value || '');
+  }
+
+  function setArtifactTags(tags) {
+    if ($('tagsInput')) $('tagsInput').value = tagsToInput(tags);
+    renderQuickTags();
+  }
+
+  function toggleArtifactTag(tag) {
+    const current = normalizeTags($('tagsInput')?.value || '');
+    const key = normalizeTagValue(tag);
+    const exists = current.some(item => normalizeTagValue(item) === key);
+    const next = exists ? current.filter(item => normalizeTagValue(item) !== key) : [...current, tag];
+    setArtifactTags(next);
+  }
+
+  function isZipFile(file) {
+    return !!file && (/\.zip$/i.test(file.name || '') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed');
+  }
+
+  function mimeFromPath(filePath) {
+    const ext = String(filePath || '').split('.').pop().toLowerCase();
+    return ({ png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', svg:'image/svg+xml', webp:'image/webp', avif:'image/avif', ico:'image/x-icon', css:'text/css', js:'text/javascript', mjs:'text/javascript', json:'application/json', woff:'font/woff', woff2:'font/woff2', ttf:'font/ttf', otf:'font/otf', mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', mp4:'video/mp4', webm:'video/webm' })[ext] || 'application/octet-stream';
+  }
+
+  function isExternalRef(ref) {
+    return /^(?:https?:|data:|blob:|mailto:|tel:|#|javascript:)/i.test(String(ref || '').trim());
+  }
+
+  function zipEntry(zip, filePath) {
+    const normalized = String(filePath || '').replace(/^\/+/, '').replace(/\\/g, '/');
+    if (zip.files[normalized] && !zip.files[normalized].dir) return zip.files[normalized];
+    const lower = normalized.toLowerCase();
+    return Object.values(zip.files).find(entry => !entry.dir && entry.name.toLowerCase() === lower) || null;
+  }
+
+  function resolveZipRef(zip, basePath, ref) {
+    const raw = String(ref || '').trim();
+    if (!raw || isExternalRef(raw)) return null;
+    const clean = raw.split('#')[0].split('?')[0];
+    if (!clean) return null;
+    const baseDir = String(basePath || '').replace(/[^/]*$/, '');
+    let pathPart = clean;
+    try { pathPart = decodeURIComponent(clean); } catch (_) {}
+    try {
+      const url = new URL(pathPart, `https://erbello.local/${baseDir}`);
+      return zipEntry(zip, url.pathname.replace(/^\/+/, ''));
+    } catch (_) {
+      return zipEntry(zip, `${baseDir}${pathPart}`);
+    }
+  }
+
+  async function zipDataUrl(entry) {
+    const base64 = await entry.async('base64');
+    return `data:${mimeFromPath(entry.name)};base64,${base64}`;
+  }
+
+  async function inlineCssUrls(css, zip, basePath) {
+    const re = /url\((['"]?)([^'")]+)\1\)/gi;
+    let output = '';
+    let last = 0;
+    let match;
+    while ((match = re.exec(css))) {
+      output += css.slice(last, match.index);
+      const original = match[0];
+      const ref = String(match[2] || '').trim();
+      const entry = resolveZipRef(zip, basePath, ref);
+      if (entry) output += `url("${await zipDataUrl(entry)}")`;
+      else output += original;
+      last = re.lastIndex;
+    }
+    output += css.slice(last);
+    return output;
+  }
+
+  async function standaloneHtmlFromZip(file) {
+    if (!window.JSZip) throw new Error(tr('zipUnsupported'));
+    const zip = await window.JSZip.loadAsync(file);
+    const entries = Object.values(zip.files).filter(entry => !entry.dir && !/^__MACOSX\//i.test(entry.name) && !/(^|\/)\.DS_Store$/i.test(entry.name));
+    const index = entries
+      .filter(entry => /(^|\/)index\.html?$/i.test(entry.name))
+      .sort((a, b) => a.name.length - b.name.length)[0];
+    if (!index) throw new Error(tr('zipNoIndex'));
+    const source = await index.async('string');
+    const doc = new DOMParser().parseFromString(source, 'text/html');
+    const basePath = index.name;
+
+    for (const link of Array.from(doc.querySelectorAll('link[href]'))) {
+      const rel = String(link.getAttribute('rel') || '').toLowerCase();
+      if (!rel.includes('stylesheet')) continue;
+      const entry = resolveZipRef(zip, basePath, link.getAttribute('href'));
+      if (!entry) continue;
+      const css = await inlineCssUrls(await entry.async('string'), zip, entry.name);
+      const style = doc.createElement('style');
+      style.textContent = css;
+      link.replaceWith(style);
+    }
+
+    for (const style of Array.from(doc.querySelectorAll('style'))) {
+      style.textContent = await inlineCssUrls(style.textContent || '', zip, basePath);
+    }
+
+    for (const script of Array.from(doc.querySelectorAll('script[src]'))) {
+      const entry = resolveZipRef(zip, basePath, script.getAttribute('src'));
+      if (!entry) continue;
+      script.removeAttribute('src');
+      script.textContent = (await entry.async('string')).replace(/<\/script/gi, '<\\/script');
+    }
+
+    const attrTargets = [['img','src'], ['source','src'], ['video','src'], ['video','poster'], ['audio','src'], ['track','src'], ['input','src'], ['embed','src'], ['object','data']];
+    for (const [selector, attr] of attrTargets) {
+      for (const node of Array.from(doc.querySelectorAll(`${selector}[${attr}]`))) {
+        const entry = resolveZipRef(zip, basePath, node.getAttribute(attr));
+        if (entry) node.setAttribute(attr, await zipDataUrl(entry));
+      }
+    }
+
+    return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
+  }
+
+  async function handleFile(file) {
     if (!file) return;
+    const dz = $('dropZone');
+    dz?.classList.remove('zip-ready','zip-error');
+    $('artifactError').textContent = '';
+    if (isZipFile(file)) {
+      try {
+        $('detectHint').textContent = tr('zipLoading');
+        const html = await standaloneHtmlFromZip(file);
+        $('codeInput').value = html;
+        if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ');
+        $('typeInput').value = 'tool';
+        if ($('formatInput')) $('formatInput').value = 'zip';
+        const tags = normalizeTags($('tagsInput')?.value || '');
+        if (!tags.some(tag => tagMatchesCategory(tag, 'html'))) tags.push(catLabel('html'));
+        if (!tags.some(tag => normalizeTagValue(tag) === 'zip')) tags.push('ZIP');
+        setArtifactTags(tags);
+        dz?.classList.add('zip-ready');
+        updateDetectHint();
+        toast(tr('zipDone'));
+      } catch (error) {
+        console.error(error);
+        dz?.classList.add('zip-error');
+        $('detectHint').textContent = error.message || tr('zipUnsupported');
+        $('artifactError').textContent = error.message || tr('zipUnsupported');
+      }
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
       $('codeInput').value = String(reader.result || '');
       if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.(html?|jsx?|tsx?|txt)$/i, '').replace(/[-_]+/g, ' ');
+      if (/\.(jsx?|tsx?)$/i.test(file.name || '')) {
+        const tags = normalizeTags($('tagsInput')?.value || '');
+        if (!tags.some(tag => tagMatchesCategory(tag, 'react'))) tags.push(catLabel('react'));
+        setArtifactTags(tags);
+      } else if (/\.html?$/i.test(file.name || '')) {
+        const tags = normalizeTags($('tagsInput')?.value || '');
+        if (!tags.some(tag => tagMatchesCategory(tag, 'html'))) tags.push(catLabel('html'));
+        setArtifactTags(tags);
+      }
       updateDetectHint();
       toast(tr('fileLoaded'));
     };
@@ -807,6 +1027,8 @@
     $('unlockBtn')?.addEventListener('click', unlockAdmin);
     $('passwordInput')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') unlockAdmin(); });
     $('saveArtifactBtn')?.addEventListener('click', saveArtifact);
+    $('tagsInput')?.addEventListener('input', renderQuickTags);
+    $('quickTags')?.addEventListener('click', (event) => { const btn = event.target.closest('[data-quick-tag]'); if (btn) toggleArtifactTag(btn.dataset.quickTag || ''); });
     $('codeInput')?.addEventListener('input', updateDetectHint);
     $('fileInput')?.addEventListener('change', (event) => handleFile(event.target.files && event.target.files[0]));
     const dz = $('dropZone');

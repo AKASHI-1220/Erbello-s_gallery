@@ -322,8 +322,6 @@
           <div class="field">
             <label for="typeInput" data-i18n="categoryLabel">카테고리</label>
             <select id="typeInput" class="select">
-              <option value="html" data-i18n="typeHtml">HTML</option>
-              <option value="react" data-i18n="typeReact">React / JSX</option>
               <option value="game" data-i18n="typeGame">게임</option>
               <option value="tool" data-i18n="typeTool">도구</option>
               <option value="daily" data-i18n="typeDaily">일상</option>
@@ -338,9 +336,17 @@
           <label for="descInput" data-i18n="descriptionLabel">설명</label>
           <input id="descInput" class="input" type="text" maxlength="240" data-i18n-placeholder="descriptionPlaceholder" placeholder="카드에 표시될 짧은 소개 문구" />
         </div>
+        <div class="field">
+          <label for="tagsInput" data-i18n="tagsLabel">태그</label>
+          <input id="tagsInput" class="input" type="text" maxlength="240" data-i18n-placeholder="tagsPlaceholder" placeholder="예: HTML, 도구, 타로" />
+          <div id="quickTags" class="quick-tags" data-i18n-aria-label="quickTags"></div>
+          <p class="hint tag-hint" data-i18n="tagHint">대표 카테고리는 하나만 고르고, 추가 태그로 여러 분류를 같이 넣을 수 있습니다.</p>
+        </div>
+        <input id="formatInput" type="hidden" value="html" />
+        <span id="formatBadge" class="sr-only">HTML</span>
         <div id="dropZone" class="dropzone">
-          <span data-i18n="dropText">HTML, JSX, TSX 파일을 이곳에 끌어다 놓거나 선택하세요.</span>
-          <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.ts,.tsx,.txt" />
+          <span data-i18n="dropText">HTML, JSX, TSX, ZIP 파일을 이곳에 끌어다 놓거나 선택하세요.</span>
+          <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.ts,.tsx,.txt,.zip" />
         </div>
         <div class="field">
           <label for="codeInput" data-i18n="codeLabel">코드</label>
@@ -357,6 +363,7 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>
