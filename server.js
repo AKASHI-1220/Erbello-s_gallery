@@ -9,6 +9,7 @@ const { isJSX, wrapJSX, normalizeCode } = require('./lib/jsx');
 
 const app = express();
 const ZIP_BUNDLE_PREFIX = 'ERBELLO_BUNDLE_V1\n';
+const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -267,6 +268,14 @@ function cleanDataUrl(value, max = 1200000) {
   return text.length <= max ? text : '';
 }
 
+function cleanCoverImage(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text === RANDOM_GAMSUNG_COVER) return text;
+  if (/^\/assets\/illust\/gamsung-(?:1|3|4|5|6|7|8|9|10|11|12|13|14|15)\.webp$/i.test(text)) return text;
+  return cleanDataUrl(text);
+}
+
 function cleanGalleryImages(value) {
   const raw = Array.isArray(value) ? value : [];
   return raw.map(item => cleanDataUrl(item)).filter(Boolean).slice(0, 8);
@@ -277,7 +286,7 @@ function payloadFromBody(body) {
   const description = cleanText(body.description, 240);
   const type = cleanType(body.type);
   const code = normalizeCode(body.code);
-  const cover_image = cleanDataUrl(body.cover_image);
+  const cover_image = cleanCoverImage(body.cover_image);
   const gallery_images = cleanGalleryImages(body.gallery_images);
   const detail_text = cleanText(body.detail_text, 1600);
   const detectedJsx = isJSX(code);
