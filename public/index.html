@@ -28,7 +28,7 @@
       <a class="brand" href="/" data-route="home" data-i18n-aria-label="brandAria">
         <span class="brand-mark" aria-hidden="true">✦</span>
         <span class="brand-copy">
-          <span class="brand-text">ERBELLO</span>
+          <img class="brand-logo" src="/assets/illust/erbello-typo5.png" alt="ERBELLO" />
           <span class="brand-subtitle" data-i18n="brandSubtitle">Project Gallery</span>
         </span>
       </a>
@@ -170,11 +170,24 @@
           <div id="contactLinks" class="contact-links"></div>
         </section>
       </section>
+
+      <section id="privacyPage" class="route-page" data-page="privacy">
+        <section class="page-intro" aria-labelledby="privacyTitle">
+          <p class="section-kicker" data-i18n="privacyEyebrow">PRIVACY</p>
+          <h1 id="privacyTitle" data-i18n="privacyTitle">개인정보처리방침</h1>
+          <p data-i18n="privacyBody">ERBELLO는 프로젝트 갤러리 운영과 기본적인 사이트 이용을 위해 필요한 최소한의 정보만 사용합니다.</p>
+        </section>
+        <section class="page-card-grid privacy-grid">
+          <article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">▣</span><h2 data-i18n="privacyCard1Title">수집하는 정보</h2><p data-i18n="privacyCard1Text">방문 기록, 조회수, 문의 링크 이용과 같이 사이트 운영에 필요한 기본 정보가 사용될 수 있습니다.</p></article>
+          <article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">◎</span><h2 data-i18n="privacyCard2Title">광고와 쿠키</h2><p data-i18n="privacyCard2Text">Google AdSense가 광고 제공 및 통계 목적으로 쿠키를 사용할 수 있습니다.</p></article>
+          <article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">✉</span><h2 data-i18n="privacyCard3Title">문의</h2><p data-i18n="privacyCard3Text">개인정보 관련 문의는 연락처 페이지의 링크를 통해 보낼 수 있습니다.</p></article>
+        </section>
+      </section>
     </main>
 
     <footer id="footer" class="footer">
       <span>© 2026 ERBELLO. All rights reserved.</span>
-      <span class="footer-note">ERBELLO PROJECT GALLERY</span>
+      <span class="footer-note">ERBELLO PROJECT GALLERY</span><a class="footer-link" href="/privacy" data-route="privacy" data-i18n="navPrivacy">개인정보처리방침</a>
       <span class="footer-love"><a class="to-top" href="#top" aria-label="Back to top">↑</a></span>
     </footer>
   </div>
@@ -187,6 +200,7 @@
           <h2 id="viewerTitle">Project</h2>
           <p id="viewerDesc" data-i18n="ownerPreview">소유자 미리보기</p>
           <p id="viewerViews" class="admin-only viewer-views"></p>
+          <div id="viewerMedia" class="viewer-media admin-only"></div>
         </div>
       </div>
       <div class="actions">
@@ -344,6 +358,27 @@
         </div>
         <input id="formatInput" type="hidden" value="html" />
         <span id="formatBadge" class="sr-only">HTML</span>
+        <div class="field">
+          <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
+          <textarea id="detailInput" class="textarea textarea-small" maxlength="1600" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
+          <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
+        </div>
+        <div class="media-fields">
+          <div class="field">
+            <label for="coverInput" data-i18n="coverLabel">대표 커버 이미지</label>
+            <div class="cover-uploader">
+              <input id="coverInput" type="file" accept="image/*" />
+              <button id="clearCoverBtn" class="btn small" type="button" data-i18n="removeImage">이미지 제거</button>
+            </div>
+            <div id="coverPreview" class="image-preview empty-preview" data-i18n="coverEmpty">커버 이미지 없음</div>
+          </div>
+          <div class="field">
+            <label for="galleryInput" data-i18n="galleryImagesLabel">추가 이미지</label>
+            <input id="galleryInput" type="file" accept="image/*" multiple />
+            <div id="galleryPreview" class="gallery-preview"></div>
+            <button id="clearGalleryBtn" class="btn small" type="button" data-i18n="clearGallery">추가 이미지 비우기</button>
+          </div>
+        </div>
         <div id="dropZone" class="dropzone">
           <span data-i18n="dropText">HTML, JSX, TSX, ZIP 파일을 이곳에 끌어다 놓거나 선택하세요.</span>
           <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.ts,.tsx,.txt,.zip" />

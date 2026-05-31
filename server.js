@@ -260,15 +260,30 @@ function cleanPageContent(value) {
   };
 }
 
+function cleanDataUrl(value, max = 1200000) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (!/^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i.test(text)) return '';
+  return text.length <= max ? text : '';
+}
+
+function cleanGalleryImages(value) {
+  const raw = Array.isArray(value) ? value : [];
+  return raw.map(item => cleanDataUrl(item)).filter(Boolean).slice(0, 8);
+}
+
 function payloadFromBody(body) {
   const title = cleanText(body.title, 80);
   const description = cleanText(body.description, 240);
   const type = cleanType(body.type);
   const code = normalizeCode(body.code);
+  const cover_image = cleanDataUrl(body.cover_image);
+  const gallery_images = cleanGalleryImages(body.gallery_images);
+  const detail_text = cleanText(body.detail_text, 1600);
   const detectedJsx = isJSX(code);
-  const source_kind = cleanSourceKind(body.source_kind, detectedJsx);
+  const source_kind = cleanSourceKind(body.source_kind || body.format, detectedJsx);
   const tags = cleanTags(body.tags);
-  return { title, description, type, tags, source_kind, code, is_jsx: detectedJsx || source_kind === 'jsx' };
+  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: detectedJsx || source_kind === 'jsx' };
 }
 
 app.get('/api/status', (_req, res) => {
@@ -371,7 +386,7 @@ app.get('/run/:id', async (req, res) => {
       store.incrementView(req.params.id).catch((error) => console.warn('view count failed:', error.message || error));
     }
 
-    const html = injectAdSense(renderArtifactHtml(artifact));
+    const html = renderArtifactHtml(artifact);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(html);
