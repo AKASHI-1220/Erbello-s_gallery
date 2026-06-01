@@ -355,6 +355,21 @@
           <div id="quickTags" class="quick-tags" data-i18n-aria-label="quickTags"></div>
           <p class="hint tag-hint" data-i18n="tagHint">대표 카테고리는 하나만 고르고, 추가 태그로 여러 분류를 같이 넣을 수 있습니다.</p>
         </div>
+        <div class="private-panel">
+          <label class="private-toggle" for="privateInput">
+            <input id="privateInput" type="checkbox" />
+            <span class="private-toggle-box" aria-hidden="true">🔒</span>
+            <span class="private-toggle-copy">
+              <strong data-i18n="privateProject">비밀 / 비밀번호 필요</strong>
+              <small data-i18n="privateProjectHint">방문자에게는 제목만 보이고, 비밀번호를 입력해야 열립니다.</small>
+            </span>
+          </label>
+          <div id="privatePasswordField" class="field private-password-field">
+            <label for="privatePasswordInput" data-i18n="privatePasswordLabel">비밀 프로젝트 비밀번호</label>
+            <input id="privatePasswordInput" class="input" type="password" maxlength="120" data-i18n-placeholder="privatePasswordPlaceholder" placeholder="비밀 프로젝트 비밀번호" autocomplete="new-password" />
+            <p class="hint" data-i18n="privatePasswordHint">수정할 때 비워두면 기존 비밀번호가 유지됩니다.</p>
+          </div>
+        </div>
         <input id="formatInput" type="hidden" value="html" />
         <span id="formatBadge" class="sr-only">HTML</span>
         <div class="field">

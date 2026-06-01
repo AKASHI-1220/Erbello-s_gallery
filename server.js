@@ -10,6 +10,7 @@ const { isJSX, wrapJSX, normalizeCode } = require('./lib/jsx');
 const app = express();
 const ZIP_BUNDLE_PREFIX = 'ERBELLO_BUNDLE_V1\n';
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
+const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -190,6 +191,60 @@ function safeEqualHex(a, b) {
   }
 }
 
+function isAdminRequest(req) {
+  const expected = getAdminHash();
+  const token = req && req.headers && req.headers['x-admin-token'];
+  if (!expected || !token || typeof token !== 'string') return false;
+  return safeEqualHex(sha256(token), expected);
+}
+
+function hashPrivatePassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const text = String(password || '');
+  const hash = crypto.pbkdf2Sync(text, salt, 120000, 32, 'sha256').toString('hex');
+  return { salt, hash };
+}
+
+function verifyPrivatePassword(password, artifact) {
+  if (!artifact || !artifact.is_private) return true;
+  if (!artifact.private_password_hash || !artifact.private_password_salt) return false;
+  const { hash } = hashPrivatePassword(password, artifact.private_password_salt);
+  return safeEqualHex(hash, artifact.private_password_hash);
+}
+
+function privateTokenSecret() {
+  return process.env.PRIVATE_TOKEN_SECRET || getAdminHash() || process.env.ADMIN_PASSWORD || 'erbello-private-token-secret';
+}
+
+function signPrivateAccess(artifact) {
+  const payload = Buffer.from(JSON.stringify({ id:String(artifact.id), exp:Date.now() + PRIVATE_TOKEN_TTL_MS }), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', privateTokenSecret()).update(`${payload}.${artifact.private_password_hash || ''}`).digest('base64url');
+  return `${payload}.${sig}`;
+}
+
+function verifyPrivateAccessToken(token, artifact) {
+  const raw = String(token || '');
+  const parts = raw.split('.');
+  if (parts.length !== 2 || !artifact) return false;
+  const [payload, sig] = parts;
+  const expected = crypto.createHmac('sha256', privateTokenSecret()).update(`${payload}.${artifact.private_password_hash || ''}`).digest('base64url');
+  if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
+  let parsed = null;
+  try { parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); } catch (_) { return false; }
+  return parsed && String(parsed.id) === String(artifact.id) && Number(parsed.exp || 0) > Date.now();
+}
+
+function stripPrivateSecrets(artifact) {
+  if (!artifact || typeof artifact !== 'object') return artifact;
+  const { private_password_hash, private_password_salt, ...safe } = artifact;
+  return safe;
+}
+
+function renderPrivateLockPage(artifact) {
+  const title = escHtml(artifact && artifact.title || 'Private project');
+  const id = escHtml(artifact && artifact.id || '');
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / LOCKED</div><h1>${title}</h1><p>이 프로젝트는 비밀번호가 필요합니다. 제목 외의 내용은 비밀번호 확인 후 열립니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form><a class="lock-home" href="/">ERBELLO로 돌아가기</a></main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
+}
+
 function checkAdmin(req, res, next) {
   const expected = getAdminHash();
   if (!expected) return res.status(503).json({ error: 'ADMIN_PASSWORD_HASH or ADMIN_PASSWORD is not configured.' });
@@ -281,7 +336,27 @@ function cleanGalleryImages(value) {
   return raw.map(item => cleanDataUrl(item)).filter(Boolean).slice(0, 8);
 }
 
-function payloadFromBody(body) {
+function cleanBool(value) {
+  return value === true || value === 'true' || value === '1' || value === 1;
+}
+
+function privateFieldsFromBody(body, existing = null) {
+  const is_private = cleanBool(body && body.is_private);
+  const password = String(body && body.private_password || '').trim();
+  if (!is_private) return { is_private:false, private_password_hash:'', private_password_salt:'' };
+  if (password) {
+    const next = hashPrivatePassword(password);
+    return { is_private:true, private_password_hash:next.hash, private_password_salt:next.salt };
+  }
+  if (existing && existing.private_password_hash && existing.private_password_salt) {
+    return { is_private:true, private_password_hash:existing.private_password_hash, private_password_salt:existing.private_password_salt };
+  }
+  const err = new Error('private password is required.');
+  err.statusCode = 400;
+  throw err;
+}
+
+function payloadFromBody(body, existing = null) {
   const title = cleanText(body.title, 80);
   const description = cleanText(body.description, 240);
   const type = cleanType(body.type);
@@ -292,17 +367,18 @@ function payloadFromBody(body) {
   const detectedJsx = isJSX(code);
   const source_kind = cleanSourceKind(body.source_kind || body.format, detectedJsx);
   const tags = cleanTags(body.tags);
-  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: detectedJsx || source_kind === 'jsx' };
+  const privateFields = privateFieldsFromBody(body, existing);
+  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: detectedJsx || source_kind === 'jsx', ...privateFields };
 }
 
 app.get('/api/status', (_req, res) => {
   res.json({ ok: true, storage: store.mode, adminConfigured: Boolean(getAdminHash()) });
 });
 
-app.get('/api/artifacts', async (_req, res) => {
+app.get('/api/artifacts', async (req, res) => {
   try {
-    const artifacts = await store.listArtifacts();
-    res.json(artifacts.map(({ code, ...rest }) => rest));
+    const artifacts = await store.listArtifacts({ includePrivateDetails: isAdminRequest(req) });
+    res.json(artifacts.map(({ code, private_password_hash, private_password_salt, ...rest }) => rest));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -333,7 +409,7 @@ app.get('/api/admin/artifacts/:id', checkAdmin, async (req, res) => {
   try {
     const artifact = await store.getArtifact(req.params.id);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
-    res.json(artifact);
+    res.json(stripPrivateSecrets(artifact));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -344,23 +420,25 @@ app.post('/api/admin/artifacts', checkAdmin, async (req, res) => {
     const payload = payloadFromBody(req.body || {});
     if (!payload.title || !payload.code) return res.status(400).json({ error: 'title and code are required.' });
     const artifact = await store.createArtifact(payload);
-    const { code, ...summary } = artifact;
+    const { code, private_password_hash, private_password_salt, ...summary } = artifact;
     res.status(201).json(summary);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
 app.put('/api/admin/artifacts/:id', checkAdmin, async (req, res) => {
   try {
-    const payload = payloadFromBody(req.body || {});
+    const existing = await store.getArtifact(req.params.id);
+    if (!existing) return res.status(404).json({ error: 'Artifact not found.' });
+    const payload = payloadFromBody(req.body || {}, existing);
     if (!payload.title || !payload.code) return res.status(400).json({ error: 'title and code are required.' });
     const artifact = await store.updateArtifact(req.params.id, payload);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
-    const { code, ...summary } = artifact;
+    const { code, private_password_hash, private_password_salt, ...summary } = artifact;
     res.json(summary);
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -384,11 +462,41 @@ app.post('/api/admin/verify', (req, res) => {
   res.status(401).json({ ok: false });
 });
 
+app.post('/api/artifacts/:id/unlock', async (req, res) => {
+  try {
+    const artifact = await store.getArtifact(req.params.id);
+    if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
+    if (!artifact.is_private) return res.json({ access: signPrivateAccess(artifact) });
+    if (!verifyPrivatePassword(req.body && req.body.password, artifact)) return res.status(401).json({ error: '비밀번호가 맞지 않습니다.' });
+    res.json({ access: signPrivateAccess(artifact) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/admin/render/:id', checkAdmin, async (req, res) => {
+  try {
+    const artifact = await store.getArtifact(req.params.id);
+    if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
+    res.json({ html: renderArtifactHtml(artifact) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/run/:id', async (req, res) => {
   try {
     const artifact = await store.getArtifact(req.params.id);
     if (!artifact) {
       return res.status(404).send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not found</title><style>body{margin:0;background:#090909;color:#f4f4f4;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}.box{border:1px solid #2a2a2a;padding:28px;border-radius:18px;background:#111}.k{color:#c7ff4f;font-family:monospace}</style></head><body><div class="box"><div class="k">ERBELLO / 404</div><h1>Artifact not found</h1><p>삭제되었거나 잘못된 링크입니다.</p></div></body></html>`);
+    }
+
+    if (artifact.is_private) {
+      const access = String(req.query.access || '');
+      if (!verifyPrivateAccessToken(access, artifact)) {
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(renderPrivateLockPage(artifact));
+      }
     }
 
     if (req.query.ownerPreview !== '1') {
