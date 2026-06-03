@@ -1,8 +1,8 @@
 {
   "name": "erbello-artifact-gallery",
-  "version": "16.0.0",
+  "version": "19.0.0",
   "private": true,
-  "description": "ERBELLO project gallery with ZIP upload, tags, covers and private projects.",
+  "description": "ERBELLO project gallery with Storage uploads, detail pages, privacy controls, draft mode and admin system tools.",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
@@ -12,7 +12,8 @@
     "@supabase/supabase-js": "^2.39.0",
     "dotenv": "^16.4.5",
     "express": "^4.18.2",
-    "express-rate-limit": "^7.1.5"
+    "express-rate-limit": "^7.1.5",
+    "jszip": "^3.10.1"
   },
   "engines": {
     "node": ">=18"

@@ -4,6 +4,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const path = require('path');
+const JSZip = require('jszip');
 const store = require('./lib/store');
 const { isJSX, wrapJSX, normalizeCode } = require('./lib/jsx');
 
@@ -31,6 +32,70 @@ function injectAdSense(html) {
 
 function escHtml(value) {
   return String(value || '').replace(/[<>&]/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;' }[c]));
+}
+
+function escAttr(value) {
+  return String(value || '').replace(/[<>&"']/g, c => ({ '<':'&lt;', '>':'&gt;', '&':'&amp;', '"':'&quot;', "'":'&#39;' }[c]));
+}
+
+function plainText(value, max = 1000) {
+  return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+function fmtMonthKo(value) {
+  const d = new Date(value || Date.now());
+  if (Number.isNaN(d.getTime())) return '';
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function siteOrigin(req) {
+  const env = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '');
+  if (env) return env;
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'erbello.vercel.app';
+  return `${proto}://${host}`;
+}
+
+function artifactSummaryText(artifact) {
+  const detail = plainText(artifact.detail_text, 1800);
+  if (detail) return detail;
+  const desc = plainText(artifact.description, 500);
+  if (desc) return desc;
+  return 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
+}
+
+function tagList(artifact) {
+  const tags = Array.isArray(artifact.tags) ? artifact.tags.filter(Boolean) : [];
+  const type = artifact.type ? [artifact.type] : [];
+  return [...new Set([...type, ...tags].map(v => String(v || '').trim()).filter(Boolean))].slice(0, 14);
+}
+
+function assetImage(src) {
+  const text = String(src || '').trim();
+  if (!text || text === '__GAMSUNG_RANDOM__') return '/assets/illust/gamsung-1.webp';
+  return text;
+}
+
+function allowedAdsenseForIndex(req) {
+  if (!ADSENSE_SCRIPT) return false;
+  const admin = String(req.query && req.query.admin || '') === '1';
+  if (admin) return false;
+  const path = String(req.path || '');
+  if (path.startsWith('/run') || path.startsWith('/api') || path.startsWith('/asset')) return false;
+  return true;
+}
+
+function baseHead({ title, description, ads = false, robots = 'index,follow' } = {}) {
+  return `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="${escAttr(robots)}"><meta name="description" content="${escAttr(description || 'ERBELLO Project Gallery')}"><meta name="google-adsense-account" content="${escAttr(ADSENSE_CLIENT)}"><title>${escHtml(title || 'ERBELLO Gallery')}</title>${ads && ADSENSE_SCRIPT ? `\n${ADSENSE_SCRIPT}` : ''}<link rel="stylesheet" href="/app.css">`;
+}
+
+function renderIndexPage(req) {
+  const fs = require('fs');
+  let html = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+  if (!allowedAdsenseForIndex(req)) {
+    html = html.replace(/\n?\s*<script async src="https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=[^"\n]+" crossorigin="anonymous"><\/script>/i, '');
+  }
+  return html;
 }
 
 function isZipBundle(code) {
@@ -156,7 +221,86 @@ function renderZipBundle(code) {
   return html;
 }
 
-function renderArtifactHtml(artifact) {
+
+function zipEntry(zip, filePath) {
+  const normalized = normalizeZipPath(filePath);
+  if (zip.files[normalized] && !zip.files[normalized].dir) return zip.files[normalized];
+  const lower = normalized.toLowerCase();
+  return Object.values(zip.files).find(entry => !entry.dir && normalizeZipPath(entry.name).toLowerCase() === lower) || null;
+}
+
+function zipEntryExists(zip, filePath) {
+  return Boolean(zipEntry(zip, filePath));
+}
+
+function findZipIndex(zip) {
+  const entries = Object.values(zip.files).filter(entry => !entry.dir && !/^__MACOSX\//i.test(entry.name) && !/(^|\/)\.DS_Store$/i.test(entry.name));
+  return entries.find(entry => /(^|\/)index\.html?$/i.test(entry.name)) || entries.find(entry => /\.html?$/i.test(entry.name));
+}
+
+function encodedAssetUrl(id, filePath, access = '') {
+  const parts = normalizeZipPath(filePath).split('/').filter(Boolean).map(encodeURIComponent).join('/');
+  const qs = access ? `?access=${encodeURIComponent(access)}` : '';
+  return `/asset/${encodeURIComponent(String(id))}/${parts}${qs}`;
+}
+
+function rewriteHtmlZipUrls(html, zip, artifactId, baseDir, access = '') {
+  return String(html || '')
+    .replace(/\b(src|href|poster|data)=(["'])([^"']+)\2/gi, (full, attr, quote, rawUrl) => {
+      if (!rawUrl || isExternalAsset(rawUrl)) return full;
+      const resolved = joinZipPath(baseDir, rawUrl);
+      return zipEntryExists(zip, resolved) ? `${attr}=${quote}${encodedAssetUrl(artifactId, resolved, access)}${quote}` : full;
+    })
+    .replace(/\bsrcset=(["'])([^"']+)\1/gi, (full, quote, value) => {
+      const replaced = String(value).split(',').map((part) => {
+        const bits = part.trim().split(/\s+/);
+        if (!bits[0] || isExternalAsset(bits[0])) return part.trim();
+        const resolved = joinZipPath(baseDir, bits[0]);
+        if (!zipEntryExists(zip, resolved)) return part.trim();
+        return [encodedAssetUrl(artifactId, resolved, access), ...bits.slice(1)].join(' ');
+      }).join(', ');
+      return `srcset=${quote}${replaced}${quote}`;
+    });
+}
+
+function rewriteCssZipUrls(css, zip, artifactId, cssDir, access = '') {
+  return String(css || '').replace(/url\((?!['"]?(?:data:|https?:|blob:|#))(['"]?)([^)'"#?]+(?:[?#][^)'"]*)?)\1\)/gi, (full, quote, rawUrl) => {
+    const resolved = joinZipPath(cssDir, rawUrl);
+    return zipEntryExists(zip, resolved) ? `url(${quote || '"'}${encodedAssetUrl(artifactId, resolved, access)}${quote || '"'})` : full;
+  });
+}
+
+async function loadStorageSource(artifact) {
+  const bucket = artifact.code_storage_bucket || store.ARTIFACT_BUCKET;
+  const objectPath = artifact.code_storage_path;
+  if (!objectPath) return null;
+  return store.downloadStorageObject(bucket, objectPath);
+}
+
+async function renderStoredZipHtml(artifact, access = '') {
+  const buffer = await loadStorageSource(artifact);
+  if (!buffer) throw new Error('Stored ZIP source is missing.');
+  const zip = await JSZip.loadAsync(buffer);
+  const entry = findZipIndex(zip);
+  if (!entry) throw new Error('ZIP 안에서 index.html을 찾지 못했습니다.');
+  const entryPath = normalizeZipPath(entry.name);
+  const baseDir = entryPath.includes('/') ? entryPath.split('/').slice(0, -1).join('/') : '';
+  const html = await entry.async('string');
+  return rewriteHtmlZipUrls(html, zip, artifact.id, baseDir, access);
+}
+
+async function renderArtifactHtml(artifact, options = {}) {
+  if (artifact && artifact.code_storage_path) {
+    const kind = cleanSourceKind(artifact.source_kind, artifact.is_jsx);
+    if (kind === 'zip' || /zip/i.test(artifact.code_storage_mime || '') || /\.zip$/i.test(artifact.source_filename || '')) {
+      return renderStoredZipHtml(artifact, options.access || '');
+    }
+    const buffer = await loadStorageSource(artifact);
+    const code = buffer ? buffer.toString('utf8') : '';
+    if (artifact.is_jsx || kind === 'jsx') return wrapJSX(code, { title: artifact.title });
+    return code;
+  }
+
   const code = String(artifact && artifact.code || '');
   if (isZipBundle(code)) return renderZipBundle(code);
   if (artifact && artifact.is_jsx) return wrapJSX(code, { title: artifact.title });
@@ -165,7 +309,7 @@ function renderArtifactHtml(artifact) {
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: process.env.JSON_LIMIT || '30mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const apiLimit = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
 const adminLimit = rateLimit({ windowMs: 60_000, max: 40, standardHeaders: true, legacyHeaders: false });
@@ -227,11 +371,14 @@ function verifyPrivateAccessToken(token, artifact) {
   if (parts.length !== 2 || !artifact) return false;
   const [payload, sig] = parts;
   const expected = crypto.createHmac('sha256', privateTokenSecret()).update(`${payload}.${artifact.private_password_hash || ''}`).digest('base64url');
+  if (!sig || sig.length !== expected.length) return false;
   if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return false;
   let parsed = null;
   try { parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); } catch (_) { return false; }
   return parsed && String(parsed.id) === String(artifact.id) && Number(parsed.exp || 0) > Date.now();
 }
+
+function isDraftArtifact(artifact) { return String(artifact && artifact.status || '').toLowerCase() === 'draft'; }
 
 function stripPrivateSecrets(artifact) {
   if (!artifact || typeof artifact !== 'object') return artifact;
@@ -242,7 +389,57 @@ function stripPrivateSecrets(artifact) {
 function renderPrivateLockPage(artifact) {
   const title = escHtml(artifact && artifact.title || 'Private project');
   const id = escHtml(artifact && artifact.id || '');
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / LOCKED</div><h1>${title}</h1><p>이 프로젝트는 비밀번호가 필요합니다. 제목 외의 내용은 비밀번호 확인 후 열립니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form><a class="lock-home" href="/">ERBELLO로 돌아가기</a></main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / LOCKED</div><h1>${title}</h1><p>이 프로젝트는 비밀번호가 필요합니다. 제목 외의 내용은 비밀번호 확인 후 열립니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form><a class="lock-home" href="/">ERBELLO로 돌아가기</a></main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
+}
+
+
+function renderProjectDetailPage(req, artifact) {
+  const title = artifact.title || 'Untitled project';
+  const desc = artifact.description || 'ERBELLO에 보관된 프로젝트입니다.';
+  const summary = artifactSummaryText(artifact);
+  const tags = tagList(artifact);
+  const origin = siteOrigin(req);
+  const projectUrl = `${origin}/project/${encodeURIComponent(String(artifact.id))}`;
+  const runUrl = `${origin}/run/${encodeURIComponent(String(artifact.id))}`;
+  const cover = assetImage(artifact.cover_image);
+  const gallery = [cover, ...(Array.isArray(artifact.gallery_images) ? artifact.gallery_images : [])].filter(Boolean).slice(0, 8);
+  const updated = fmtMonthKo(artifact.updated_at || artifact.created_at);
+  const structured = {
+    '@context':'https://schema.org',
+    '@type':'CreativeWork',
+    name:title,
+    description:plainText(summary || desc, 500),
+    url:projectUrl,
+    dateModified:artifact.updated_at || artifact.created_at || undefined,
+    keywords:tags.join(', '),
+    image:gallery[0] && !gallery[0].startsWith('data:') ? new URL(gallery[0], origin).href : undefined
+  };
+  const tagHtml = tags.map(tag => `<span>${escHtml(tag)}</span>`).join('');
+  const galleryHtml = gallery.length ? `<div class="detail-gallery">${gallery.map(src => `<img src="${escAttr(src)}" alt="" loading="lazy">`).join('')}</div>` : '';
+  const detailLength = plainText(summary || desc, 5000).length;
+  const allowDetailAds = detailLength >= 500;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summary || desc, 160), ads:allowDetailAds })}<link rel="canonical" href="${escAttr(projectUrl)}"><script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="black" data-color="crimson" data-theme="black-crimson" class="detail-document"><div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">PROJECT DETAIL</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p><div class="detail-tags">${tagHtml}</div><div class="detail-actions"><a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a><a class="btn" href="/projects">프로젝트 목록</a></div></div><figure class="detail-cover"><img src="${escAttr(cover)}" alt="" loading="eager"><figcaption>${updated ? `▣ ${escHtml(updated)}` : 'ERBELLO'}</figcaption></figure></section><section class="detail-panel"><p class="section-kicker">ABOUT THIS PROJECT</p><h2>프로젝트 소개</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel"><p class="section-kicker">GALLERY</p><h2>이미지 미리보기</h2>${galleryHtml}</section>` : ''}<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section><footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
+}
+
+function renderPrivateProjectDetailPage(req, artifact) {
+  const title = artifact.title || 'Private project';
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · Locked`, description:'비밀번호가 필요한 ERBELLO 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel locked-detail"><p class="detail-kicker">ERBELLO / LOCKED</p><h1>${escHtml(title)}</h1><p>이 프로젝트는 비밀번호가 필요합니다. 제목 외의 내용은 비밀번호 확인 후 열립니다.</p><a class="btn primary" href="/run/${encodeURIComponent(String(artifact.id))}">비밀번호 입력하기</a><a class="btn" href="/projects">프로젝트 목록</a></section></main></body></html>`;
+}
+
+function renderPolicyPage(kind = 'privacy') {
+  const isTerms = kind === 'terms';
+  const title = isTerms ? '이용약관' : '개인정보처리방침';
+  const subtitle = isTerms ? 'ERBELLO 이용에 관한 기본 안내입니다.' : 'ERBELLO가 사용하는 정보와 광고/쿠키에 관한 안내입니다.';
+  const cards = isTerms ? [
+    ['개인 프로젝트 갤러리', 'ERBELLO는 HTML, JSX, ZIP 기반의 개인 프로젝트를 정리하고 공유하기 위한 갤러리입니다.'],
+    ['콘텐츠 이용', '등록된 프로젝트의 저작권과 책임은 각 프로젝트 작성자에게 있으며, 무단 복제나 재배포는 권장하지 않습니다.'],
+    ['서비스 변경', '사이트 구조, 프로젝트, 링크, 기능은 운영 상황에 따라 수정되거나 삭제될 수 있습니다.']
+  ] : [
+    ['수집하는 정보', '프로젝트 조회수, 기본 접속 기록, 연락처 링크 이용처럼 사이트 운영에 필요한 최소 정보가 사용될 수 있습니다.'],
+    ['광고와 쿠키', 'Google AdSense가 광고 제공, 빈도 제한, 통계 측정을 위해 쿠키나 유사 기술을 사용할 수 있습니다.'],
+    ['문의', '개인정보나 사이트 이용 관련 문의는 연락처 페이지에 등록된 링크를 통해 보낼 수 있습니다.']
+  ];
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:subtitle, ads:true })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel"><p class="detail-kicker">ERBELLO POLICY</p><h1>${title}</h1><p class="detail-desc">${subtitle}</p></section><section class="detail-policy-grid">${cards.map(([h,p]) => `<article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">▣</span><h2>${escHtml(h)}</h2><p>${escHtml(p)}</p></article>`).join('')}</section><footer class="detail-footer"><span>© ERBELLO</span><a href="/">홈</a><a href="/contact">연락처</a></footer></main></body></html>`;
 }
 
 function checkAdmin(req, res, next) {
@@ -323,25 +520,57 @@ function cleanDataUrl(value, max = 1200000) {
   return text.length <= max ? text : '';
 }
 
+function cleanImageRef(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (/^https:\/\//i.test(text) && text.length <= 1200) return text;
+  if (/^\/assets\/illust\//i.test(text) && text.length <= 300) return text;
+  return cleanDataUrl(text);
+}
+
 function cleanCoverImage(value) {
   const text = String(value || '').trim();
   if (!text) return '';
   if (text === RANDOM_GAMSUNG_COVER) return text;
   if (/^\/assets\/illust\/gamsung-(?:1|3|4|5|6|7|8|9|10|11|12|13|14|15)\.webp$/i.test(text)) return text;
-  return cleanDataUrl(text);
+  return cleanImageRef(text);
 }
 
 function cleanGalleryImages(value) {
   const raw = Array.isArray(value) ? value : [];
-  return raw.map(item => cleanDataUrl(item)).filter(Boolean).slice(0, 8);
+  return raw.map(item => cleanImageRef(item)).filter(Boolean).slice(0, 8);
 }
 
 function cleanBool(value) {
   return value === true || value === 'true' || value === '1' || value === 1;
 }
 
+function cleanStatus(value, isPrivate = false) {
+  const status = String(value || '').toLowerCase().trim();
+  if (['public', 'private', 'draft'].includes(status)) return status;
+  return isPrivate ? 'private' : 'public';
+}
+
+
+function cleanStoragePath(value) {
+  return String(value || '').trim().replace(/\\/g, '/').replace(/^\/+/, '').slice(0, 700);
+}
+
+function cleanStorageBucket(value, fallback = '') {
+  const text = String(value || '').trim().slice(0, 80);
+  return /^[a-z0-9][a-z0-9._-]*$/i.test(text) ? text : fallback;
+}
+
+function cleanMime(value) {
+  return String(value || '').trim().toLowerCase().replace(/[^a-z0-9.+\-/]/g, '').slice(0, 120);
+}
+
+function cleanFilename(value) {
+  return String(value || '').trim().replace(/[<>:"'`\\|?*\x00-\x1f]/g, '').slice(0, 160);
+}
+
 function privateFieldsFromBody(body, existing = null) {
-  const is_private = cleanBool(body && body.is_private);
+  const is_private = cleanBool(body && body.is_private) || cleanStatus(body && body.status) === 'private';
   const password = String(body && body.private_password || '').trim();
   if (!is_private) return { is_private:false, private_password_hash:'', private_password_salt:'' };
   if (password) {
@@ -360,19 +589,38 @@ function payloadFromBody(body, existing = null) {
   const title = cleanText(body.title, 80);
   const description = cleanText(body.description, 240);
   const type = cleanType(body.type);
-  const code = normalizeCode(body.code);
+  let code = normalizeCode(body.code);
   const cover_image = cleanCoverImage(body.cover_image);
   const gallery_images = cleanGalleryImages(body.gallery_images);
   const detail_text = cleanText(body.detail_text, 1600);
+  const incomingStoragePath = cleanStoragePath(body.code_storage_path);
+  const existingStoragePath = existing && existing.code_storage_path ? existing.code_storage_path : '';
+  const code_storage_path = incomingStoragePath || existingStoragePath || '';
+  const code_storage_bucket = code_storage_path ? cleanStorageBucket(body.code_storage_bucket, existing && existing.code_storage_bucket || store.ARTIFACT_BUCKET) : '';
+  const code_storage_mime = code_storage_path ? cleanMime(body.code_storage_mime || existing && existing.code_storage_mime) : '';
+  const source_filename = code_storage_path ? cleanFilename(body.source_filename || existing && existing.source_filename) : '';
+  if (!code && existing && existing.code && !incomingStoragePath) code = normalizeCode(existing.code);
+  if (code_storage_path && (!code || code === '__ERBELLO_STORAGE__')) code = '__ERBELLO_STORAGE__';
   const detectedJsx = isJSX(code);
-  const source_kind = cleanSourceKind(body.source_kind || body.format, detectedJsx);
+  const source_kind = cleanSourceKind(body.source_kind || body.format || existing && existing.source_kind, detectedJsx || /jsx|tsx/i.test(source_filename));
   const tags = cleanTags(body.tags);
-  const privateFields = privateFieldsFromBody(body, existing);
-  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: detectedJsx || source_kind === 'jsx', ...privateFields };
+  const requestedStatus = cleanStatus(body.status, cleanBool(body.is_private));
+  const privateFields = privateFieldsFromBody({ ...body, is_private: requestedStatus === 'private' || cleanBool(body.is_private) }, existing);
+  const status = requestedStatus === 'private' || privateFields.is_private ? 'private' : requestedStatus;
+  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: detectedJsx || source_kind === 'jsx', code_storage_bucket, code_storage_path, code_storage_mime, source_filename, status, ...privateFields };
 }
 
 app.get('/api/status', (_req, res) => {
   res.json({ ok: true, storage: store.mode, adminConfigured: Boolean(getAdminHash()) });
+});
+
+app.get('/api/admin/system', checkAdmin, async (req, res) => {
+  try {
+    const status = await store.systemStatus();
+    res.json({ ok:true, adminConfigured:Boolean(getAdminHash()), siteOrigin:siteOrigin(req), adsenseClient:ADSENSE_CLIENT, ...status });
+  } catch (error) {
+    res.status(500).json({ error:error.message || 'System check failed' });
+  }
 });
 
 app.get('/api/artifacts', async (req, res) => {
@@ -392,6 +640,52 @@ app.get('/api/pages', async (_req, res) => {
   }
 });
 
+
+function uploadKindMeta(kind) {
+  const k = String(kind || '').trim().toLowerCase();
+  if (k === 'source') return { bucket: store.ARTIFACT_BUCKET, prefix: 'sources', isPublic: false };
+  if (k === 'cover') return { bucket: store.MEDIA_BUCKET, prefix: 'covers', isPublic: true };
+  if (k === 'gallery') return { bucket: store.MEDIA_BUCKET, prefix: 'gallery', isPublic: true };
+  const err = new Error('Invalid upload kind.');
+  err.statusCode = 400;
+  throw err;
+}
+
+function extensionFromMime(mime) {
+  const map = { 'text/html':'html', 'text/javascript':'js', 'application/javascript':'js', 'text/css':'css', 'application/zip':'zip', 'image/png':'png', 'image/jpeg':'jpg', 'image/webp':'webp', 'image/gif':'gif', 'image/svg+xml':'svg' };
+  return map[String(mime || '').toLowerCase()] || '';
+}
+
+function safeUploadName(name, mime = '') {
+  const cleaned = cleanFilename(name || 'upload').replace(/\s+/g, '-').replace(/[^a-z0-9._-]/gi, '').slice(0, 120) || 'upload';
+  if (/\.[a-z0-9]{1,8}$/i.test(cleaned)) return cleaned;
+  const ext = extensionFromMime(mime);
+  return ext ? `${cleaned}.${ext}` : cleaned;
+}
+
+app.post('/api/admin/uploads/sign', checkAdmin, async (req, res) => {
+  try {
+    const meta = uploadKindMeta(req.body && req.body.kind);
+    const mime = cleanMime(req.body && req.body.mime) || 'application/octet-stream';
+    const name = safeUploadName(req.body && req.body.name, mime);
+    const size = Number(req.body && req.body.size || 0);
+    if (size > 80 * 1024 * 1024) return res.status(413).json({ error: 'File is too large.' });
+    const objectPath = `${meta.prefix}/${new Date().toISOString().slice(0,10)}/${crypto.randomUUID()}-${name}`;
+    const signed = await store.createSignedUploadUrl(meta.bucket, objectPath);
+    res.json({
+      bucket: meta.bucket,
+      path: objectPath,
+      signedUrl: signed.signedUrl,
+      token: signed.token,
+      publicUrl: meta.isPublic ? store.getPublicUrl(meta.bucket, objectPath) : '',
+      mime,
+      filename: name
+    });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error: error.message });
+  }
+});
+
 app.put('/api/admin/pages/:slug/:lang', checkAdmin, async (req, res) => {
   try {
     const slug = cleanSlug(req.params.slug);
@@ -402,6 +696,32 @@ app.put('/api/admin/pages/:slug/:lang', checkAdmin, async (req, res) => {
     res.json(page);
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+
+app.get('/api/admin/export', checkAdmin, async (req, res) => {
+  try {
+    const rows = await store.listArtifacts({ includePrivateDetails:true });
+    const origin = siteOrigin(req);
+    const text = (rows || []).map((item, index) => {
+      const tags = Array.isArray(item.tags) ? item.tags.join(', ') : '';
+      const detail = plainText(item.detail_text, 1000);
+      return [`#${index + 1}`,
+        `제목: ${item.title || ''}`,
+        `상태: ${item.status || (item.is_private ? 'private' : 'public')}`,
+        `대표 분류: ${item.type || ''}`,
+        `태그: ${tags}`,
+        `짧은 설명: ${item.description || ''}`,
+        `상세 소개: ${detail}`,
+        `조회수: ${Number(item.view_count || 0)}`,
+        `상세 URL: ${origin}/project/${encodeURIComponent(String(item.id))}`,
+        `실행 URL: ${origin}/run/${encodeURIComponent(String(item.id))}`
+      ].join('\n');
+    }).join('\n\n---\n\n');
+    res.type('text/plain').send(text || '등록된 프로젝트가 없습니다.');
+  } catch (error) {
+    res.status(500).type('text/plain').send(error.message || 'Export failed');
   }
 });
 
@@ -418,7 +738,7 @@ app.get('/api/admin/artifacts/:id', checkAdmin, async (req, res) => {
 app.post('/api/admin/artifacts', checkAdmin, async (req, res) => {
   try {
     const payload = payloadFromBody(req.body || {});
-    if (!payload.title || !payload.code) return res.status(400).json({ error: 'title and code are required.' });
+    if (!payload.title || (!payload.code && !payload.code_storage_path)) return res.status(400).json({ error: 'title and code are required.' });
     const artifact = await store.createArtifact(payload);
     const { code, private_password_hash, private_password_salt, ...summary } = artifact;
     res.status(201).json(summary);
@@ -432,7 +752,7 @@ app.put('/api/admin/artifacts/:id', checkAdmin, async (req, res) => {
     const existing = await store.getArtifact(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Artifact not found.' });
     const payload = payloadFromBody(req.body || {}, existing);
-    if (!payload.title || !payload.code) return res.status(400).json({ error: 'title and code are required.' });
+    if (!payload.title || (!payload.code && !payload.code_storage_path)) return res.status(400).json({ error: 'title and code are required.' });
     const artifact = await store.updateArtifact(req.params.id, payload);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
     const { code, private_password_hash, private_password_salt, ...summary } = artifact;
@@ -465,7 +785,7 @@ app.post('/api/admin/verify', (req, res) => {
 app.post('/api/artifacts/:id/unlock', async (req, res) => {
   try {
     const artifact = await store.getArtifact(req.params.id);
-    if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
+    if (!artifact || isDraftArtifact(artifact)) return res.status(404).json({ error: 'Artifact not found.' });
     if (!artifact.is_private) return res.json({ access: signPrivateAccess(artifact) });
     if (!verifyPrivatePassword(req.body && req.body.password, artifact)) return res.status(401).json({ error: '비밀번호가 맞지 않습니다.' });
     res.json({ access: signPrivateAccess(artifact) });
@@ -478,17 +798,100 @@ app.get('/api/admin/render/:id', checkAdmin, async (req, res) => {
   try {
     const artifact = await store.getArtifact(req.params.id);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
-    res.json({ html: renderArtifactHtml(artifact) });
+    res.json({ html: await renderArtifactHtml(artifact, { access: String(req.query.access || '') }) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
+
+
+app.get('/project/:id', async (req, res) => {
+  try {
+    const artifact = await store.getArtifact(req.params.id);
+    if (!artifact) return res.status(404).send(`<!doctype html><html lang="ko"><head>${baseHead({ title:'Project not found · ERBELLO', description:'삭제되었거나 잘못된 프로젝트 링크입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><section class="detail-panel"><p class="detail-kicker">ERBELLO / 404</p><h1>프로젝트를 찾을 수 없습니다.</h1><p>삭제되었거나 잘못된 링크입니다.</p><a class="btn primary" href="/projects">프로젝트 목록으로</a></section></main></body></html>`);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    if (isDraftArtifact(artifact)) {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      return res.status(404).send(`<!doctype html><html lang="ko"><head>${baseHead({ title:'Project not found · ERBELLO', description:'아직 공개되지 않은 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><section class="detail-panel"><p class="detail-kicker">ERBELLO / DRAFT</p><h1>아직 공개되지 않은 프로젝트입니다.</h1><p>이 프로젝트는 소유자만 확인할 수 있습니다.</p><a class="btn primary" href="/projects">프로젝트 목록으로</a></section></main></body></html>`);
+    }
+    if (artifact.is_private) {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+      return res.send(renderPrivateProjectDetailPage(req, artifact));
+    }
+    res.send(renderProjectDetailPage(req, artifact));
+  } catch (error) {
+    res.status(500).send(`<!doctype html><html><body><pre>${escHtml(error.message)}</pre></body></html>`);
+  }
+});
+
+app.get('/privacy', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderPolicyPage('privacy'));
+});
+
+app.get('/terms', (_req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderPolicyPage('terms'));
+});
+
+app.get('/robots.txt', (req, res) => {
+  const origin = siteOrigin(req);
+  res.type('text/plain').send(`User-agent: *\nDisallow: /api/\nDisallow: /run/\nDisallow: /asset/\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
+});
+
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const origin = siteOrigin(req);
+    const rows = await store.listArtifacts({ includePrivateDetails:false });
+    const publicRows = (rows || []).filter(item => !item.is_private && item.status !== 'draft');
+    const urls = ['/', '/projects', '/about', '/contact', '/privacy', '/terms', ...publicRows.map(item => `/project/${encodeURIComponent(String(item.id))}`)];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(url => `  <url><loc>${origin}${url}</loc></url>`).join('\n')}\n</urlset>`;
+    res.type('application/xml').send(xml);
+  } catch (error) {
+    res.status(500).type('text/plain').send(error.message || 'sitemap error');
+  }
+});
+
+app.get('/asset/:id/*', async (req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  try {
+    const artifact = await store.getArtifact(req.params.id);
+    if (!artifact || isDraftArtifact(artifact) || !artifact.code_storage_path) return res.status(404).send('Not found');
+    const access = String(req.query.access || '');
+    if (artifact.is_private && !verifyPrivateAccessToken(access, artifact)) return res.status(401).send('Locked');
+    const kind = cleanSourceKind(artifact.source_kind, artifact.is_jsx);
+    if (kind !== 'zip' && !/zip/i.test(artifact.code_storage_mime || '') && !/\.zip$/i.test(artifact.source_filename || '')) return res.status(404).send('Not found');
+    const buffer = await loadStorageSource(artifact);
+    const zip = await JSZip.loadAsync(buffer);
+    const requested = normalizeZipPath(req.params[0] || '');
+    const entry = zipEntry(zip, requested);
+    if (!entry) return res.status(404).send('Not found');
+    const mime = guessMime(entry.name);
+    res.setHeader('Content-Type', mime.startsWith('text/') || /javascript|json|svg/.test(mime) ? `${mime}; charset=utf-8` : mime);
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    if (mime === 'text/css') {
+      const cssDir = normalizeZipPath(entry.name).includes('/') ? normalizeZipPath(entry.name).split('/').slice(0, -1).join('/') : '';
+      const css = rewriteCssZipUrls(await entry.async('string'), zip, artifact.id, cssDir, access);
+      return res.send(css);
+    }
+    const data = await entry.async('nodebuffer');
+    res.send(data);
+  } catch (error) {
+    res.status(500).send(error.message || 'Asset error');
+  }
+});
+
 app.get('/run/:id', async (req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   try {
     const artifact = await store.getArtifact(req.params.id);
     if (!artifact) {
       return res.status(404).send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not found</title><style>body{margin:0;background:#090909;color:#f4f4f4;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}.box{border:1px solid #2a2a2a;padding:28px;border-radius:18px;background:#111}.k{color:#c7ff4f;font-family:monospace}</style></head><body><div class="box"><div class="k">ERBELLO / 404</div><h1>Artifact not found</h1><p>삭제되었거나 잘못된 링크입니다.</p></div></body></html>`);
+    }
+
+    if (isDraftArtifact(artifact)) {
+      return res.status(404).send(`<!doctype html><html><body><pre>Draft project</pre></body></html>`);
     }
 
     if (artifact.is_private) {
@@ -503,7 +906,7 @@ app.get('/run/:id', async (req, res) => {
       store.incrementView(req.params.id).catch((error) => console.warn('view count failed:', error.message || error));
     }
 
-    const html = renderArtifactHtml(artifact);
+    const html = await renderArtifactHtml(artifact, { access: String(req.query.access || '') });
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(html);
@@ -512,8 +915,9 @@ app.get('/run/:id', async (req, res) => {
   }
 });
 
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+app.get('*', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderIndexPage(req));
 });
 
 const PORT = Number(process.env.PORT || 3000);

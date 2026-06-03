@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v16 private locked projects';
+  const VERSION = 'ERBELLO Gallery v17 storage uploads';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -64,6 +64,14 @@
     }
   };
 
+
+  const EXTRA_I18N = {
+    ko:{ statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.' },
+    en:{ statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.' },
+    ja:{ statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。' },
+    zh:{ statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。' }
+  };
+
   let artifacts = [];
   let pageRows = [];
   let currentRoute = initialRoute();
@@ -73,12 +81,17 @@
   let adminToken = safeStorage.get('session', 'erbello-admin-token') || '';
   let currentId = null;
   let editingId = null;
+  let pendingSourceFile = null;
+  let pendingSourceStored = false;
+  let pendingSourceName = '';
   let pendingCoverImage = '';
+  let pendingCoverFile = null;
   let pendingGalleryImages = [];
+  let pendingGalleryFiles = [];
   let toastTimer = null;
 
   function dict() { return I18N[currentLang] || I18N.ko; }
-  function tr(key) { return dict()[key] ?? I18N.ko[key] ?? key; }
+  function tr(key) { return (EXTRA_I18N[currentLang] && EXTRA_I18N[currentLang][key]) ?? dict()[key] ?? (EXTRA_I18N.ko && EXTRA_I18N.ko[key]) ?? I18N.ko[key] ?? key; }
   function catLabel(type) { return dict().categories[type] || dict().categories.other; }
   function colorLabel(color) { return (dict().colors && dict().colors[color]) || (I18N.en.colors && I18N.en.colors[color]) || color; }
   function schemeLabel(scheme) { return (dict().schemes && dict().schemes[scheme]) || (I18N.en.schemes && I18N.en.schemes[scheme]) || scheme; }
@@ -106,6 +119,17 @@
     return item.is_jsx ? 'jsx' : 'html';
   }
   function formatLabel(item = {}) { const f = formatKey(item); return f === 'zip' ? tr('formatZip') : (f === 'jsx' ? tr('formatJsx') : tr('formatHtml')); }
+
+  function statusKey(item = {}) {
+    const s = String(item.status || '').toLowerCase();
+    if (['public','private','draft'].includes(s)) return s;
+    return item.is_private ? 'private' : 'public';
+  }
+  function statusLabel(key) {
+    const s = String(key || 'public').toLowerCase();
+    return s === 'draft' ? tr('statusDraft') : (s === 'private' ? tr('statusPrivate') : tr('statusPublic'));
+  }
+
   function categoryTerms(key) {
     const terms = new Set([key]);
     Object.values(I18N).forEach(dict => { if (dict.categories && dict.categories[key]) terms.add(String(dict.categories[key]).toLowerCase()); });
@@ -157,6 +181,7 @@
   function itemMatchesFilter(item, filter) { return matchesFilter(item, filter); }
   function isAdminOn() { return document.body.classList.contains('admin-on'); }
   function runUrl(id) { return PREVIEW_MODE ? `#preview-${encodeURIComponent(id)}` : `${location.origin}/run/${encodeURIComponent(id)}`; }
+  function projectUrl(id) { return PREVIEW_MODE ? `#preview-${encodeURIComponent(id)}` : `${location.origin}/project/${encodeURIComponent(id)}`; }
   function pageUrl(route) { return route === 'home' ? '/' : `/${route}`; }
 
   function initialRoute() {
@@ -236,6 +261,56 @@
     try { data = text ? JSON.parse(text) : null; } catch (_) { data = { error:text }; }
     if (!response.ok) throw new Error((data && data.error) || `Request failed: ${response.status}`);
     return data;
+  }
+
+
+  function uploadMime(file) {
+    if (!file) return 'application/octet-stream';
+    if (file.type) return file.type;
+    const name = String(file.name || '').toLowerCase();
+    if (/\.html?$/.test(name)) return 'text/html';
+    if (/\.jsx?$/.test(name)) return 'text/javascript';
+    if (/\.tsx?$/.test(name)) return 'text/typescript';
+    if (/\.zip$/.test(name)) return 'application/zip';
+    return 'application/octet-stream';
+  }
+
+  async function uploadFileToStorage(kind, file) {
+    if (!file) return null;
+    const signed = await api('/api/admin/uploads/sign', {
+      method:'POST',
+      headers:{ 'x-admin-token':adminToken },
+      body:JSON.stringify({ kind, name:file.name || `${kind}-upload`, mime:uploadMime(file), size:file.size || 0 })
+    });
+    const upload = await fetch(signed.signedUrl, {
+      method:'PUT',
+      headers:{ 'Content-Type': uploadMime(file) },
+      body:file
+    });
+    if (!upload.ok) {
+      const text = await upload.text().catch(() => '');
+      throw new Error(text || `Upload failed: ${upload.status}`);
+    }
+    return signed;
+  }
+
+
+  async function optimizeImageFile(file, maxSide = 1600, quality = 0.84) {
+    if (!file || !/^image\//i.test(file.type || '') || /svg|gif/i.test(file.type || '') || file.size < 700 * 1024) return file;
+    let bitmap = null;
+    try { bitmap = await createImageBitmap(file); } catch (_) { return file; }
+    const scale = Math.min(1, maxSide / Math.max(bitmap.width || 1, bitmap.height || 1));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha:false });
+    ctx.drawImage(bitmap, 0, 0, width, height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/webp', quality));
+    if (!blob || blob.size >= file.size) return file;
+    const name = String(file.name || 'image').replace(/\.[a-z0-9]+$/i, '') + '.webp';
+    toast(tr('imageOptimized'));
+    return new File([blob], name, { type:'image/webp' });
   }
 
   function validScheme(value) { return SCHEMES.includes(value) ? value : 'black'; }
@@ -323,6 +398,7 @@
     renderQuickTags();
     renderRoute();
     updateDetectHint();
+    detailQualityText();
   }
 
   function updateAdminButton() {
@@ -384,7 +460,7 @@
 
   function getPreviewItems() {
     const base = new Date('2026-05-12T00:00:00Z').getTime();
-    return (dict().samples || I18N.ko.samples).map(([id, title, description, type], index) => ({ id, title, description, type, tags:[catLabel(type), id.includes('tarot') ? '타로' : '', id.includes('typing') ? '타자' : '', id.includes('pudding') ? '게임' : ''].filter(Boolean), format:id.includes('tarot') || id.includes('pudding') ? 'jsx' : 'html', is_jsx:id.includes('tarot') || id.includes('pudding'), view_count: Math.max(0, 1280 - index * 117), created_at:new Date(base - index * 86400000).toISOString(), updated_at:new Date(base - index * 43200000).toISOString(), cover_image:'', gallery_images:[], detail_text:description, code:previewDocument(title, description) }));
+    return (dict().samples || I18N.ko.samples).map(([id, title, description, type], index) => ({ id, title, description, type, tags:[catLabel(type), id.includes('tarot') ? '타로' : '', id.includes('typing') ? '타자' : '', id.includes('pudding') ? '게임' : ''].filter(Boolean), format:id.includes('tarot') || id.includes('pudding') ? 'jsx' : 'html', is_jsx:id.includes('tarot') || id.includes('pudding'), status:'public', view_count: Math.max(0, 1280 - index * 117), created_at:new Date(base - index * 86400000).toISOString(), updated_at:new Date(base - index * 43200000).toISOString(), cover_image:'', gallery_images:[], detail_text:description, code:previewDocument(title, description) }));
   }
 
   function previewDocument(title, text) {
@@ -571,6 +647,7 @@
   function filteredArtifacts() {
     const q = searchQuery.trim().toLowerCase();
     return artifacts.filter((item) => {
+      if (!isAdminOn() && statusKey(item) === 'draft') return false;
       const type = typeKey(item.type);
       const tags = artifactTags(item);
       if (!itemMatchesFilter(item, currentFilter)) return false;
@@ -595,7 +672,9 @@
   function cardMarkup(item, compactCard = false) {
     const type = typeKey(item.type);
     const title = item.title || tr('untitled');
-    const locked = Boolean(item.is_private) && !isAdminOn();
+    const status = statusKey(item);
+    const locked = status === 'private' && !isAdminOn();
+    const draftAdmin = status === 'draft' && isAdminOn() ? `<span class="private-badge-admin draft-badge-admin">${esc(tr('draftBadge'))}</span>` : '';
     const views = Number(item.view_count || 0);
     if (locked) {
       return `<article class="card card-locked ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
@@ -609,7 +688,7 @@
     const profile = visualProfile(item);
     const extraTags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
     const tagHtml = extraTags.length ? `<div class="card-tags">${extraTags.map(tag => `<span class="card-tag-chip">${esc(tag)}</span>`).join('')}</div>` : '';
-    const privateAdmin = item.is_private ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : '';
+    const privateAdmin = status === 'private' ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : draftAdmin;
     return `<article class="card ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
       <div class="card-visual has-cover ${esc(profile.klass)}"><img class="card-cover-img" src="${esc(artifactCover(item))}" alt="" loading="lazy" /><span class="visual-title">${esc(catLabel(type))}</span><span class="visual-emoji" aria-hidden="true">${esc(profile.icon)}</span><span class="tag">${esc(catLabel(type))}</span></div>
       <div class="card-body"><h3 class="card-title">${esc(title)}${privateAdmin}</h3><p class="card-desc">${esc(compact(desc, 118))}</p>${tagHtml}
@@ -626,7 +705,7 @@
       card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openArtifact(id); } });
     });
     container.querySelectorAll('[data-open]').forEach((button) => button.addEventListener('click', () => openArtifact(button.dataset.open)));
-    container.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', () => copyText(runUrl(button.dataset.copy))));
+    container.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', () => copyText(projectUrl(button.dataset.copy))));
     container.querySelectorAll('[data-edit]').forEach((button) => button.addEventListener('click', () => requireAdmin(() => editArtifact(button.dataset.edit))));
     container.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => requireAdmin(() => deleteArtifact(button.dataset.remove))));
   }
@@ -643,7 +722,7 @@
   function renderFeaturedGrid() {
     const grid = $('featuredGrid');
     if (!grid) return;
-    const items = artifacts.slice(0, 4);
+    const items = artifacts.filter(item => isAdminOn() || statusKey(item) !== 'draft').slice(0, 4);
     if (!items.length) { grid.innerHTML = emptyMessage(true); return; }
     grid.innerHTML = items.map((item) => cardMarkup(item, true)).join('');
     bindCardEvents(grid);
@@ -654,7 +733,7 @@
   function openArtifact(id) {
     if (!id) return;
     if (PREVIEW_MODE || isAdminOn()) openViewer(id);
-    else window.location.href = runUrl(id);
+    else window.location.href = projectUrl(id);
   }
 
   function openViewer(id) {
@@ -722,8 +801,16 @@
     const node = $('detectHint');
     if (!node) return;
     const code = $('codeInput')?.value || '';
+    const currentFormat = formatKey($('formatInput')?.value || '');
+    if (pendingSourceFile) {
+      if (currentFormat === 'zip') node.textContent = tr('detectZip');
+      else if (currentFormat === 'jsx') node.textContent = tr('detectJsx');
+      else node.textContent = tr('detectHtml');
+      return;
+    }
+    if (pendingSourceStored && !code.trim()) { node.textContent = pendingSourceName ? `${pendingSourceName}` : tr('fileLoaded'); return; }
     if (!code.trim()) { node.textContent = tr('detectWaiting'); return; }
-    if (formatKey($('formatInput')?.value || '') === 'zip') { node.textContent = tr('detectZip'); return; }
+    if (currentFormat === 'zip') { node.textContent = tr('detectZip'); return; }
     const jsx = looksLikeJsx(code);
     node.textContent = jsx ? tr('detectJsx') : tr('detectHtml');
     if ($('formatInput')) $('formatInput').value = jsx ? 'jsx' : 'html';
@@ -782,21 +869,53 @@
 
   async function handleCoverFile(file) {
     if (!file) return;
-    try { toast(tr('imageProcessing')); pendingCoverImage = await resizeImageFile(file, 1280, 720, 0.84); renderImagePreviews(); toast(tr('imageLoaded')); }
-    catch (error) { console.error(error); toast(error.message || tr('imageTooLarge')); }
-  }
-
-  async function handleGalleryFiles(files) {
-    const list = Array.from(files || []).slice(0, 8);
-    if (!list.length) return;
     try {
       toast(tr('imageProcessing'));
-      const imgs = [];
-      for (const file of list) imgs.push(await resizeImageFile(file, 1280, 720, 0.8));
-      pendingGalleryImages = [...pendingGalleryImages, ...imgs.filter(Boolean)].slice(0, 8);
+      pendingCoverFile = file;
+      pendingCoverImage = URL.createObjectURL(file);
       renderImagePreviews();
       toast(tr('imageLoaded'));
     } catch (error) { console.error(error); toast(error.message || tr('imageTooLarge')); }
+  }
+
+  async function handleGalleryFiles(files) {
+    const list = Array.from(files || []).slice(0, Math.max(0, 8 - pendingGalleryImages.length));
+    if (!list.length) return;
+    try {
+      toast(tr('imageProcessing'));
+      for (const file of list) {
+        pendingGalleryImages.push(URL.createObjectURL(file));
+        pendingGalleryFiles.push(file);
+      }
+      pendingGalleryImages = pendingGalleryImages.slice(0, 8);
+      pendingGalleryFiles = pendingGalleryFiles.slice(0, 8);
+      renderImagePreviews();
+      toast(tr('imageLoaded'));
+    } catch (error) { console.error(error); toast(error.message || tr('imageTooLarge')); }
+  }
+
+
+  function detailQualityText() {
+    const node = $('detailInput');
+    const box = $('detailQuality');
+    if (!node || !box) return;
+    const len = node.value.trim().length;
+    const ok = len >= 350;
+    box.className = `detail-quality ${ok ? 'good' : 'warn'}`;
+    box.textContent = `${tr('detailChars')}: ${len} · ${ok ? tr('detailQualityGood') : tr('detailQualityShort')}`;
+  }
+
+  function fillDetailDraft() {
+    const node = $('detailInput');
+    if (!node) return;
+    const title = $('titleInput')?.value.trim() || tr('untitled');
+    const desc = $('descInput')?.value.trim() || '';
+    const category = catLabel($('typeInput')?.value || 'other');
+    const tags = collectArtifactTags().join(', ');
+    const current = node.value.trim();
+    if (current && current.length > 120 && !window.confirm('이미 상세 소개가 있습니다. 초안으로 덮어쓸까요?')) return;
+    node.value = `${title}는 ERBELLO에 보관된 ${category} 프로젝트입니다. ${desc || '짧게 열어보고 사용해볼 수 있는 개인 웹 프로젝트로, 아이디어를 실제 화면으로 옮기는 과정을 기록하기 위해 정리했습니다.'}\n\n이 페이지에서는 프로젝트의 목적과 사용 방식을 간단히 확인할 수 있고, 실행 버튼을 통해 실제 화면을 열어볼 수 있습니다. 모바일과 PC에서 보이는 방식이 다를 수 있으므로 화면 크기에 따라 천천히 둘러보는 것을 권장합니다.\n\n${tags ? `관련 태그는 ${tags}입니다. ` : ''}이 프로젝트는 작은 기능을 직접 사용해보고, 결과를 공유하거나 다시 확인할 수 있도록 구성했습니다.`;
+    detailQualityText();
   }
 
   function resetArtifactForm() {
@@ -805,14 +924,21 @@
     $('titleInput').value = '';
     $('descInput').value = '';
     $('typeInput').value = 'tool';
+    if ($('statusInput')) $('statusInput').value = 'public';
     if ($('tagsInput')) $('tagsInput').value = '';
     if ($('detailInput')) $('detailInput').value = '';
     if ($('privateInput')) $('privateInput').checked = false;
     if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
     updatePrivateFields();
+    pendingSourceFile = null;
+    pendingSourceStored = false;
+    pendingSourceName = '';
     pendingCoverImage = '';
+    pendingCoverFile = null;
     pendingGalleryImages = [];
+    pendingGalleryFiles = [];
     renderImagePreviews();
+    detailQualityText();
     if ($('formatInput')) $('formatInput').value = 'html';
     if ($('formatBadge')) $('formatBadge').textContent = tr('formatHtml');
     $('codeInput').value = '';
@@ -834,18 +960,25 @@
       { const itemType = typeKey(item.type); $('typeInput').value = $('typeInput').querySelector(`option[value="${itemType}"]`) ? itemType : 'other'; }
       if ($('tagsInput')) $('tagsInput').value = tagsText(item.tags || []);
       if ($('detailInput')) $('detailInput').value = item.detail_text || '';
-      if ($('privateInput')) $('privateInput').checked = Boolean(item.is_private);
+      if ($('statusInput')) $('statusInput').value = statusKey(item);
+      if ($('privateInput')) $('privateInput').checked = statusKey(item) === 'private' || Boolean(item.is_private);
       if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
       updatePrivateFields();
+      pendingSourceFile = null;
+      pendingSourceStored = Boolean(item.code_storage_path);
+      pendingSourceName = item.source_filename || (pendingSourceStored ? 'Storage source' : '');
       pendingCoverImage = item.cover_image || '';
+      pendingCoverFile = null;
       pendingGalleryImages = galleryImages(item);
+      pendingGalleryFiles = pendingGalleryImages.map(() => null);
       renderImagePreviews();
       if ($('formatInput')) $('formatInput').value = formatKey(item);
       if ($('formatBadge')) $('formatBadge').textContent = formatLabel(item);
-      $('codeInput').value = item.code || '';
+      $('codeInput').value = item.code_storage_path ? '' : (item.code || '');
       $('fileInput').value = '';
       $('artifactError').textContent = '';
       updateDetectHint();
+      detailQualityText();
       openModal('artifactModal');
     } catch (error) { console.error(error); toast(tr('loadError')); }
   }
@@ -857,16 +990,45 @@
     const type = $('typeInput').value;
     const tags = collectArtifactTags();
     const detail_text = $('detailInput') ? $('detailInput').value.trim() : '';
-    const cover_image = pendingCoverImage || '';
-    const gallery_images = pendingGalleryImages.slice(0, 8);
-    const code = normalizeCode($('codeInput').value);
-    const is_private = Boolean($('privateInput') && $('privateInput').checked);
+    const manualCode = normalizeCode($('codeInput').value);
+    const status = $('statusInput') ? $('statusInput').value : (Boolean($('privateInput') && $('privateInput').checked) ? 'private' : 'public');
+    const is_private = status === 'private' || Boolean($('privateInput') && $('privateInput').checked);
     const private_password = $('privatePasswordInput') ? $('privatePasswordInput').value.trim() : '';
     $('artifactError').textContent = '';
-    if (!title || !code) { $('artifactError').textContent = tr('required'); return; }
+    if (!title || (!manualCode && !pendingSourceFile && !pendingSourceStored)) { $('artifactError').textContent = tr('required'); return; }
     try {
-      const format = ($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html');
-      const payload = { title, description, type, tags, format, code, detail_text, cover_image, gallery_images, is_private, private_password };
+      toast('Storage 업로드를 확인하는 중입니다...');
+      let sourceUpload = null;
+      if (pendingSourceFile) sourceUpload = await uploadFileToStorage('source', pendingSourceFile);
+
+      let cover_image = pendingCoverImage || '';
+      if (pendingCoverFile) {
+        const optimizedCover = await optimizeImageFile(pendingCoverFile);
+        const coverUpload = await uploadFileToStorage('cover', optimizedCover);
+        cover_image = coverUpload.publicUrl || cover_image;
+      }
+
+      const gallery_images = [];
+      for (let i = 0; i < pendingGalleryImages.length && i < 8; i += 1) {
+        const file = pendingGalleryFiles[i];
+        if (file) {
+          const optimizedGallery = await optimizeImageFile(file);
+          const uploaded = await uploadFileToStorage('gallery', optimizedGallery);
+          if (uploaded.publicUrl) gallery_images.push(uploaded.publicUrl);
+        } else if (pendingGalleryImages[i]) {
+          gallery_images.push(pendingGalleryImages[i]);
+        }
+      }
+
+      const code = sourceUpload ? '' : manualCode;
+      const format = sourceUpload ? (($('formatInput') && $('formatInput').value) || (isZipFile(pendingSourceFile) ? 'zip' : 'html')) : (($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html'));
+      const payload = {
+        title, description, type, tags, status, format, code, detail_text, cover_image, gallery_images, is_private, private_password,
+        code_storage_bucket: sourceUpload ? sourceUpload.bucket : '',
+        code_storage_path: sourceUpload ? sourceUpload.path : '',
+        code_storage_mime: sourceUpload ? sourceUpload.mime : '',
+        source_filename: sourceUpload ? sourceUpload.filename : ''
+      };
       if (editingId) await api(`/api/admin/artifacts/${encodeURIComponent(editingId)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       else await api('/api/admin/artifacts', { method:'POST', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       closeModal('artifactModal');
@@ -1023,31 +1185,30 @@
     dz?.classList.remove('zip-ready','zip-error');
     $('artifactError').textContent = '';
     if (isZipFile(file)) {
-      try {
-        $('detectHint').textContent = tr('zipLoading');
-        const html = await standaloneHtmlFromZip(file);
-        $('codeInput').value = html;
-        if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ');
-        $('typeInput').value = 'tool';
-        if ($('formatInput')) $('formatInput').value = 'zip';
-        const tags = normalizeTags($('tagsInput')?.value || '');
-        if (!tags.some(tag => tagMatchesCategory(tag, 'html'))) tags.push(catLabel('html'));
-        if (!tags.some(tag => normalizeTagValue(tag) === 'zip')) tags.push('ZIP');
-        setArtifactTags(tags);
-        dz?.classList.add('zip-ready');
-        updateDetectHint();
-        toast(tr('zipDone'));
-      } catch (error) {
-        console.error(error);
-        dz?.classList.add('zip-error');
-        $('detectHint').textContent = error.message || tr('zipUnsupported');
-        $('artifactError').textContent = error.message || tr('zipUnsupported');
-      }
+      pendingSourceFile = file;
+      pendingSourceStored = false;
+      pendingSourceName = file.name || 'ZIP file';
+      $('codeInput').value = '';
+      if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ');
+      $('typeInput').value = 'tool';
+    if ($('statusInput')) $('statusInput').value = 'public';
+      if ($('formatInput')) $('formatInput').value = 'zip';
+      if ($('formatBadge')) $('formatBadge').textContent = tr('formatZip');
+      const tags = normalizeTags($('tagsInput')?.value || '');
+      if (!tags.some(tag => tagMatchesCategory(tag, 'html'))) tags.push(catLabel('html'));
+      if (!tags.some(tag => normalizeTagValue(tag) === 'zip')) tags.push('ZIP');
+      setArtifactTags(tags);
+      dz?.classList.add('zip-ready');
+      updateDetectHint();
+      toast(tr('zipLoaded'));
       return;
     }
+    pendingSourceFile = file;
+    pendingSourceStored = false;
+    pendingSourceName = file.name || 'source file';
     const reader = new FileReader();
     reader.onload = () => {
-      $('codeInput').value = String(reader.result || '');
+      $('codeInput').value = file.size <= 1024 * 1024 ? String(reader.result || '') : '';
       if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.(html?|jsx?|tsx?|txt)$/i, '').replace(/[-_]+/g, ' ');
       if (/\.(jsx?|tsx?)$/i.test(file.name || '')) {
         const tags = normalizeTags($('tagsInput')?.value || '');
@@ -1159,6 +1320,64 @@
     } catch (error) { console.error(error); $('pageError').textContent = error.message || tr('pageSaveError'); }
   }
 
+
+  function syncStatusPrivate() {
+    const status = $('statusInput') ? $('statusInput').value : 'public';
+    if ($('privateInput')) $('privateInput').checked = status === 'private';
+    updatePrivateFields();
+  }
+  function syncPrivateStatus() {
+    if (!$('statusInput') || !$('privateInput')) return;
+    $('statusInput').value = $('privateInput').checked ? 'private' : ($('statusInput').value === 'private' ? 'public' : $('statusInput').value);
+    updatePrivateFields();
+  }
+
+  function exportProjectList() {
+    if (!artifacts.length) { toast(tr('noStats')); return; }
+    const text = artifacts.map((item, index) => {
+      const tags = artifactTags(item).join(', ');
+      return [`#${index + 1}`,
+        `제목: ${item.title || ''}`,
+        `상태: ${statusLabel(statusKey(item))}`,
+        `대표 분류: ${catLabel(typeKey(item.type))}`,
+        `태그: ${tags}`,
+        `짧은 설명: ${item.description || ''}`,
+        `상세 소개: ${item.detail_text || ''}`,
+        `조회수: ${Number(item.view_count || 0)}`,
+        `상세 URL: ${projectUrl(item.id)}`,
+        `실행 URL: ${runUrl(item.id)}`
+      ].join('\n');
+    }).join('\n\n---\n\n');
+    copyText(text).then(() => toast(tr('exportCopied')));
+  }
+
+  function renderSystemStatus(data) {
+    const node = $('systemStatusPanel');
+    if (!node) return;
+    const row = (label, ok, value = '') => `<div class="system-row ${ok ? 'ok' : 'bad'}"><span>${esc(label)}</span><strong>${ok ? 'OK' : 'CHECK'}</strong><small>${esc(value || '')}</small></div>`;
+    node.innerHTML = [
+      row('Admin password', Boolean(data.adminConfigured), data.adminConfigured ? 'configured' : 'missing'),
+      row('Database', Boolean(data.artifactsOk), `${data.mode || ''} · projects ${data.artifactCount ?? '-'}`),
+      row('Pages table', Boolean(data.pagesOk), `pages ${data.pageCount ?? '-'}`),
+      row('Media bucket', Boolean(data.mediaBucketOk) || data.mode === 'local-json', data.mediaBucket || ''),
+      row('Artifact bucket', Boolean(data.artifactBucketOk) || data.mode === 'local-json', data.artifactBucket || ''),
+      row('Site URL', true, data.siteOrigin || location.origin),
+      row('AdSense', Boolean(data.adsenseClient), data.adsenseClient || 'not configured')
+    ].join('');
+  }
+
+  async function openSystemStatus() {
+    if (PREVIEW_MODE) { toast(tr('previewNoSave')); return; }
+    openModal('systemModal');
+    if ($('systemStatusPanel')) $('systemStatusPanel').innerHTML = '<div class="system-loading">Checking...</div>';
+    try {
+      const data = await api('/api/admin/system', { headers:{ 'x-admin-token':adminToken } });
+      renderSystemStatus(data);
+    } catch (error) {
+      if ($('systemStatusPanel')) $('systemStatusPanel').innerHTML = `<div class="error">${esc(error.message || 'System check failed')}</div>`;
+    }
+  }
+
   function bindEvents() {
     $('themeToggle')?.addEventListener('click', toggleThemeMenu);
     document.querySelectorAll('[data-scheme-choice]').forEach((button) => button.addEventListener('click', () => { applyTheme(button.dataset.schemeChoice || 'black', validColor(document.body.dataset.color)); }));
@@ -1187,6 +1406,12 @@
     $('unlockBtn')?.addEventListener('click', unlockAdmin);
     $('passwordInput')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') unlockAdmin(); });
     $('saveArtifactBtn')?.addEventListener('click', saveArtifact);
+    $('statusInput')?.addEventListener('change', syncStatusPrivate);
+    $('privateInput')?.addEventListener('change', syncPrivateStatus);
+    $('detailInput')?.addEventListener('input', detailQualityText);
+    $('fillDetailBtn')?.addEventListener('click', fillDetailDraft);
+    $('exportBtn')?.addEventListener('click', () => requireAdmin(exportProjectList));
+    $('systemBtn')?.addEventListener('click', () => requireAdmin(openSystemStatus));
     $('tagsInput')?.addEventListener('input', renderQuickTags);
     $('quickTags')?.addEventListener('click', (event) => { const btn = event.target.closest('[data-quick-tag]'); if (btn) toggleArtifactTag(btn.dataset.quickTag || ''); });
     $('codeInput')?.addEventListener('input', updateDetectHint);
@@ -1194,10 +1419,10 @@
     $('fileInput')?.addEventListener('change', (event) => handleFile(event.target.files && event.target.files[0]));
     $('coverInput')?.addEventListener('change', (event) => handleCoverFile(event.target.files && event.target.files[0]));
     $('galleryInput')?.addEventListener('change', (event) => handleGalleryFiles(event.target.files));
-    $('clearCoverBtn')?.addEventListener('click', () => { pendingCoverImage = ''; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); });
-    $('randomCoverBtn')?.addEventListener('click', () => { pendingCoverImage = RANDOM_GAMSUNG_COVER; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); toast(tr('randomCoverActive')); });
-    $('clearGalleryBtn')?.addEventListener('click', () => { pendingGalleryImages = []; if ($('galleryInput')) $('galleryInput').value = ''; renderImagePreviews(); });
-    $('galleryPreview')?.addEventListener('click', (event) => { const btn = event.target.closest('[data-remove-gallery]'); if (!btn) return; pendingGalleryImages.splice(Number(btn.dataset.removeGallery), 1); renderImagePreviews(); });
+    $('clearCoverBtn')?.addEventListener('click', () => { pendingCoverImage = ''; pendingCoverFile = null; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); });
+    $('randomCoverBtn')?.addEventListener('click', () => { pendingCoverImage = RANDOM_GAMSUNG_COVER; pendingCoverFile = null; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); toast(tr('randomCoverActive')); });
+    $('clearGalleryBtn')?.addEventListener('click', () => { pendingGalleryImages = []; pendingGalleryFiles = []; if ($('galleryInput')) $('galleryInput').value = ''; renderImagePreviews(); });
+    $('galleryPreview')?.addEventListener('click', (event) => { const btn = event.target.closest('[data-remove-gallery]'); if (!btn) return; const index = Number(btn.dataset.removeGallery); pendingGalleryImages.splice(index, 1); pendingGalleryFiles.splice(index, 1); renderImagePreviews(); });
     const dz = $('dropZone');
     if (dz) {
       ['dragenter','dragover'].forEach((name) => dz.addEventListener(name, (event) => { event.preventDefault(); dz.classList.add('drag'); }));

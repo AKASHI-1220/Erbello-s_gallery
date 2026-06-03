@@ -83,6 +83,8 @@
         </div>
 
         <button id="editPageBtn" class="btn admin-only" type="button" data-i18n="editPage">페이지 편집</button>
+        <button id="exportBtn" class="btn admin-only" type="button" data-i18n="exportProjects">목록 복사</button>
+        <button id="systemBtn" class="btn admin-only" type="button" data-i18n="systemStatus">시스템</button>
         <button id="adminBtn" class="btn icon owner-only" type="button" data-i18n="ownerLogin">소유자 로그인</button>
       </div>
     </header>
@@ -186,7 +188,7 @@
 
     <footer id="footer" class="footer">
       <span>© 2026 ERBELLO. All rights reserved.</span>
-      <span class="footer-note">ERBELLO PROJECT GALLERY</span><a class="footer-link" href="/privacy" data-route="privacy" data-i18n="navPrivacy">개인정보처리방침</a>
+      <span class="footer-note">ERBELLO PROJECT GALLERY</span><a class="footer-link" href="/privacy" data-route="privacy" data-i18n="navPrivacy">개인정보처리방침</a><a class="footer-link" href="/terms">이용약관</a>
       <span class="footer-love"><a class="to-top" href="#top" aria-label="Back to top">↑</a></span>
     </footer>
   </div>
@@ -344,6 +346,14 @@
               <option value="other" data-i18n="typeOther">기타</option>
             </select>
           </div>
+          <div class="field">
+            <label for="statusInput" data-i18n="statusLabel">공개 상태</label>
+            <select id="statusInput" class="select">
+              <option value="public" data-i18n="statusPublic">공개</option>
+              <option value="private" data-i18n="statusPrivate">비밀</option>
+              <option value="draft" data-i18n="statusDraft">임시저장</option>
+            </select>
+          </div>
         </div>
         <div class="field">
           <label for="descInput" data-i18n="descriptionLabel">설명</label>
@@ -376,6 +386,8 @@
           <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
           <textarea id="detailInput" class="textarea textarea-small" maxlength="1600" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
           <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
+          <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
+          <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
         </div>
         <div class="media-fields">
           <div class="field">
@@ -408,6 +420,22 @@
       <div class="modal-footer">
         <button class="btn" type="button" data-close="artifactModal" data-i18n="cancel">취소</button>
         <button id="saveArtifactBtn" class="btn primary" type="button" data-i18n="save">저장</button>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="systemModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="systemModalTitle">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2 id="systemModalTitle" data-i18n="systemStatus">시스템 상태</h2>
+        <button class="btn small" type="button" data-close="systemModal" data-i18n="close">닫기</button>
+      </div>
+      <div class="modal-body">
+        <div id="systemStatusPanel" class="system-status-panel"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" type="button" data-close="systemModal" data-i18n="close">닫기</button>
       </div>
     </div>
   </div>
