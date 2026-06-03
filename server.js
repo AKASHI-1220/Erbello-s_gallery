@@ -12,6 +12,7 @@ const app = express();
 const ZIP_BUNDLE_PREFIX = 'ERBELLO_BUNDLE_V1\n';
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
+const DEFAULT_SITE_ORIGIN = 'https://erbello.vercel.app';
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -48,18 +49,37 @@ function fmtMonthKo(value) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+function fmtIsoDate(value) {
+  const d = new Date(value || '');
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toISOString();
+}
+
 function siteOrigin(req) {
   const env = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || '').replace(/\/$/, '');
   if (env) return env;
-  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'erbello.vercel.app';
-  return `${proto}://${host}`;
+  return DEFAULT_SITE_ORIGIN;
+}
+
+function absoluteSiteUrl(value, origin = DEFAULT_SITE_ORIGIN) {
+  const text = String(value || '').trim();
+  if (!text || /^data:/i.test(text)) return `${origin}/assets/illust/erbello-typo5.png`;
+  if (/^https?:\/\//i.test(text)) return text;
+  try { return new URL(text, origin).href; } catch (_) { return `${origin}/assets/illust/erbello-typo5.png`; }
 }
 
 function artifactSummaryText(artifact) {
-  const detail = plainText(artifact.detail_text, 1800);
+  const detail = plainText(artifact.detail_text, 4000);
   if (detail) return detail;
   const desc = plainText(artifact.description, 500);
+  if (desc) return desc;
+  return 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
+}
+
+function artifactDetailBody(artifact) {
+  const detail = String(artifact && artifact.detail_text || '').replace(/\r\n/g, '\n').trim().slice(0, 4000);
+  if (detail) return detail;
+  const desc = String(artifact && artifact.description || '').trim();
   if (desc) return desc;
   return 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
 }
@@ -85,8 +105,62 @@ function allowedAdsenseForIndex(req) {
   return true;
 }
 
-function baseHead({ title, description, ads = false, robots = 'index,follow' } = {}) {
-  return `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="${escAttr(robots)}"><meta name="description" content="${escAttr(description || 'ERBELLO Project Gallery')}"><meta name="google-adsense-account" content="${escAttr(ADSENSE_CLIENT)}"><title>${escHtml(title || 'ERBELLO Gallery')}</title>${ads && ADSENSE_SCRIPT ? `\n${ADSENSE_SCRIPT}` : ''}<link rel="stylesheet" href="/app.css">`;
+function baseHead({ title, description, ads = false, robots = 'index,follow', url = '', image = '', type = 'website' } = {}) {
+  const safeTitle = title || 'ERBELLO Gallery';
+  const safeDescription = description || 'ERBELLO Project Gallery';
+  const canonical = url ? `<link rel="canonical" href="${escAttr(url)}">` : '';
+  const ogImage = absoluteSiteUrl(image || '/assets/illust/erbello-typo5.png');
+  return `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="${escAttr(robots)}"><meta name="description" content="${escAttr(safeDescription)}"><meta name="google-adsense-account" content="${escAttr(ADSENSE_CLIENT)}"><title>${escHtml(safeTitle)}</title>${canonical}<meta property="og:type" content="${escAttr(type)}"><meta property="og:title" content="${escAttr(safeTitle)}"><meta property="og:description" content="${escAttr(safeDescription)}"><meta property="og:url" content="${escAttr(url || DEFAULT_SITE_ORIGIN)}"><meta property="og:image" content="${escAttr(ogImage)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escAttr(safeTitle)}"><meta name="twitter:description" content="${escAttr(safeDescription)}"><meta name="twitter:image" content="${escAttr(ogImage)}">${ads && ADSENSE_SCRIPT ? `\n${ADSENSE_SCRIPT}` : ''}<link rel="stylesheet" href="/app.css">`;
+}
+
+function indexRouteSeo(req) {
+  const pathName = String(req.path || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
+  const route = ['projects', 'about', 'contact', 'privacy', 'terms'].includes(pathName) ? pathName : 'home';
+  const origin = siteOrigin(req);
+  const pathPart = route === 'home' ? '/' : `/${route}`;
+  const map = {
+    home: ['ERBELLO Gallery', 'ERBELLO의 개인 프로젝트 갤러리입니다.'],
+    projects: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO에 공개된 HTML, JSX, ZIP 기반 프로젝트를 둘러볼 수 있는 목록입니다.'],
+    about: ['소개 · ERBELLO', 'ERBELLO 프로젝트 갤러리의 운영 목적과 프로젝트 보관 방식을 안내합니다.'],
+    contact: ['연락처 · ERBELLO', 'ERBELLO 프로젝트 문의와 외부 연락처 링크를 확인할 수 있습니다.'],
+    privacy: ['개인정보처리방침 · ERBELLO', 'ERBELLO가 사용하는 정보와 광고, 쿠키에 관한 안내입니다.'],
+    terms: ['이용약관 · ERBELLO', 'ERBELLO 프로젝트 갤러리 이용에 관한 기본 안내입니다.']
+  };
+  const [title, description] = map[route] || map.home;
+  return {
+    title,
+    description,
+    robots: String(req.query && req.query.admin || '') === '1' ? 'noindex,nofollow' : 'index,follow',
+    url: `${origin}${pathPart}`,
+    image: `${origin}/assets/illust/erbello-typo5.png`
+  };
+}
+
+function applyIndexSeo(html, req) {
+  const seo = indexRouteSeo(req);
+  const seoTags = [
+    `<meta name="description" content="${escAttr(seo.description)}" />`,
+    `<meta name="robots" content="${escAttr(seo.robots)}" />`,
+    `<link rel="canonical" href="${escAttr(seo.url)}" />`,
+    `<meta property="og:type" content="website" />`,
+    `<meta property="og:title" content="${escAttr(seo.title)}" />`,
+    `<meta property="og:description" content="${escAttr(seo.description)}" />`,
+    `<meta property="og:url" content="${escAttr(seo.url)}" />`,
+    `<meta property="og:image" content="${escAttr(seo.image)}" />`,
+    `<meta name="twitter:card" content="summary_large_image" />`,
+    `<meta name="twitter:title" content="${escAttr(seo.title)}" />`,
+    `<meta name="twitter:description" content="${escAttr(seo.description)}" />`,
+    `<meta name="twitter:image" content="${escAttr(seo.image)}" />`
+  ].join('\n  ');
+  let next = String(html || '').replace(/<title>[\s\S]*?<\/title>/i, `<title>${escHtml(seo.title)}</title>`);
+  next = next.replace(/\n?\s*<link rel="canonical"[^>]*>/gi, '');
+  next = next.replace(/\n?\s*<meta name="robots"[^>]*>/gi, '');
+  next = next.replace(/\n?\s*<meta property="og:[^"]+"[^>]*>/gi, '');
+  next = next.replace(/\n?\s*<meta name="twitter:[^"]+"[^>]*>/gi, '');
+  if (/<meta name="description"[^>]*>/i.test(next)) {
+    return next.replace(/<meta name="description"[^>]*>/i, seoTags);
+  }
+  return next.replace(/<head[^>]*>/i, (match) => `${match}\n  ${seoTags}`);
 }
 
 function renderIndexPage(req) {
@@ -95,7 +169,7 @@ function renderIndexPage(req) {
   if (!allowedAdsenseForIndex(req)) {
     html = html.replace(/\n?\s*<script async src="https:\/\/pagead2\.googlesyndication\.com\/pagead\/js\/adsbygoogle\.js\?client=[^"\n]+" crossorigin="anonymous"><\/script>/i, '');
   }
-  return html;
+  return applyIndexSeo(html, req);
 }
 
 function isZipBundle(code) {
@@ -309,6 +383,10 @@ async function renderArtifactHtml(artifact, options = {}) {
 
 app.disable('x-powered-by');
 app.use(express.json({ limit: process.env.JSON_LIMIT || '30mb' }));
+app.get('/index.html', (req, res) => {
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.send(renderIndexPage(req));
+});
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const apiLimit = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
@@ -396,7 +474,8 @@ function renderPrivateLockPage(artifact) {
 function renderProjectDetailPage(req, artifact) {
   const title = artifact.title || 'Untitled project';
   const desc = artifact.description || 'ERBELLO에 보관된 프로젝트입니다.';
-  const summary = artifactSummaryText(artifact);
+  const summary = artifactDetailBody(artifact);
+  const summaryPlain = plainText(summary || desc, 5000);
   const tags = tagList(artifact);
   const origin = siteOrigin(req);
   const projectUrl = `${origin}/project/${encodeURIComponent(String(artifact.id))}`;
@@ -404,11 +483,13 @@ function renderProjectDetailPage(req, artifact) {
   const cover = assetImage(artifact.cover_image);
   const gallery = [cover, ...(Array.isArray(artifact.gallery_images) ? artifact.gallery_images : [])].filter(Boolean).slice(0, 8);
   const updated = fmtMonthKo(artifact.updated_at || artifact.created_at);
+  const category = artifact.type || 'other';
+  const format = cleanSourceKind(artifact.source_kind, artifact.is_jsx).toUpperCase();
   const structured = {
     '@context':'https://schema.org',
     '@type':'CreativeWork',
     name:title,
-    description:plainText(summary || desc, 500),
+    description:plainText(summaryPlain || desc, 500),
     url:projectUrl,
     dateModified:artifact.updated_at || artifact.created_at || undefined,
     keywords:tags.join(', '),
@@ -416,9 +497,10 @@ function renderProjectDetailPage(req, artifact) {
   };
   const tagHtml = tags.map(tag => `<span>${escHtml(tag)}</span>`).join('');
   const galleryHtml = gallery.length ? `<div class="detail-gallery">${gallery.map(src => `<img src="${escAttr(src)}" alt="" loading="lazy">`).join('')}</div>` : '';
-  const detailLength = plainText(summary || desc, 5000).length;
+  const detailLength = summaryPlain.length;
   const allowDetailAds = detailLength >= 500;
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summary || desc, 160), ads:allowDetailAds })}<link rel="canonical" href="${escAttr(projectUrl)}"><script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="black" data-color="crimson" data-theme="black-crimson" class="detail-document"><div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">PROJECT DETAIL</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p><div class="detail-tags">${tagHtml}</div><div class="detail-actions"><a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a><a class="btn" href="/projects">프로젝트 목록</a></div></div><figure class="detail-cover"><img src="${escAttr(cover)}" alt="" loading="eager"><figcaption>${updated ? `▣ ${escHtml(updated)}` : 'ERBELLO'}</figcaption></figure></section><section class="detail-panel"><p class="section-kicker">ABOUT THIS PROJECT</p><h2>프로젝트 소개</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel"><p class="section-kicker">GALLERY</p><h2>이미지 미리보기</h2>${galleryHtml}</section>` : ''}<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section><footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
+  const metaHtml = `<dl class="detail-meta"><div><dt>대표 분류</dt><dd>${escHtml(category)}</dd></div><div><dt>형식</dt><dd>${escHtml(format)}</dd></div>${updated ? `<div><dt>년월</dt><dd>${escHtml(updated)}</dd></div>` : ''}</dl>`;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="black" data-color="crimson" data-theme="black-crimson" class="detail-document"><div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">PROJECT DETAIL</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions"><a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a><a class="btn" href="/projects">프로젝트 목록</a></div></div><figure class="detail-cover"><img src="${escAttr(cover)}" alt="" loading="eager"><figcaption>${updated ? `▣ ${escHtml(updated)}` : 'ERBELLO'}</figcaption></figure></section><section class="detail-panel"><p class="section-kicker">ABOUT THIS PROJECT</p><h2>프로젝트 소개</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel"><p class="section-kicker">GALLERY</p><h2>이미지 미리보기</h2>${galleryHtml}</section>` : ''}<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section><footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
 }
 
 function renderPrivateProjectDetailPage(req, artifact) {
@@ -426,11 +508,11 @@ function renderPrivateProjectDetailPage(req, artifact) {
   return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · Locked`, description:'비밀번호가 필요한 ERBELLO 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel locked-detail"><p class="detail-kicker">ERBELLO / LOCKED</p><h1>${escHtml(title)}</h1><p>이 프로젝트는 비밀번호가 필요합니다. 제목 외의 내용은 비밀번호 확인 후 열립니다.</p><a class="btn primary" href="/run/${encodeURIComponent(String(artifact.id))}">비밀번호 입력하기</a><a class="btn" href="/projects">프로젝트 목록</a></section></main></body></html>`;
 }
 
-function renderPolicyPage(kind = 'privacy') {
+async function renderPolicyPage(req, kind = 'privacy') {
   const isTerms = kind === 'terms';
-  const title = isTerms ? '이용약관' : '개인정보처리방침';
-  const subtitle = isTerms ? 'ERBELLO 이용에 관한 기본 안내입니다.' : 'ERBELLO가 사용하는 정보와 광고/쿠키에 관한 안내입니다.';
-  const cards = isTerms ? [
+  const fallbackTitle = isTerms ? '이용약관' : '개인정보처리방침';
+  const fallbackSubtitle = isTerms ? 'ERBELLO 이용에 관한 기본 안내입니다.' : 'ERBELLO가 사용하는 정보와 광고/쿠키에 관한 안내입니다.';
+  const fallbackCards = isTerms ? [
     ['개인 프로젝트 갤러리', 'ERBELLO는 HTML, JSX, ZIP 기반의 개인 프로젝트를 정리하고 공유하기 위한 갤러리입니다.'],
     ['콘텐츠 이용', '등록된 프로젝트의 저작권과 책임은 각 프로젝트 작성자에게 있으며, 무단 복제나 재배포는 권장하지 않습니다.'],
     ['서비스 변경', '사이트 구조, 프로젝트, 링크, 기능은 운영 상황에 따라 수정되거나 삭제될 수 있습니다.']
@@ -439,7 +521,23 @@ function renderPolicyPage(kind = 'privacy') {
     ['광고와 쿠키', 'Google AdSense가 광고 제공, 빈도 제한, 통계 측정을 위해 쿠키나 유사 기술을 사용할 수 있습니다.'],
     ['문의', '개인정보나 사이트 이용 관련 문의는 연락처 페이지에 등록된 링크를 통해 보낼 수 있습니다.']
   ];
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:subtitle, ads:true })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel"><p class="detail-kicker">ERBELLO POLICY</p><h1>${title}</h1><p class="detail-desc">${subtitle}</p></section><section class="detail-policy-grid">${cards.map(([h,p]) => `<article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">▣</span><h2>${escHtml(h)}</h2><p>${escHtml(p)}</p></article>`).join('')}</section><footer class="detail-footer"><span>© ERBELLO</span><a href="/">홈</a><a href="/contact">연락처</a></footer></main></body></html>`;
+  let content = null;
+  try {
+    const page = await store.getPage(kind, 'ko');
+    content = page && page.content && typeof page.content === 'object' ? page.content : null;
+  } catch (_) {
+    content = null;
+  }
+  const title = cleanText(content && content.title, 200) || fallbackTitle;
+  const subtitle = cleanText(content && content.body, 1200) || fallbackSubtitle;
+  const eyebrow = cleanText(content && content.eyebrow, 120) || 'ERBELLO POLICY';
+  const blocks = Array.isArray(content && content.blocks) && content.blocks.length
+    ? content.blocks.map(block => [cleanText(block && block.title, 120), cleanText(block && block.text, 500)]).filter(([h, p]) => h || p)
+    : fallbackCards;
+  const origin = siteOrigin(req);
+  const url = `${origin}/${isTerms ? 'terms' : 'privacy'}`;
+  const isAdmin = String(req.query && req.query.admin || '') === '1';
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(subtitle, 160), ads:!isAdmin, robots:isAdmin ? 'noindex,nofollow' : 'index,follow', url })}</head><body data-scheme="black" data-color="crimson" class="detail-document"><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel"><p class="detail-kicker">${escHtml(eyebrow)}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(subtitle)}</p></section><section class="detail-policy-grid">${blocks.map(([h,p]) => `<article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">▣</span><h2>${escHtml(h)}</h2><p>${escHtml(p)}</p></article>`).join('')}</section><footer class="detail-footer"><span>© ERBELLO</span><a href="/">홈</a><a href="/contact">연락처</a></footer></main></body></html>`;
 }
 
 function checkAdmin(req, res, next) {
@@ -485,7 +583,7 @@ function cleanSourceKind(value, detectedJsx = false) {
 }
 
 function cleanSlug(value) {
-  const allowed = new Set(['home', 'projects', 'about', 'contact']);
+  const allowed = new Set(['home', 'projects', 'about', 'contact', 'privacy', 'terms']);
   const slug = String(value || '').trim().toLowerCase();
   return allowed.has(slug) ? slug : null;
 }
@@ -592,7 +690,7 @@ function payloadFromBody(body, existing = null) {
   let code = normalizeCode(body.code);
   const cover_image = cleanCoverImage(body.cover_image);
   const gallery_images = cleanGalleryImages(body.gallery_images);
-  const detail_text = cleanText(body.detail_text, 1600);
+  const detail_text = cleanText(body.detail_text, 4000);
   const incomingStoragePath = cleanStoragePath(body.code_storage_path);
   const existingStoragePath = existing && existing.code_storage_path ? existing.code_storage_path : '';
   const code_storage_path = incomingStoragePath || existingStoragePath || '';
@@ -617,7 +715,8 @@ app.get('/api/status', (_req, res) => {
 app.get('/api/admin/system', checkAdmin, async (req, res) => {
   try {
     const status = await store.systemStatus();
-    res.json({ ok:true, adminConfigured:Boolean(getAdminHash()), siteOrigin:siteOrigin(req), adsenseClient:ADSENSE_CLIENT, ...status });
+    const origin = siteOrigin(req);
+    res.json({ ok:true, adminConfigured:Boolean(getAdminHash()), siteOrigin:origin, adsTxtUrl:`${origin}/ads.txt`, adsenseClient:ADSENSE_CLIENT, ...status });
   } catch (error) {
     res.status(500).json({ error:error.message || 'System check failed' });
   }
@@ -825,19 +924,19 @@ app.get('/project/:id', async (req, res) => {
   }
 });
 
-app.get('/privacy', (_req, res) => {
+app.get('/privacy', async (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderPolicyPage('privacy'));
+  res.send(await renderPolicyPage(req, 'privacy'));
 });
 
-app.get('/terms', (_req, res) => {
+app.get('/terms', async (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.send(renderPolicyPage('terms'));
+  res.send(await renderPolicyPage(req, 'terms'));
 });
 
 app.get('/robots.txt', (req, res) => {
   const origin = siteOrigin(req);
-  res.type('text/plain').send(`User-agent: *\nDisallow: /api/\nDisallow: /run/\nDisallow: /asset/\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nDisallow: /api/\nDisallow: /run/\nDisallow: /asset/\nDisallow: /preview.html\nDisallow: /*?admin=1\nAllow: /ads.txt\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
 });
 
 app.get('/sitemap.xml', async (req, res) => {
@@ -845,8 +944,10 @@ app.get('/sitemap.xml', async (req, res) => {
     const origin = siteOrigin(req);
     const rows = await store.listArtifacts({ includePrivateDetails:false });
     const publicRows = (rows || []).filter(item => !item.is_private && item.status !== 'draft');
-    const urls = ['/', '/projects', '/about', '/contact', '/privacy', '/terms', ...publicRows.map(item => `/project/${encodeURIComponent(String(item.id))}`)];
-    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(url => `  <url><loc>${origin}${url}</loc></url>`).join('\n')}\n</urlset>`;
+    const staticUrls = ['/', '/projects', '/about', '/contact', '/privacy', '/terms'].map(url => ({ url }));
+    const projectUrls = publicRows.map(item => ({ url:`/project/${encodeURIComponent(String(item.id))}`, lastmod:fmtIsoDate(item.updated_at || item.created_at) }));
+    const urls = [...staticUrls, ...projectUrls];
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(item => `  <url><loc>${origin}${item.url}</loc>${item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>`;
     res.type('application/xml').send(xml);
   } catch (error) {
     res.status(500).type('text/plain').send(error.message || 'sitemap error');

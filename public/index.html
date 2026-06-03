@@ -5,6 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#090d16" />
   <meta name="description" content="ERBELLO의 개인 프로젝트 갤러리입니다." />
+  <link rel="canonical" href="https://erbello.vercel.app/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="ERBELLO Gallery" />
+  <meta property="og:description" content="ERBELLO의 개인 프로젝트 갤러리입니다." />
+  <meta property="og:url" content="https://erbello.vercel.app/" />
+  <meta property="og:image" content="https://erbello.vercel.app/assets/illust/erbello-typo5.png" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>ERBELLO Gallery</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
@@ -175,21 +182,30 @@
 
       <section id="privacyPage" class="route-page" data-page="privacy">
         <section class="page-intro" aria-labelledby="privacyTitle">
-          <p class="section-kicker" data-i18n="privacyEyebrow">PRIVACY</p>
+          <p id="privacyEyebrow" class="section-kicker" data-i18n="privacyEyebrow">PRIVACY</p>
           <h1 id="privacyTitle" data-i18n="privacyTitle">개인정보처리방침</h1>
-          <p data-i18n="privacyBody">ERBELLO는 프로젝트 갤러리 운영과 기본적인 사이트 이용을 위해 필요한 최소한의 정보만 사용합니다.</p>
+          <p id="privacyBody" data-i18n="privacyBody">ERBELLO는 프로젝트 갤러리 운영과 기본적인 사이트 이용을 위해 필요한 최소한의 정보만 사용합니다.</p>
         </section>
-        <section class="page-card-grid privacy-grid">
+        <section id="privacyBlocks" class="page-card-grid privacy-grid">
           <article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">▣</span><h2 data-i18n="privacyCard1Title">수집하는 정보</h2><p data-i18n="privacyCard1Text">방문 기록, 조회수, 문의 링크 이용과 같이 사이트 운영에 필요한 기본 정보가 사용될 수 있습니다.</p></article>
           <article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">◎</span><h2 data-i18n="privacyCard2Title">광고와 쿠키</h2><p data-i18n="privacyCard2Text">Google AdSense가 광고 제공 및 통계 목적으로 쿠키를 사용할 수 있습니다.</p></article>
           <article class="page-panel page-mini-card"><span class="page-mini-icon" aria-hidden="true">✉</span><h2 data-i18n="privacyCard3Title">문의</h2><p data-i18n="privacyCard3Text">개인정보 관련 문의는 연락처 페이지의 링크를 통해 보낼 수 있습니다.</p></article>
         </section>
       </section>
+
+      <section id="termsPage" class="route-page" data-page="terms">
+        <section class="page-intro" aria-labelledby="termsTitle">
+          <p id="termsEyebrow" class="section-kicker">TERMS</p>
+          <h1 id="termsTitle">이용약관</h1>
+          <p id="termsBody">ERBELLO 프로젝트 갤러리 이용에 관한 기본 안내입니다.</p>
+        </section>
+        <section id="termsBlocks" class="page-card-grid privacy-grid"></section>
+      </section>
     </main>
 
     <footer id="footer" class="footer">
       <span>© 2026 ERBELLO. All rights reserved.</span>
-      <span class="footer-note">ERBELLO PROJECT GALLERY</span><a class="footer-link" href="/privacy" data-route="privacy" data-i18n="navPrivacy">개인정보처리방침</a><a class="footer-link" href="/terms">이용약관</a>
+      <span class="footer-note">ERBELLO PROJECT GALLERY</span><a class="footer-link" href="/privacy" data-route="privacy" data-i18n="navPrivacy">개인정보처리방침</a><a class="footer-link" href="/terms" data-route="terms" data-i18n="navTerms">이용약관</a>
       <span class="footer-love"><a class="to-top" href="#top" aria-label="Back to top">↑</a></span>
     </footer>
   </div>
@@ -252,6 +268,8 @@
               <option value="projects" data-i18n="navProjects">프로젝트</option>
               <option value="about" data-i18n="navAbout">소개</option>
               <option value="contact" data-i18n="navContact">연락처</option>
+              <option value="privacy" data-i18n="navPrivacy">개인정보처리방침</option>
+              <option value="terms" data-i18n="navTerms">이용약관</option>
             </select>
           </div>
           <div class="field">
@@ -385,7 +403,7 @@
         <span id="formatBadge" class="sr-only">HTML</span>
         <div class="field">
           <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
-          <textarea id="detailInput" class="textarea textarea-small" maxlength="1600" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
+          <textarea id="detailInput" class="textarea textarea-small" maxlength="4000" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
           <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
           <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
           <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
