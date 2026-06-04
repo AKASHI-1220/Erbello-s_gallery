@@ -305,3 +305,21 @@ body[data-scheme=black] .circle-action{background:color-mix(in srgb,var(--card-a
 .admin-on .card-foot{padding-right:0}
 .admin-on .card-sticker{opacity:.42;right:16px;top:74px;bottom:auto}
 @media(max-width:720px){.hero::after{right:-12px;top:68px;width:300px;height:58px;opacity:.2}.card-foot{padding-right:50px}.card-sticker{width:34px;height:34px;right:15px;bottom:16px}.v21-card .tag::before{width:14px;height:14px}}
+
+/* v23.2: quieter secrets, lighter header, generated pixel wordmark */
+.hero::after{display:none!important}
+.hero-display.brand-wordmark-title{display:block;width:min(660px,100%);height:auto;aspect-ratio:772/128;margin:0;background:url('/assets/illust/erbello-wordmark-pixel.png') left center/contain no-repeat}
+.hero-display.brand-wordmark-title .hero-title-main,.hero-display.brand-wordmark-title .hero-title-sub{position:absolute!important;width:1px!important;height:1px!important;margin:-1px!important;padding:0!important;overflow:hidden!important;clip:rect(0 0 0 0)!important;white-space:nowrap!important;border:0!important}
+.hero-display:not(.brand-wordmark-title){display:grid;gap:0}
+.hero-display:not(.brand-wordmark-title) .hero-title-sub:empty{display:none}
+.page-intro p:not(.section-kicker),.page-mini-card p{white-space:pre-line}
+.title-only-lock{min-height:170px;border-style:solid!important;border-color:color-mix(in srgb,var(--border) 78%,transparent)!important;background:linear-gradient(180deg,color-mix(in srgb,var(--panel2) 72%,transparent),color-mix(in srgb,var(--panel) 70%,transparent))!important;box-shadow:none!important;opacity:.72}
+.title-only-lock::before{inset:7px;border:1px dashed color-mix(in srgb,var(--faint) 24%,transparent)!important;opacity:.28}
+.title-only-lock::after{content:"";position:absolute;right:18px;bottom:16px;width:30px;height:30px;background:url('/assets/illust/pixel-sticker-purple-heart.png') center/contain no-repeat;opacity:.1;pointer-events:none}
+.title-only-lock:hover{opacity:.88;transform:none!important;box-shadow:0 8px 22px rgba(174,118,169,.08)!important}
+.title-only-lock .card-body{padding:19px 20px!important;background:transparent!important;justify-content:space-between;gap:22px}
+.title-only-lock .card-title{max-width:100%;font-size:17px;color:color-mix(in srgb,var(--text) 72%,var(--muted));font-weight:850}
+.locked-blind{display:none}
+.title-only-lock .card-foot{min-height:0;padding-right:0}
+.locked-badge{color:var(--faint)!important;font-size:11px;letter-spacing:.04em;text-transform:none}
+@media(max-width:720px){.topbar{padding:18px 14px 14px;gap:10px}.brand-logo{width:150px;max-width:58vw}.nav-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;border:0;background:transparent;box-shadow:none;padding:0}.nav-link{min-width:0;min-height:39px;padding:0 4px;border:1px solid var(--border)!important;border-radius:8px;background:color-mix(in srgb,var(--panel2) 78%,transparent);font-size:13px;gap:4px;white-space:nowrap;box-shadow:none}.nav-link:hover,.nav-link.active{background:color-mix(in srgb,var(--accent) 11%,white);box-shadow:inset 0 -2px 0 var(--accent2);text-shadow:none}.top-controls{grid-template-columns:1fr 1fr!important;gap:8px}.control-pill{min-height:40px;padding:0 8px;font-size:13px}.select-mini{min-width:0;width:100%;font-size:13px}.theme-toggle{justify-content:center}#themeCurrent{display:inline-block;max-width:7.2em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hero{padding-top:38px}.hero-copy-block{padding-top:104px}.hero-display.brand-wordmark-title{width:min(346px,100%);max-width:100%;aspect-ratio:772/128}.title-only-lock{min-height:132px;opacity:.62}.title-only-lock .card-body{padding:17px!important}.title-only-lock .card-title{font-size:16px}.locked-badge{font-size:10px}}
