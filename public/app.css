@@ -278,3 +278,30 @@ body[data-scheme=black] .title-only-lock{background:linear-gradient(180deg,rgba(
 @media(max-width:720px){.site-bg::before,.site-bg::after{opacity:.28;background-size:72px auto,54px auto,30px auto,32px auto,30px auto}.hero{padding:42px 20px 28px;min-height:0}.hero-copy-block{padding-left:0;padding-top:112px}.hero::before{left:20px;top:86px;width:94px;height:94px;opacity:1}.hero::after{right:22px;top:74px;width:96px;height:40px;opacity:.8}.hero-title-main{font-size:clamp(40px,12vw,54px);letter-spacing:.01em}.hero-title-sub{font-size:clamp(32px,9vw,44px)}.hero-script{font-size:12px}.info-panel{background-size:28px auto,30px auto,26px auto;background-position:calc(100% - 18px) 18px,calc(100% - 28px) calc(100% - 40px),18px calc(100% - 34px)}.page-intro::after{width:82px;height:48px;opacity:.22}.grid{grid-template-columns:1fr}.card-sticker{width:30px;height:30px;right:15px;bottom:15px}.grid .card:nth-child(3n) .card-sticker{width:40px}.detail-hero{padding-top:24px;background-size:82px auto,54px auto;background-position:calc(100% - 18px) 18px,calc(100% - 18px) calc(100% - 28px)}}
 @media(max-width:720px){html,body{max-width:100%;overflow-x:hidden}.shell{max-width:100%;overflow:hidden}.topbar{overflow:hidden}.brand{justify-content:center}.brand-logo{max-width:210px}.nav-tabs{width:100%;max-width:100%;justify-self:stretch}.nav-link{flex:0 0 auto}.top-controls{grid-template-columns:1fr;width:100%;justify-self:stretch}.theme-picker,.control-pill,.theme-toggle{width:100%;min-width:0}.theme-menu{max-width:calc(100vw - 28px)}.route-page,.hero,.gallery-section,.info-panel{max-width:100%;min-width:0}.hero-copy,.detail-desc,.page-intro p{max-width:100%;overflow-wrap:break-word}.hero-copy{max-width:21em;word-break:keep-all}.hero-display{max-width:100%}.hero-title-main,.hero-title-sub{overflow-wrap:anywhere}.compact-head{gap:14px}.compact-head .btn.primary{white-space:normal;text-align:center}.footer{max-width:100%;overflow:hidden}}
 @media(max-width:720px){.topbar{overflow:visible}.nav-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}.nav-link{min-width:0;padding:0 8px;gap:6px;justify-content:center;font-size:14px;white-space:nowrap}}
+
+/* v23.1: sticker sheet assets, cleaner card actions */
+.visual-receipt{--tag-icon:url('/assets/illust/pixel-sticker-gold-star.png');--card-sticker:url('/assets/illust/pixel-sticker-gold-sparkles.png')}
+.visual-tarot{--tag-icon:url('/assets/illust/pixel-sticker-purple-heart.png');--card-sticker:url('/assets/illust/pixel-sticker-purple-sparkles.png')}
+.visual-typing{--tag-icon:url('/assets/illust/pixel-sticker-blue-star.png');--card-sticker:url('/assets/illust/pixel-sticker-blue-heart.png')}
+.visual-pudding{--tag-icon:url('/assets/illust/pixel-sticker-mint-bow.png');--card-sticker:url('/assets/illust/pixel-sticker-mint-sparkle.png')}
+.visual-note{--tag-icon:url('/assets/illust/pixel-sticker-lace-heart.png');--card-sticker:url('/assets/illust/pixel-sticker-pink-sparkles.png')}
+.visual-box{--tag-icon:url('/assets/illust/pixel-sticker-red-bow.png');--card-sticker:url('/assets/illust/pixel-sticker-gold-sparkle.png')}
+.visual-night{--tag-icon:url('/assets/illust/pixel-sticker-blue-sparkles.png');--card-sticker:url('/assets/illust/pixel-sticker-blue-bow.png')}
+.visual-cherry{--tag-icon:url('/assets/illust/pixel-sticker-pink-star.png');--card-sticker:url('/assets/illust/pixel-sticker-pink-bow.png')}
+.visual-ocean{--tag-icon:url('/assets/illust/pixel-sticker-mint-sparkle.png');--card-sticker:url('/assets/illust/pixel-sticker-blue-sparkles.png')}
+.visual-default{--tag-icon:url('/assets/illust/pixel-sticker-pink-heart.png');--card-sticker:url('/assets/illust/pixel-sticker-red-heart.png')}
+.hero::after{right:46px;top:28px;width:min(720px,52vw);height:116px;background:url('/assets/illust/erbello-pixel-garland.png') center top/contain no-repeat;opacity:.34;z-index:0}
+.hero-copy-block,.info-panel{z-index:2}
+.v21-card .card-body{position:relative;z-index:2;padding-bottom:18px}
+.v21-card .tag{gap:7px}
+.v21-card .tag::before{content:"";width:15px;height:15px;flex:0 0 auto;background:var(--tag-icon,url('/assets/illust/pixel-sticker-pink-heart.png')) center/contain no-repeat}
+.card-sticker{right:18px;bottom:18px;width:38px;height:38px;background:var(--card-sticker,url('/assets/illust/pixel-sticker-pink-heart.png')) center/contain no-repeat;opacity:.86;z-index:1;pointer-events:none}
+.card-foot{justify-content:flex-start;align-items:center;min-height:38px;padding-right:58px}
+.card-charm{display:none}
+.card-actions{margin-left:0;position:relative;z-index:3}
+.circle-action{width:32px;height:32px;border-radius:8px;background:color-mix(in srgb,var(--card-accent,var(--accent)) 8%,rgba(255,255,255,.68));box-shadow:none;font-size:14px}
+body[data-scheme=black] .circle-action{background:color-mix(in srgb,var(--card-accent,var(--accent)) 10%,rgba(255,255,255,.04))}
+.circle-action:hover{transform:translateY(-1px);background:color-mix(in srgb,var(--card-accent,var(--accent)) 16%,rgba(255,255,255,.82))}
+.admin-on .card-foot{padding-right:0}
+.admin-on .card-sticker{opacity:.42;right:16px;top:74px;bottom:auto}
+@media(max-width:720px){.hero::after{right:-12px;top:68px;width:300px;height:58px;opacity:.2}.card-foot{padding-right:50px}.card-sticker{width:34px;height:34px;right:15px;bottom:16px}.v21-card .tag::before{width:14px;height:14px}}
