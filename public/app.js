@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v21 sparkly pixel uploads';
+  const VERSION = 'ERBELLO Gallery v23 clean cute pixel';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -14,7 +14,7 @@
   const SITE_ORIGIN = 'https://erbello.vercel.app';
   const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
   const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
-  const ZIP_UPLOAD_LIMIT = 50 * 1024 * 1024;
+  const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
   const INLINE_CODE_LIMIT = 900 * 1024;
   const gamsungSessionCovers = new Map();
@@ -72,10 +72,10 @@
 
 
   const EXTRA_I18N = {
-    ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.', zipTooLarge:'파일이 너무 큽니다. Supabase Free 기준 50MB를 넘을 수 있어 이미지/영상/음악을 줄이거나 파일별 업로드가 필요합니다.', zipEntryTooLarge:'ZIP 안에 너무 큰 파일이 있습니다.', zipReady:'ZIP 검사 완료: index.html을 찾았습니다.', zipUploadCheck:'ZIP 검사 중...', zipUploadExtract:'ZIP 압축 해제 중...', zipUploadFiles:'ZIP 내부 파일 업로드 중...', zipUploadManifest:'ZIP manifest 생성 중...', zipStorageNotReady:'Storage가 준비되지 않아 ZIP 저장을 진행할 수 없습니다.' },
-    en:{ navTerms:'Terms', statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.', zipTooLarge:'The file is too large. It may exceed the 50MB Supabase Free limit; reduce images, video or audio, or upload files separately.', zipEntryTooLarge:'A file inside the ZIP is too large.', zipReady:'ZIP check complete: index.html was found.', zipUploadCheck:'Checking ZIP...', zipUploadExtract:'Extracting ZIP...', zipUploadFiles:'Uploading ZIP files...', zipUploadManifest:'Creating ZIP manifest...', zipStorageNotReady:'Storage is not ready, so ZIP saving cannot continue.' },
-    ja:{ navTerms:'利用規約', statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。', zipTooLarge:'ファイルが大きすぎます。Supabase Freeの50MB制限を超える可能性があるため、画像・動画・音声を減らすかファイル別アップロードが必要です。', zipEntryTooLarge:'ZIP内に大きすぎるファイルがあります。', zipReady:'ZIP検査完了: index.htmlを検出しました。', zipUploadCheck:'ZIPを確認中...', zipUploadExtract:'ZIPを展開中...', zipUploadFiles:'ZIP内ファイルをアップロード中...', zipUploadManifest:'ZIP manifestを作成中...', zipStorageNotReady:'Storageが準備されていないためZIP保存を続行できません。' },
-    zh:{ navTerms:'使用条款', statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。', zipTooLarge:'文件太大。可能超过 Supabase Free 的 50MB 限制，请减少图片、视频或音频，或改为分文件上传。', zipEntryTooLarge:'ZIP 内有过大的文件。', zipReady:'ZIP 检查完成：已找到 index.html。', zipUploadCheck:'正在检查 ZIP...', zipUploadExtract:'正在解压 ZIP...', zipUploadFiles:'正在上传 ZIP 内部文件...', zipUploadManifest:'正在创建 ZIP manifest...', zipStorageNotReady:'Storage 尚未准备好，无法继续保存 ZIP。' }
+    ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.', zipTooLarge:'파일이 너무 큽니다. 이미지/영상/음악을 줄이거나 파일별 업로드가 필요합니다.', zipEntryTooLarge:'ZIP 안에 50MB를 넘는 파일이 있습니다.', zipBrowserLarge:'ZIP 전체 용량이 커서 브라우저 메모리를 많이 사용할 수 있습니다. 그래도 내부 파일 기준으로 검사합니다.', zipReady:'ZIP 검사 완료: index.html을 찾았습니다.', zipUploadCheck:'ZIP 검사 중...', zipUploadExtract:'ZIP 압축 해제 중...', zipUploadFiles:'ZIP 내부 파일 업로드 중...', zipUploadManifest:'ZIP manifest 생성 중...', zipStorageNotReady:'Storage가 준비되지 않아 ZIP 저장을 진행할 수 없습니다.' },
+    en:{ navTerms:'Terms', statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.', zipTooLarge:'The file is too large. Reduce images, video or audio, or upload files separately.', zipEntryTooLarge:'A file inside the ZIP exceeds 50MB.', zipBrowserLarge:'The ZIP is large and may use a lot of browser memory. It will still be checked by individual file size.', zipReady:'ZIP check complete: index.html was found.', zipUploadCheck:'Checking ZIP...', zipUploadExtract:'Extracting ZIP...', zipUploadFiles:'Uploading ZIP files...', zipUploadManifest:'Creating ZIP manifest...', zipStorageNotReady:'Storage is not ready, so ZIP saving cannot continue.' },
+    ja:{ navTerms:'利用規約', statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。', zipTooLarge:'ファイルが大きすぎます。画像・動画・音声を減らすか、ファイル別アップロードが必要です。', zipEntryTooLarge:'ZIP内に50MBを超えるファイルがあります。', zipBrowserLarge:'ZIP全体の容量が大きいためブラウザメモリを多く使う可能性があります。個別ファイルサイズ基準で検査します。', zipReady:'ZIP検査完了: index.htmlを検出しました。', zipUploadCheck:'ZIPを確認中...', zipUploadExtract:'ZIPを展開中...', zipUploadFiles:'ZIP内ファイルをアップロード中...', zipUploadManifest:'ZIP manifestを作成中...', zipStorageNotReady:'Storageが準備されていないためZIP保存を続行できません。' },
+    zh:{ navTerms:'使用条款', statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。', zipTooLarge:'文件太大。请减少图片、视频或音频，或改为分文件上传。', zipEntryTooLarge:'ZIP 内有超过 50MB 的文件。', zipBrowserLarge:'ZIP 整体较大，可能占用较多浏览器内存。仍会按内部单个文件大小检查。', zipReady:'ZIP 检查完成：已找到 index.html。', zipUploadCheck:'正在检查 ZIP...', zipUploadExtract:'正在解压 ZIP...', zipUploadFiles:'正在上传 ZIP 内部文件...', zipUploadManifest:'正在创建 ZIP manifest...', zipStorageNotReady:'Storage 尚未准备好，无法继续保存 ZIP。' }
   };
 
   let artifacts = [];
@@ -415,15 +415,13 @@
 
   async function inspectZipFile(file) {
     if (!file) return null;
-    if (file.size > ZIP_UPLOAD_LIMIT) {
-      throw new Error(`${tr('zipTooLarge')} (${formatBytes(file.size)} / ${formatBytes(ZIP_UPLOAD_LIMIT)})`);
-    }
     const { entries, index } = await readZipEntries(file);
     if (!index) throw new Error(tr('zipNoIndex'));
     const large = entries.filter(entry => Number(entry._data && entry._data.uncompressedSize || entry._data && entry._data.compressedSize || 0) > ZIP_ENTRY_LIMIT)
       .map(entry => `${normalizeZipPath(entry.name)} (${formatBytes(entry._data && (entry._data.uncompressedSize || entry._data.compressedSize))})`);
     if (large.length) throw new Error(`${tr('zipEntryTooLarge')} ${large.slice(0, 4).join(', ')}`);
-    return { count: entries.length, index: normalizeZipPath(index.name), root: zipBaseDir(index.name), size: file.size };
+    const browserWarning = file.size > ZIP_BROWSER_WARN_LIMIT ? `${tr('zipBrowserLarge')} (${formatBytes(file.size)})` : '';
+    return { count: entries.length, index: normalizeZipPath(index.name), root: zipBaseDir(index.name), size: file.size, browserWarning };
   }
 
   async function getSystemStatusCached(force = false) {
@@ -451,6 +449,7 @@
     toast(tr('zipUploadCheck'));
     await assertZipStorageReady();
     const info = await inspectZipFile(file);
+    if (info && info.browserWarning) toast(info.browserWarning);
     toast(tr('zipUploadExtract'));
     const { entries, index } = await readZipEntries(file);
     const files = [];
@@ -873,7 +872,6 @@
     const q = searchQuery.trim().toLowerCase();
     return artifacts.filter((item) => {
       if (!isAdminOn() && statusKey(item) === 'draft') return false;
-      if (!isAdminOn() && (statusKey(item) === 'private' || item.is_private)) return false;
       const type = typeKey(item.type);
       const tags = artifactTags(item);
       if (!itemMatchesFilter(item, currentFilter)) return false;
@@ -903,12 +901,11 @@
     const draftAdmin = status === 'draft' && isAdminOn() ? `<span class="private-badge-admin draft-badge-admin">${esc(tr('draftBadge'))}</span>` : '';
     const views = Number(item.view_count || 0);
     if (locked) {
-      return `<article class="card card-locked ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
-        <div class="card-visual locked-visual"><span class="lock-symbol" aria-hidden="true">▦</span><span class="tag">${esc(tr('lockedTag'))}</span></div>
-        <div class="card-body"><h3 class="card-title">${esc(title)}</h3><p class="card-desc">${esc(tr('lockedDescription'))}</p>
-          <div class="card-foot"><span class="locked-badge">🔒 ${esc(tr('privateBadge'))}</span>
-            <div class="card-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button></div>
-          </div></div></article>`;
+      return `<article class="card card-locked title-only-lock ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
+        <div class="card-body"><h3 class="card-title">${esc(title)}</h3>
+          <div class="locked-blind" aria-hidden="true"><span></span><span></span><span></span></div>
+          <div class="card-foot"><span class="locked-badge">${esc(tr('privateBadge'))}</span></div>
+        </div></article>`;
     }
     const desc = item.description || tr('noDescription');
     const profile = visualProfile(item);
@@ -948,7 +945,7 @@
   function renderFeaturedGrid() {
     const grid = $('featuredGrid');
     if (!grid) return;
-    const items = artifacts.filter(item => isAdminOn() || (statusKey(item) !== 'draft' && statusKey(item) !== 'private' && !item.is_private)).slice(0, 4);
+    const items = artifacts.filter(item => isAdminOn() || statusKey(item) !== 'draft').slice(0, 4);
     if (!items.length) { grid.innerHTML = emptyMessage(true); return; }
     grid.innerHTML = items.map((item) => cardMarkup(item, true)).join('');
     bindCardEvents(grid);
@@ -1353,6 +1350,7 @@
         setArtifactTags(tags);
         dz?.classList.add('zip-ready');
         updateDetectHint();
+        if (pendingZipInfo.browserWarning) toast(pendingZipInfo.browserWarning);
         toast(`${tr('zipReady')} (${pendingZipInfo.index})`);
       } catch (error) {
         pendingSourceFile = null;

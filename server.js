@@ -596,10 +596,21 @@ function stripPrivateSecrets(artifact) {
   return safe;
 }
 
+function publicArtifactSummary(artifact) {
+  const safe = stripPrivateSecrets(artifact);
+  if (!safe || !safe.is_private) return safe;
+  return {
+    id: safe.id,
+    title: safe.title || 'Untitled project',
+    status: 'private',
+    is_private: true
+  };
+}
+
 function renderPrivateLockPage(artifact) {
-  const title = 'Owner only project';
+  const title = artifact && artifact.title || 'Untitled project';
   const id = escHtml(artifact && artifact.id || '');
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / OWNER ONLY</div><h1>${title}</h1><p>이 프로젝트는 소유자 확인 후에만 열 수 있습니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form><a class="lock-home" href="/">ERBELLO로 돌아가기</a></main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escHtml(title)} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / LOCKED</div><h1>${escHtml(title)}</h1><p>이 프로젝트는 비밀번호 확인 후에만 열 수 있습니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form><a class="lock-home" href="/">ERBELLO로 돌아가기</a></main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
 }
 
 
@@ -636,8 +647,9 @@ function renderProjectDetailPage(req, artifact) {
 }
 
 function renderPrivateProjectDetailPage(req, artifact) {
-  const title = 'Owner only project';
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · Locked`, description:'비밀번호가 필요한 ERBELLO 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel locked-detail"><p class="detail-kicker">ERBELLO / LOCKED</p><h1>${escHtml(title)}</h1><p>이 프로젝트는 소유자만 확인할 수 있습니다.</p><a class="btn primary" href="/projects">프로젝트 목록</a></section></main></body></html>`;
+  const title = artifact && artifact.title || 'Untitled project';
+  const runUrl = `/run/${encodeURIComponent(String(artifact.id))}`;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · Locked`, description:'비밀번호가 필요한 ERBELLO 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel locked-detail"><p class="detail-kicker">ERBELLO / LOCKED</p><h1>${escHtml(title)}</h1><div class="locked-blind" aria-hidden="true"><span></span><span></span><span></span></div><p>이 프로젝트는 비밀번호 확인 전까지 제목 외 내용이 보호됩니다.</p><div class="detail-actions"><a class="btn primary" href="${escAttr(runUrl)}">비밀번호 입력 후 실행</a><a class="btn" href="/projects">프로젝트 목록</a></div></section></main></body></html>`;
 }
 
 async function renderPolicyPage(req, kind = 'privacy') {
@@ -856,8 +868,9 @@ app.get('/api/admin/system', checkAdmin, async (req, res) => {
 
 app.get('/api/artifacts', async (req, res) => {
   try {
-    const artifacts = await store.listArtifacts({ includePrivateDetails: isAdminRequest(req) });
-    res.json(artifacts.map(({ code, private_password_hash, private_password_salt, ...rest }) => rest));
+    const isAdmin = isAdminRequest(req);
+    const artifacts = await store.listArtifacts({ includePrivateDetails: isAdmin });
+    res.json(artifacts.map((artifact) => isAdmin ? stripPrivateSecrets(artifact) : publicArtifactSummary(artifact)));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
