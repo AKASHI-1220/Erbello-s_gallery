@@ -8,12 +8,13 @@
   const COLORS = ['crimson','sky','lavender','yellowblue','cream','rose','ocean','aurora','mint','pixel'];
   const LANGS = ['ko','en','ja','zh'];
   const ROUTES = ['home','projects','about','contact','privacy','terms'];
-  const CATEGORIES = ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other'];
+  const CATEGORIES = ['all', 'post', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other'];
   const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
   const GAMSUNG_COVERS = ['1','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(n => `/assets/illust/gamsung-${n}.webp`);
   const SITE_ORIGIN = 'https://erbello.vercel.app';
   const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
   const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
+  const POST_SOURCE_CODE = '__ERBELLO_POST__';
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
   const INLINE_CODE_LIMIT = 900 * 1024;
@@ -72,10 +73,10 @@
 
 
   const EXTRA_I18N = {
-    ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.', zipTooLarge:'파일이 너무 큽니다. 이미지/영상/음악을 줄이거나 파일별 업로드가 필요합니다.', zipEntryTooLarge:'ZIP 안에 50MB를 넘는 파일이 있습니다.', zipBrowserLarge:'ZIP 전체 용량이 커서 브라우저 메모리를 많이 사용할 수 있습니다. 그래도 내부 파일 기준으로 검사합니다.', zipReady:'ZIP 검사 완료: index.html을 찾았습니다.', zipUploadCheck:'ZIP 검사 중...', zipUploadExtract:'ZIP 압축 해제 중...', zipUploadFiles:'ZIP 내부 파일 업로드 중...', zipUploadManifest:'ZIP manifest 생성 중...', zipStorageNotReady:'Storage가 준비되지 않아 ZIP 저장을 진행할 수 없습니다.' },
-    en:{ navTerms:'Terms', statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.', zipTooLarge:'The file is too large. Reduce images, video or audio, or upload files separately.', zipEntryTooLarge:'A file inside the ZIP exceeds 50MB.', zipBrowserLarge:'The ZIP is large and may use a lot of browser memory. It will still be checked by individual file size.', zipReady:'ZIP check complete: index.html was found.', zipUploadCheck:'Checking ZIP...', zipUploadExtract:'Extracting ZIP...', zipUploadFiles:'Uploading ZIP files...', zipUploadManifest:'Creating ZIP manifest...', zipStorageNotReady:'Storage is not ready, so ZIP saving cannot continue.' },
-    ja:{ navTerms:'利用規約', statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。', zipTooLarge:'ファイルが大きすぎます。画像・動画・音声を減らすか、ファイル別アップロードが必要です。', zipEntryTooLarge:'ZIP内に50MBを超えるファイルがあります。', zipBrowserLarge:'ZIP全体の容量が大きいためブラウザメモリを多く使う可能性があります。個別ファイルサイズ基準で検査します。', zipReady:'ZIP検査完了: index.htmlを検出しました。', zipUploadCheck:'ZIPを確認中...', zipUploadExtract:'ZIPを展開中...', zipUploadFiles:'ZIP内ファイルをアップロード中...', zipUploadManifest:'ZIP manifestを作成中...', zipStorageNotReady:'Storageが準備されていないためZIP保存を続行できません。' },
-    zh:{ navTerms:'使用条款', statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。', zipTooLarge:'文件太大。请减少图片、视频或音频，或改为分文件上传。', zipEntryTooLarge:'ZIP 内有超过 50MB 的文件。', zipBrowserLarge:'ZIP 整体较大，可能占用较多浏览器内存。仍会按内部单个文件大小检查。', zipReady:'ZIP 检查完成：已找到 index.html。', zipUploadCheck:'正在检查 ZIP...', zipUploadExtract:'正在解压 ZIP...', zipUploadFiles:'正在上传 ZIP 内部文件...', zipUploadManifest:'正在创建 ZIP manifest...', zipStorageNotReady:'Storage 尚未准备好，无法继续保存 ZIP。' }
+    ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', contentKindLabel:'콘텐츠 종류', contentKindProject:'프로젝트', contentKindPost:'포스트', addPost:'포스트 추가', typePost:'포스트', formatPost:'포스트', postBodyRequired:'포스트는 본문, 설명, 이미지 중 하나가 필요합니다.', postDetailLabel:'포스트 본문', postDetailHint:'블로그 글처럼 자유롭게 내용을 적고, 필요한 이미지를 함께 올릴 수 있습니다.', projectSourceHint:'프로젝트 모드에서는 HTML/JSX/TSX/ZIP 파일 또는 코드를 넣어주세요.', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.', zipTooLarge:'파일이 너무 큽니다. 이미지/영상/음악을 줄이거나 파일별 업로드가 필요합니다.', zipEntryTooLarge:'ZIP 안에 50MB를 넘는 파일이 있습니다.', zipBrowserLarge:'ZIP 전체 용량이 커서 브라우저 메모리를 많이 사용할 수 있습니다. 그래도 내부 파일 기준으로 검사합니다.', zipReady:'ZIP 검사 완료: index.html을 찾았습니다.', zipUploadCheck:'ZIP 검사 중...', zipUploadExtract:'ZIP 압축 해제 중...', zipUploadFiles:'ZIP 내부 파일 업로드 중...', zipUploadManifest:'ZIP manifest 생성 중...', zipStorageNotReady:'Storage가 준비되지 않아 ZIP 저장을 진행할 수 없습니다.' },
+    en:{ navTerms:'Terms', statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', contentKindLabel:'Content type', contentKindProject:'Project', contentKindPost:'Post', addPost:'Add Post', typePost:'Post', formatPost:'Post', postBodyRequired:'A post needs body text, a description, or an image.', postDetailLabel:'Post body', postDetailHint:'Write freely like a blog post and attach images if needed.', projectSourceHint:'Project mode needs an HTML/JSX/TSX/ZIP file or code.', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.', zipTooLarge:'The file is too large. Reduce images, video or audio, or upload files separately.', zipEntryTooLarge:'A file inside the ZIP exceeds 50MB.', zipBrowserLarge:'The ZIP is large and may use a lot of browser memory. It will still be checked by individual file size.', zipReady:'ZIP check complete: index.html was found.', zipUploadCheck:'Checking ZIP...', zipUploadExtract:'Extracting ZIP...', zipUploadFiles:'Uploading ZIP files...', zipUploadManifest:'Creating ZIP manifest...', zipStorageNotReady:'Storage is not ready, so ZIP saving cannot continue.' },
+    ja:{ navTerms:'利用規約', statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', contentKindLabel:'コンテンツ種別', contentKindProject:'プロジェクト', contentKindPost:'ポスト', addPost:'ポスト追加', typePost:'ポスト', formatPost:'ポスト', postBodyRequired:'ポストには本文、説明、画像のいずれかが必要です。', postDetailLabel:'ポスト本文', postDetailHint:'ブログ記事のように自由に本文を書き、必要な画像を添付できます。', projectSourceHint:'プロジェクトモードではHTML/JSX/TSX/ZIPファイルまたはコードが必要です。', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。', zipTooLarge:'ファイルが大きすぎます。画像・動画・音声を減らすか、ファイル別アップロードが必要です。', zipEntryTooLarge:'ZIP内に50MBを超えるファイルがあります。', zipBrowserLarge:'ZIP全体の容量が大きいためブラウザメモリを多く使う可能性があります。個別ファイルサイズ基準で検査します。', zipReady:'ZIP検査完了: index.htmlを検出しました。', zipUploadCheck:'ZIPを確認中...', zipUploadExtract:'ZIPを展開中...', zipUploadFiles:'ZIP内ファイルをアップロード中...', zipUploadManifest:'ZIP manifestを作成中...', zipStorageNotReady:'Storageが準備されていないためZIP保存を続行できません。' },
+    zh:{ navTerms:'使用条款', statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', contentKindLabel:'内容类型', contentKindProject:'项目', contentKindPost:'帖子', addPost:'添加帖子', typePost:'帖子', formatPost:'帖子', postBodyRequired:'帖子需要正文、说明或图片中的至少一项。', postDetailLabel:'帖子正文', postDetailHint:'可以像博客文章一样自由书写，也可以附加图片。', projectSourceHint:'项目模式需要 HTML/JSX/TSX/ZIP 文件或代码。', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。', zipTooLarge:'文件太大。请减少图片、视频或音频，或改为分文件上传。', zipEntryTooLarge:'ZIP 内有超过 50MB 的文件。', zipBrowserLarge:'ZIP 整体较大，可能占用较多浏览器内存。仍会按内部单个文件大小检查。', zipReady:'ZIP 检查完成：已找到 index.html。', zipUploadCheck:'正在检查 ZIP...', zipUploadExtract:'正在解压 ZIP...', zipUploadFiles:'正在上传 ZIP 内部文件...', zipUploadManifest:'正在创建 ZIP manifest...', zipStorageNotReady:'Storage 尚未准备好，无法继续保存 ZIP。' }
   };
 
   let artifacts = [];
@@ -100,12 +101,12 @@
 
   function dict() { return I18N[currentLang] || I18N.ko; }
   function tr(key) { return (EXTRA_I18N[currentLang] && EXTRA_I18N[currentLang][key]) ?? dict()[key] ?? (EXTRA_I18N.ko && EXTRA_I18N.ko[key]) ?? I18N.ko[key] ?? key; }
-  function catLabel(type) { return dict().categories[type] || dict().categories.other; }
+  function catLabel(type) { return type === 'post' ? tr('typePost') : (dict().categories[type] || dict().categories.other); }
   function colorLabel(color) { return (dict().colors && dict().colors[color]) || (I18N.en.colors && I18N.en.colors[color]) || color; }
   function schemeLabel(scheme) { return (dict().schemes && dict().schemes[scheme]) || (I18N.en.schemes && I18N.en.schemes[scheme]) || scheme; }
   function esc(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
   function compact(value, max = 150) { const text = String(value || '').replace(/\s+/g, ' ').trim(); return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text; }
-  function typeKey(value) { const t = String(value || 'other').toLowerCase(); if (t === 'html' || t === 'react') return 'tool'; return CATEGORIES.includes(t) && t !== 'all' ? t : 'other'; }
+  function typeKey(value) { const t = String(value || 'other').toLowerCase(); if (t === 'html' || t === 'react') return 'tool'; return CATEGORIES.includes(t) && !['all','post'].includes(t) ? t : 'other'; }
   function cleanTags(value) {
     const raw = Array.isArray(value) ? value : String(value || '').split(/[#,，、\n]+/);
     const seen = new Set();
@@ -122,12 +123,13 @@
   function tagsText(value) { return cleanTags(value).join(', '); }
   function tagsToInput(value) { return tagsText(value); }
   function formatKey(item = {}) {
-    if (typeof item === 'string') return ['html','jsx','zip'].includes(item) ? item : 'html';
+    if (typeof item === 'string') return ['html','jsx','zip','post'].includes(item) ? item : 'html';
     const raw = String(item.source_kind || item.format || '').toLowerCase();
-    if (['html','jsx','zip'].includes(raw)) return raw;
+    if (['html','jsx','zip','post'].includes(raw)) return raw;
     return item.is_jsx ? 'jsx' : 'html';
   }
-  function formatLabel(item = {}) { const f = formatKey(item); return f === 'zip' ? tr('formatZip') : (f === 'jsx' ? tr('formatJsx') : tr('formatHtml')); }
+  function formatLabel(item = {}) { const f = formatKey(item); return f === 'post' ? tr('formatPost') : (f === 'zip' ? tr('formatZip') : (f === 'jsx' ? tr('formatJsx') : tr('formatHtml'))); }
+  function isPostItem(item = {}) { return formatKey(item) === 'post'; }
 
   function statusKey(item = {}) {
     const s = String(item.status || '').toLowerCase();
@@ -142,11 +144,12 @@
   function categoryTerms(key) {
     const terms = new Set([key]);
     Object.values(I18N).forEach(dict => { if (dict.categories && dict.categories[key]) terms.add(String(dict.categories[key]).toLowerCase()); });
-    ({ tool:['tool','도구','ツール','工具'], game:['game','게임','ゲーム','游戏'], daily:['daily','일상','日常'], design:['design','디자인','デザイン','设计'], chart:['chart','차트','图表'], experiment:['experiment','실험','実験','实验'], other:['other','기타','その他','其他'] }[key] || []).forEach(v => terms.add(v.toLowerCase()));
+    ({ post:['post','blog','포스트','블로그','記事','投稿','帖子','文章'], tool:['tool','도구','ツール','工具'], game:['game','게임','ゲーム','游戏'], daily:['daily','일상','日常'], design:['design','디자인','デザイン','设计'], chart:['chart','차트','图表'], experiment:['experiment','실험','実験','实验'], other:['other','기타','その他','其他'] }[key] || []).forEach(v => terms.add(v.toLowerCase()));
     return terms;
   }
   function matchesFilter(item, filter) {
     if (filter === 'all') return true;
+    if (filter === 'post') return isPostItem(item);
     const type = typeKey(item.type);
     const terms = cleanTags(item.tags).map(tag => tag.toLowerCase());
     const allowed = categoryTerms(filter);
@@ -830,9 +833,34 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return [...entries].filter(entry => /(^|\/)index\.html?$/i.test(entry.name) || /\.html?$/i.test(entry.name)).sort((a, b) => zipIndexRank(a.name) - zipIndexRank(b.name))[0] || null;
   }
 
-  async function readZipEntries(file) {
+  function loadScriptOnce(src, globalName) {
+    if (globalName && window[globalName]) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const existing = [...document.scripts].find(script => script.src === src);
+      if (existing) {
+        existing.addEventListener('load', () => resolve(), { once:true });
+        existing.addEventListener('error', () => reject(new Error(tr('zipUnsupported'))), { once:true });
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error(tr('zipUnsupported')));
+      document.head.appendChild(script);
+    });
+  }
+
+  async function ensureJsZip() {
+    if (window.JSZip) return window.JSZip;
+    await loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip');
     if (!window.JSZip) throw new Error(tr('zipUnsupported'));
-    const zip = await window.JSZip.loadAsync(file);
+    return window.JSZip;
+  }
+
+  async function readZipEntries(file) {
+    const JSZip = await ensureJsZip();
+    const zip = await JSZip.loadAsync(file);
     const entries = Object.values(zip.files).filter(entry => !ignoredZipEntry(entry));
     return { zip, entries, index: findZipIndexEntry(entries) };
   }
@@ -1303,7 +1331,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const tags = artifactTags(item);
       if (!itemMatchesFilter(item, currentFilter)) return false;
       if (!q) return true;
-      return [item.title, item.description, type, tags.join(' '), item.is_jsx ? 'jsx react' : 'html'].join(' ').toLowerCase().includes(q);
+      const kindText = isPostItem(item) ? 'post blog 포스트 블로그' : (item.is_jsx ? 'jsx react' : formatKey(item));
+      return [item.title, item.description, type, tags.join(' '), kindText].join(' ').toLowerCase().includes(q);
     });
   }
 
@@ -1322,6 +1351,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
 
   function cardMarkup(item, compactCard = false) {
     const type = typeKey(item.type);
+    const post = isPostItem(item);
     const title = item.title || tr('untitled');
     const status = statusKey(item);
     const locked = status === 'private' && !isAdminOn();
@@ -1339,9 +1369,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const extraTags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
     const tagHtml = extraTags.length ? `<div class="card-tags">${extraTags.map(tag => `<span class="card-tag-chip">${esc(tag)}</span>`).join('')}</div>` : '';
     const privateAdmin = status === 'private' ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : draftAdmin;
-    return `<article class="card v21-card ${compactCard ? 'card-compact' : ''} ${esc(profile.klass)}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
+    return `<article class="card v21-card ${compactCard ? 'card-compact' : ''} ${post ? 'card-post' : ''} ${esc(profile.klass)}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
       <span class="card-sticker" aria-hidden="true">${esc(profile.icon)}</span>
-      <div class="card-body"><div class="card-meta-line"><span class="tag">${esc(catLabel(type))}</span><span class="card-date">${esc(fmtMonth(item.updated_at || item.created_at))}</span></div><h3 class="card-title">${esc(title)}${privateAdmin}</h3><p class="card-desc">${esc(compact(desc, 132))}</p>${tagHtml}
+      <div class="card-body"><div class="card-meta-line"><span class="tag">${esc(post ? tr('typePost') : catLabel(type))}</span><span class="card-date">${esc(fmtMonth(item.updated_at || item.created_at))}</span></div><h3 class="card-title">${esc(title)}${privateAdmin}</h3><p class="card-desc">${esc(compact(desc, 132))}</p>${tagHtml}
         <div class="card-foot"><span class="view-count admin-only">◉ ${esc(tr('views'))} ${views}</span><span class="card-charm" aria-hidden="true">✦</span>
           <div class="card-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div>
         </div></div></article>`;
@@ -1390,7 +1420,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const item = findArtifact(id);
     if (!item) return;
     currentId = id;
-    $('viewerTag').textContent = [catLabel(typeKey(item.type)), ...artifactTags(item).slice(0, 3), formatLabel(item)].filter(Boolean).join(' · ');
+    const post = isPostItem(item);
+    $('viewerTag').textContent = [post ? tr('typePost') : catLabel(typeKey(item.type)), ...artifactTags(item).slice(0, 3), formatLabel(item)].filter(Boolean).join(' · ');
     $('viewerTitle').textContent = item.title || tr('untitled');
     $('viewerDesc').textContent = item.description || item.detail_text || tr('ownerPreview');
     if ($('viewerViews')) $('viewerViews').textContent = `${tr('views')}: ${Number(item.view_count || 0)}`;
@@ -1400,14 +1431,17 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       mediaNode.innerHTML = imgs.map(src => `<img src="${esc(src)}" alt="" loading="lazy" />`).join('');
     }
     const frame = $('viewerFrame');
-    if (PREVIEW_MODE) { frame.removeAttribute('src'); frame.srcdoc = item.code || previewDocument(item.title || tr('untitled'), item.description || ''); }
+    if (PREVIEW_MODE) { frame.removeAttribute('src'); frame.srcdoc = post ? previewDocument(item.title || tr('untitled'), item.detail_text || item.description || '') : (item.code || previewDocument(item.title || tr('untitled'), item.description || '')); }
     else if (isAdminOn() && adminToken) {
       frame.removeAttribute('src');
       frame.srcdoc = `<div style="font-family:system-ui;padding:24px">Loading...</div>`;
       api(`/api/admin/render/${encodeURIComponent(id)}`, { headers:{ 'x-admin-token':adminToken } })
         .then((data) => { if (currentId === id) frame.srcdoc = data && data.html ? data.html : ''; })
         .catch((error) => { if (currentId === id) frame.srcdoc = `<pre style="font-family:monospace;padding:24px;color:#ff5573">${esc(error.message || 'Preview failed')}</pre>`; });
-    } else { frame.removeAttribute('srcdoc'); frame.src = runPath(id); }
+    } else {
+      frame.removeAttribute('srcdoc');
+      frame.src = post ? projectPath(id) : runPath(id);
+    }
     $('viewer').classList.add('open');
   }
 
@@ -1450,6 +1484,12 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function updateDetectHint() {
     const node = $('detectHint');
     if (!node) return;
+    if (contentKindValue() === 'post') {
+      node.textContent = tr('formatPost');
+      if ($('formatInput')) $('formatInput').value = 'post';
+      if ($('formatBadge')) $('formatBadge').textContent = tr('formatPost');
+      return;
+    }
     const code = $('codeInput')?.value || '';
     const currentFormat = formatKey($('formatInput')?.value || '');
     if (pendingSourceFile) {
@@ -1485,6 +1525,30 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const checked = Boolean($('privateInput') && $('privateInput').checked);
     const panel = document.querySelector('.private-panel');
     if (panel) panel.classList.toggle('private-on', checked);
+  }
+
+  function contentKindValue() {
+    return $('contentKindInput') && $('contentKindInput').value === 'post' ? 'post' : 'project';
+  }
+
+  function updateContentKindFields() {
+    const isPost = contentKindValue() === 'post';
+    const modal = $('artifactModal');
+    if (modal) modal.classList.toggle('post-mode', isPost);
+    if ($('formatInput')) {
+      if (isPost) $('formatInput').value = 'post';
+      else if (formatKey($('formatInput').value) === 'post') $('formatInput').value = 'html';
+    }
+    if ($('formatBadge')) $('formatBadge').textContent = isPost ? tr('formatPost') : formatLabel($('formatInput')?.value || 'html');
+    const detailLabel = document.querySelector('label[for="detailInput"]');
+    if (detailLabel) detailLabel.textContent = isPost ? tr('postDetailLabel') : tr('detailLabel');
+    const detailHint = document.querySelector('[data-i18n="detailHint"]');
+    if (detailHint) detailHint.textContent = isPost ? tr('postDetailHint') : tr('detailHint');
+    if ($('detailInput')) $('detailInput').placeholder = isPost ? tr('postDetailHint') : tr('detailPlaceholder');
+    if ($('artifactModalTitle')) {
+      $('artifactModalTitle').textContent = editingId ? tr('artifactModalTitleEdit') : (isPost ? tr('addPost') : tr('artifactModalTitleAdd'));
+    }
+    updateDetectHint();
   }
 
   function readFileAsDataUrl(file) {
@@ -1550,7 +1614,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const box = $('detailQuality');
     if (!node || !box) return;
     const len = node.value.trim().length;
-    const ok = len >= 350;
+    const ok = contentKindValue() === 'post' ? len >= 180 : len >= 350;
     box.className = `detail-quality ${ok ? 'good' : 'warn'}`;
     box.textContent = `${tr('detailChars')}: ${len} · ${ok ? tr('detailQualityGood') : tr('detailQualityShort')}`;
   }
@@ -1564,6 +1628,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const tags = collectArtifactTags().join(', ');
     const current = node.value.trim();
     if (current && current.length > 120 && !window.confirm('이미 상세 소개가 있습니다. 초안으로 덮어쓸까요?')) return;
+    if (contentKindValue() === 'post') {
+      node.value = `${title}\n\n${desc || '이 포스트에는 ERBELLO라는 활동명으로 만든 작업물과 기록을 정리합니다.'}\n\n작업을 만들게 된 이유, 사용하면서 느낀 점, 참고하면 좋은 부분을 자유롭게 적어둘 수 있습니다. 이미지가 필요한 경우 대표 이미지나 추가 이미지를 함께 등록해 글처럼 보여줄 수 있습니다.\n\n${tags ? `관련 태그는 ${tags}입니다. ` : ''}프로젝트 실행 코드가 없는 기록용 콘텐츠라면 포스트로 저장하면 되고, 실행 가능한 HTML/JSX/ZIP 작업물은 프로젝트로 저장하면 됩니다.`;
+      detailQualityText();
+      return;
+    }
     node.value = `${title}는 ERBELLO에 보관된 ${category} 프로젝트입니다. ${desc || '짧게 열어보고 사용해볼 수 있는 개인 웹 프로젝트로, 아이디어를 실제 화면으로 옮기는 과정을 기록하기 위해 정리했습니다.'}\n\n이 상세 페이지에서는 프로젝트가 어떤 목적으로 만들어졌는지, 어떤 화면이나 기능을 확인하면 좋은지, 실행 전에 알아두면 좋은 정보를 함께 정리합니다. 방문자는 카드 목록에서 바로 실행 화면으로 이동하지 않고, 먼저 이 소개 페이지에서 프로젝트의 성격과 구성 요소를 확인할 수 있습니다.\n\n실행 버튼을 누르면 실제 HTML, JSX 또는 ZIP 기반 화면이 열립니다. 모바일과 PC에서 배치나 조작 방식이 다를 수 있으므로 화면 크기에 따라 주요 버튼, 입력 영역, 이미지 표시 방식이 어떻게 달라지는지도 확인해보면 좋습니다.\n\n${tags ? `관련 태그는 ${tags}입니다. ` : ''}커버 이미지와 추가 이미지가 등록된 경우에는 프로젝트 분위기와 주요 화면을 미리 볼 수 있습니다. 이 프로젝트는 작은 기능을 직접 사용해보고, 결과를 공유하거나 다시 확인할 수 있도록 구성했습니다.`;
     detailQualityText();
   }
@@ -1575,6 +1644,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('descInput').value = '';
     $('typeInput').value = 'tool';
     if ($('statusInput')) $('statusInput').value = 'public';
+    if ($('contentKindInput')) $('contentKindInput').value = 'project';
     if ($('tagsInput')) $('tagsInput').value = '';
     if ($('detailInput')) $('detailInput').value = '';
     if ($('privateInput')) $('privateInput').checked = false;
@@ -1596,6 +1666,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('fileInput').value = '';
     $('detectHint').textContent = tr('detectWaiting');
     $('artifactError').textContent = '';
+    updateContentKindFields();
   }
 
   function openAddModal() { resetArtifactForm(); openModal('artifactModal'); setTimeout(() => $('titleInput').focus(), 60); }
@@ -1612,6 +1683,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if ($('tagsInput')) $('tagsInput').value = tagsText(item.tags || []);
       if ($('detailInput')) $('detailInput').value = item.detail_text || '';
       if ($('statusInput')) $('statusInput').value = statusKey(item);
+      if ($('contentKindInput')) $('contentKindInput').value = isPostItem(item) ? 'post' : 'project';
       if ($('privateInput')) $('privateInput').checked = statusKey(item) === 'private' || Boolean(item.is_private);
       if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
       updatePrivateFields();
@@ -1626,9 +1698,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       renderImagePreviews();
       if ($('formatInput')) $('formatInput').value = formatKey(item);
       if ($('formatBadge')) $('formatBadge').textContent = formatLabel(item);
-      $('codeInput').value = item.code_storage_path ? '' : (item.code || '');
+      $('codeInput').value = isPostItem(item) || item.code_storage_path ? '' : (item.code || '');
       $('fileInput').value = '';
       $('artifactError').textContent = '';
+      updateContentKindFields();
       updateDetectHint();
       detailQualityText();
       openModal('artifactModal');
@@ -1642,28 +1715,32 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const type = $('typeInput').value;
     const tags = collectArtifactTags();
     const detail_text = $('detailInput') ? $('detailInput').value.trim() : '';
-    const manualCode = normalizeCode($('codeInput').value);
+    const isPost = contentKindValue() === 'post';
+    const manualCode = isPost ? '' : normalizeCode($('codeInput').value);
     const status = $('statusInput') ? $('statusInput').value : (Boolean($('privateInput') && $('privateInput').checked) ? 'private' : 'public');
     const is_private = status === 'private' || Boolean($('privateInput') && $('privateInput').checked);
     const private_password = $('privatePasswordInput') ? $('privatePasswordInput').value.trim() : '';
     $('artifactError').textContent = '';
-    if (!title || (!manualCode && !pendingSourceFile && !pendingSourceStored)) { $('artifactError').textContent = tr('required'); return; }
+    const hasPostBody = Boolean(detail_text || description || pendingCoverImage || pendingCoverFile || pendingGalleryImages.length || pendingGalleryFiles.length);
+    if (!title) { $('artifactError').textContent = tr('required'); return; }
+    if (isPost && !hasPostBody) { $('artifactError').textContent = tr('postBodyRequired'); return; }
+    if (!isPost && !manualCode && !pendingSourceFile && !pendingSourceStored) { $('artifactError').textContent = tr('required'); return; }
     try {
       const saveBtn = $('saveArtifactBtn');
       if (saveBtn) saveBtn.disabled = true;
       toast('Storage 업로드를 확인하는 중입니다...');
       let sourceUpload = null;
-      let code = manualCode;
-      let format = (($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html'));
-      if (pendingSourceFile && isZipFile(pendingSourceFile)) {
+      let code = isPost ? POST_SOURCE_CODE : manualCode;
+      let format = isPost ? 'post' : (($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html'));
+      if (!isPost && pendingSourceFile && isZipFile(pendingSourceFile)) {
         format = 'zip';
         sourceUpload = await uploadZipAsManifest(pendingSourceFile);
         code = sourceUpload.code;
-      } else if (pendingSourceFile) {
+      } else if (!isPost && pendingSourceFile) {
         sourceUpload = await uploadFileToStorage('source', pendingSourceFile);
         format = (($('formatInput') && $('formatInput').value) || (/\.(jsx?|tsx?)$/i.test(pendingSourceFile.name || '') ? 'jsx' : 'html'));
         code = storageSourceCode(sourceUpload, format);
-      } else if (manualCode) {
+      } else if (!isPost && manualCode) {
         const largeCodeUpload = await uploadManualCodeIfNeeded(manualCode, format);
         if (largeCodeUpload) {
           sourceUpload = largeCodeUpload;
@@ -1691,7 +1768,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       }
 
       const payload = {
-        title, description, type, tags, status, format, code, detail_text, cover_image, gallery_images, is_private, private_password,
+        title, description, type, tags, status, format, source_kind: format, code, detail_text, cover_image, gallery_images, is_private, private_password,
         code_storage_bucket: sourceUpload ? sourceUpload.bucket : '',
         code_storage_path: sourceUpload ? sourceUpload.path : '',
         code_storage_mime: sourceUpload ? sourceUpload.mime : '',
@@ -1725,7 +1802,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const node = $('quickTags');
     if (!node) return;
     const selected = normalizeTags($('tagsInput')?.value || '').map(normalizeTagValue);
-    node.innerHTML = CATEGORIES.filter(key => key !== 'all').map((key) => {
+    node.innerHTML = CATEGORIES.filter(key => key !== 'all' && key !== 'post').map((key) => {
       const label = catLabel(key);
       const active = selected.includes(normalizeTagValue(label)) || selected.includes(key);
       return `<button class="quick-tag ${active ? 'active' : ''}" type="button" data-quick-tag="${esc(label)}">#${esc(label)}</button>`;
@@ -1925,8 +2002,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!artifacts.length) { toast(tr('noStats')); return; }
     const text = artifacts.map((item, index) => {
       const tags = artifactTags(item).join(', ');
+      const post = isPostItem(item);
       return [`#${index + 1}`,
         `제목: ${item.title || ''}`,
+        `종류: ${post ? 'post' : 'project'}`,
         `상태: ${statusLabel(statusKey(item))}`,
         `대표 분류: ${catLabel(typeKey(item.type))}`,
         `태그: ${tags}`,
@@ -1934,7 +2013,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         `상세 소개: ${item.detail_text || ''}`,
         `조회수: ${Number(item.view_count || 0)}`,
         `상세 URL: ${projectUrl(item.id)}`,
-        `실행 URL: ${runUrl(item.id)}`
+        post ? `실행 URL: 포스트는 실행 페이지 없음` : `실행 URL: ${runUrl(item.id)}`
       ].join('\n');
     }).join('\n\n---\n\n');
     copyText(text).then(() => toast(tr('exportCopied')));
@@ -2003,13 +2082,34 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('saveArtifactBtn')?.addEventListener('click', saveArtifact);
     $('statusInput')?.addEventListener('change', syncStatusPrivate);
     $('privateInput')?.addEventListener('change', syncPrivateStatus);
+    $('contentKindInput')?.addEventListener('change', () => {
+      if (contentKindValue() === 'post') {
+        pendingSourceFile = null;
+        pendingSourceStored = false;
+        pendingSourceName = '';
+        pendingZipInfo = null;
+        if ($('fileInput')) $('fileInput').value = '';
+        if ($('codeInput')) $('codeInput').value = '';
+      }
+      updateContentKindFields();
+      detailQualityText();
+    });
     $('detailInput')?.addEventListener('input', detailQualityText);
     $('fillDetailBtn')?.addEventListener('click', fillDetailDraft);
     $('exportBtn')?.addEventListener('click', () => requireAdmin(exportProjectList));
     $('systemBtn')?.addEventListener('click', () => requireAdmin(openSystemStatus));
     $('tagsInput')?.addEventListener('input', renderQuickTags);
     $('quickTags')?.addEventListener('click', (event) => { const btn = event.target.closest('[data-quick-tag]'); if (btn) toggleArtifactTag(btn.dataset.quickTag || ''); });
-    $('codeInput')?.addEventListener('input', updateDetectHint);
+    $('codeInput')?.addEventListener('input', () => {
+      if (($('codeInput')?.value || '').trim()) {
+        pendingSourceFile = null;
+        pendingSourceStored = false;
+        pendingSourceName = '';
+        pendingZipInfo = null;
+        if ($('fileInput')) $('fileInput').value = '';
+      }
+      updateDetectHint();
+    });
     $('privateInput')?.addEventListener('change', updatePrivateFields);
     $('fileInput')?.addEventListener('change', (event) => handleFile(event.target.files && event.target.files[0]));
     $('coverInput')?.addEventListener('change', (event) => handleCoverFile(event.target.files && event.target.files[0]));
@@ -2025,8 +2125,16 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       dz.addEventListener('drop', (event) => handleFile(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]));
     }
     $('closeViewerBtn')?.addEventListener('click', closeViewer);
-    $('copyRunBtn')?.addEventListener('click', () => currentId && copyText(runUrl(currentId)));
-    $('openRunBtn')?.addEventListener('click', () => currentId && window.open(runPath(currentId), '_blank', 'noopener,noreferrer'));
+    $('copyRunBtn')?.addEventListener('click', () => {
+      if (!currentId) return;
+      const item = findArtifact(currentId);
+      copyText(isPostItem(item) ? projectUrl(currentId) : runUrl(currentId));
+    });
+    $('openRunBtn')?.addEventListener('click', () => {
+      if (!currentId) return;
+      const item = findArtifact(currentId);
+      window.open(isPostItem(item) ? projectPath(currentId) : runPath(currentId), '_blank', 'noopener,noreferrer');
+    });
     $('editBtn')?.addEventListener('click', () => currentId && requireAdmin(() => editArtifact(currentId)));
     $('deleteBtn')?.addEventListener('click', () => currentId && requireAdmin(() => deleteArtifact(currentId)));
     document.addEventListener('keydown', (event) => { if (event.key === 'Escape') { closeThemeMenu(); document.querySelectorAll('.overlay.open').forEach((modal) => modal.classList.remove('open')); if ($('viewer')?.classList.contains('open')) closeViewer(); } });

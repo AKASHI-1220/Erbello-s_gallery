@@ -12,6 +12,7 @@ const app = express();
 const ZIP_BUNDLE_PREFIX = 'ERBELLO_BUNDLE_V1\n';
 const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
 const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
+const POST_SOURCE_CODE = '__ERBELLO_POST__';
 const STORAGE_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -76,15 +77,24 @@ function artifactSummaryText(artifact) {
   if (detail) return detail;
   const desc = plainText(artifact.description, 500);
   if (desc) return desc;
-  return 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
+  return isPostArtifact(artifact)
+    ? 'ERBELLO가 작성한 개인 포스트입니다. 글과 이미지로 정리한 내용을 확인할 수 있습니다.'
+    : 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
 }
 
 function artifactDetailBody(artifact) {
-  const detail = String(artifact && artifact.detail_text || '').replace(/\r\n/g, '\n').trim().slice(0, 4000);
+  const detail = String(artifact && artifact.detail_text || '').replace(/\r\n/g, '\n').trim().slice(0, 8000);
   if (detail) return detail;
   const desc = String(artifact && artifact.description || '').trim();
   if (desc) return desc;
-  return 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
+  return isPostArtifact(artifact)
+    ? 'ERBELLO가 작성한 개인 포스트입니다. 글과 이미지로 정리한 내용을 확인할 수 있습니다.'
+    : 'ERBELLO에 보관된 개인 프로젝트입니다. 프로젝트 설명과 실행 페이지를 함께 확인할 수 있습니다.';
+}
+
+function isPostArtifact(artifact) {
+  return cleanSourceKind(artifact && artifact.source_kind, artifact && artifact.is_jsx) === 'post'
+    || String(artifact && artifact.code || '').trim() === POST_SOURCE_CODE;
 }
 
 function tagList(artifact) {
@@ -109,8 +119,8 @@ function allowedAdsenseForIndex(req) {
 }
 
 function baseHead({ title, description, ads = false, robots = 'index,follow', url = '', image = '', type = 'website' } = {}) {
-  const safeTitle = title || 'ERBELLO Gallery';
-  const safeDescription = description || 'ERBELLO Project Gallery';
+  const safeTitle = title || '프로젝트 갤러리 · ERBELLO';
+  const safeDescription = description || 'ERBELLO라는 활동명으로 만든 개인 프로젝트 갤러리입니다.';
   const canonical = url ? `<link rel="canonical" href="${escAttr(url)}">` : '';
   const ogImage = absoluteSiteUrl(image || '/assets/illust/erbello-typo5.png');
   return `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="${escAttr(robots)}"><meta name="description" content="${escAttr(safeDescription)}"><meta name="google-adsense-account" content="${escAttr(ADSENSE_CLIENT)}"><title>${escHtml(safeTitle)}</title>${canonical}<meta property="og:type" content="${escAttr(type)}"><meta property="og:title" content="${escAttr(safeTitle)}"><meta property="og:description" content="${escAttr(safeDescription)}"><meta property="og:url" content="${escAttr(url || DEFAULT_SITE_ORIGIN)}"><meta property="og:image" content="${escAttr(ogImage)}"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="${escAttr(safeTitle)}"><meta name="twitter:description" content="${escAttr(safeDescription)}"><meta name="twitter:image" content="${escAttr(ogImage)}">${ads && ADSENSE_SCRIPT ? `\n${ADSENSE_SCRIPT}` : ''}<link rel="stylesheet" href="/app.css">`;
@@ -126,9 +136,9 @@ function indexRouteSeo(req) {
   const origin = siteOrigin(req);
   const pathPart = route === 'home' ? '/' : `/${route}`;
   const map = {
-    home: ['ERBELLO Gallery', 'ERBELLO의 개인 프로젝트 갤러리입니다.'],
-    projects: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO에 공개된 HTML, JSX, ZIP 기반 프로젝트를 둘러볼 수 있는 목록입니다.'],
-    about: ['소개 · ERBELLO', 'ERBELLO 프로젝트 갤러리의 운영 목적과 프로젝트 보관 방식을 안내합니다.'],
+    home: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO라는 활동명으로 만든 개인 프로젝트 갤러리입니다.'],
+    projects: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO라는 활동명으로 만든 HTML, JSX, ZIP 기반 프로젝트를 둘러볼 수 있는 목록입니다.'],
+    about: ['소개 · ERBELLO', 'ERBELLO라는 활동명으로 만든 작업물과 프로젝트 갤러리 운영 방식을 안내합니다.'],
     contact: ['연락처 · ERBELLO', 'ERBELLO 프로젝트 문의와 외부 연락처 링크를 확인할 수 있습니다.'],
     privacy: ['개인정보처리방침 · ERBELLO', 'ERBELLO가 사용하는 정보와 광고, 쿠키에 관한 안내입니다.'],
     terms: ['이용약관 · ERBELLO', 'ERBELLO 프로젝트 갤러리 이용에 관한 기본 안내입니다.']
@@ -616,7 +626,8 @@ function renderPrivateLockPage(artifact) {
 
 function renderProjectDetailPage(req, artifact) {
   const title = artifact.title || 'Untitled project';
-  const desc = artifact.description || 'ERBELLO에 보관된 프로젝트입니다.';
+  const isPost = isPostArtifact(artifact);
+  const desc = artifact.description || (isPost ? 'ERBELLO가 작성한 포스트입니다.' : 'ERBELLO에 보관된 프로젝트입니다.');
   const summary = artifactDetailBody(artifact);
   const summaryPlain = plainText(summary || desc, 5000);
   const tags = tagList(artifact);
@@ -627,7 +638,7 @@ function renderProjectDetailPage(req, artifact) {
   const gallery = [cover, ...(Array.isArray(artifact.gallery_images) ? artifact.gallery_images : [])].filter(Boolean).slice(0, 8);
   const updated = fmtMonthKo(artifact.updated_at || artifact.created_at);
   const category = artifact.type || 'other';
-  const format = cleanSourceKind(artifact.source_kind, artifact.is_jsx).toUpperCase();
+  const format = isPost ? 'POST' : cleanSourceKind(artifact.source_kind, artifact.is_jsx).toUpperCase();
   const structured = {
     '@context':'https://schema.org',
     '@type':'CreativeWork',
@@ -643,7 +654,11 @@ function renderProjectDetailPage(req, artifact) {
   const detailLength = summaryPlain.length;
   const allowDetailAds = detailLength >= 500;
   const metaHtml = `<dl class="detail-meta"><div><dt>대표 분류</dt><dd>${escHtml(category)}</dd></div><div><dt>형식</dt><dd>${escHtml(format)}</dd></div>${updated ? `<div><dt>년월</dt><dd>${escHtml(updated)}</dd></div>` : ''}</dl>`;
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">PROJECT DETAIL</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions"><a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a><a class="btn" href="/projects">프로젝트 목록</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">ABOUT THIS PROJECT</p><h2>프로젝트 소개</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section><footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
+  const primaryAction = isPost ? '' : `<a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a>`;
+  const guide = isPost
+    ? `<section class="detail-panel detail-guide"><p class="section-kicker">POST NOTE</p><h2>포스트 안내</h2><ul><li>이 글은 코드 실행 화면이 없는 이미지와 글 중심의 포스트입니다.</li><li>첨부 이미지가 있는 경우 글 아래 이미지 자료 영역에서 확인할 수 있습니다.</li><li>관리자는 같은 목록에서 프로젝트와 포스트를 함께 관리할 수 있습니다.</li></ul></section>`
+    : `<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section>`;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">${isPost ? 'POST DETAIL' : 'PROJECT DETAIL'}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions">${primaryAction}<a class="btn" href="/projects">목록으로</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(isPost ? 'POST' : category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">${isPost ? 'POST BODY' : 'ABOUT THIS PROJECT'}</p><h2>${isPost ? '포스트 본문' : '프로젝트 소개'}</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}${guide}<footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
 }
 
 function renderPrivateProjectDetailPage(req, artifact) {
@@ -720,7 +735,7 @@ function cleanTags(value) {
 }
 
 function cleanSourceKind(value, detectedJsx = false) {
-  const allowed = new Set(['html', 'jsx', 'zip', 'other']);
+  const allowed = new Set(['html', 'jsx', 'zip', 'post', 'other']);
   const kind = String(value || '').trim().toLowerCase();
   if (allowed.has(kind)) return kind;
   return detectedJsx ? 'jsx' : 'html';
@@ -834,22 +849,41 @@ function payloadFromBody(body, existing = null) {
   let code = normalizeCode(body.code);
   const cover_image = cleanCoverImage(body.cover_image);
   const gallery_images = cleanGalleryImages(body.gallery_images);
-  const detail_text = cleanText(body.detail_text, 4000);
+  const detail_text = cleanText(body.detail_text, 8000);
+  const detectedJsxFromBody = isJSX(code);
+  const source_kind = cleanSourceKind(body.source_kind || body.format || existing && existing.source_kind, detectedJsxFromBody || /jsx|tsx/i.test(body.source_filename || existing && existing.source_filename || ''));
   const incomingStoragePath = cleanStoragePath(body.code_storage_path);
   const existingStoragePath = existing && existing.code_storage_path ? existing.code_storage_path : '';
-  const code_storage_path = incomingStoragePath || existingStoragePath || '';
+  const code_storage_path = source_kind === 'post' ? '' : (incomingStoragePath || (!code ? existingStoragePath : '') || '');
   const code_storage_bucket = code_storage_path ? cleanStorageBucket(body.code_storage_bucket, existing && existing.code_storage_bucket || store.ARTIFACT_BUCKET) : '';
   const code_storage_mime = code_storage_path ? cleanMime(body.code_storage_mime || existing && existing.code_storage_mime) : '';
   const source_filename = code_storage_path ? cleanFilename(body.source_filename || existing && existing.source_filename) : '';
   if (!code && existing && existing.code && !incomingStoragePath) code = normalizeCode(existing.code);
   if (code_storage_path && (!code || code === '__ERBELLO_STORAGE__')) code = '__ERBELLO_STORAGE__';
   const detectedJsx = isJSX(code);
-  const source_kind = cleanSourceKind(body.source_kind || body.format || existing && existing.source_kind, detectedJsx || /jsx|tsx/i.test(source_filename));
+  if (source_kind === 'post') code = POST_SOURCE_CODE;
   const tags = cleanTags(body.tags);
   const requestedStatus = cleanStatus(body.status, cleanBool(body.is_private));
   const privateFields = privateFieldsFromBody({ ...body, is_private: requestedStatus === 'private' || cleanBool(body.is_private) }, existing);
   const status = requestedStatus === 'private' || privateFields.is_private ? 'private' : requestedStatus;
-  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: detectedJsx || source_kind === 'jsx', code_storage_bucket, code_storage_path, code_storage_mime, source_filename, status, ...privateFields };
+  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: source_kind === 'post' ? false : (detectedJsx || source_kind === 'jsx'), code_storage_bucket, code_storage_path, code_storage_mime, source_filename, status, ...privateFields };
+}
+
+function hasPostContent(payload) {
+  return Boolean(payload && (
+    plainText(payload.detail_text, 20)
+    || plainText(payload.description, 20)
+    || payload.cover_image
+    || (Array.isArray(payload.gallery_images) && payload.gallery_images.length)
+  ));
+}
+
+function validateArtifactPayload(payload) {
+  if (!payload || !payload.title) return 'title and content are required.';
+  if (payload.source_kind === 'post') {
+    return hasPostContent(payload) ? '' : 'post body, description or image is required.';
+  }
+  return (payload.code || payload.code_storage_path) ? '' : 'title and code are required.';
 }
 
 app.get('/api/status', (_req, res) => {
@@ -957,8 +991,10 @@ app.get('/api/admin/export', checkAdmin, async (req, res) => {
     const text = (rows || []).map((item, index) => {
       const tags = Array.isArray(item.tags) ? item.tags.join(', ') : '';
       const detail = plainText(item.detail_text, 1000);
+      const isPost = isPostArtifact(item);
       return [`#${index + 1}`,
         `제목: ${item.title || ''}`,
+        `종류: ${isPost ? 'post' : 'project'}`,
         `상태: ${item.status || (item.is_private ? 'private' : 'public')}`,
         `대표 분류: ${item.type || ''}`,
         `태그: ${tags}`,
@@ -966,7 +1002,7 @@ app.get('/api/admin/export', checkAdmin, async (req, res) => {
         `상세 소개: ${detail}`,
         `조회수: ${Number(item.view_count || 0)}`,
         `상세 URL: ${origin}/project/${encodeURIComponent(String(item.id))}`,
-        `실행 URL: ${origin}/run/${encodeURIComponent(String(item.id))}`
+        isPost ? `실행 URL: 포스트는 실행 페이지 없음` : `실행 URL: ${origin}/run/${encodeURIComponent(String(item.id))}`
       ].join('\n');
     }).join('\n\n---\n\n');
     res.type('text/plain').send(text || '등록된 프로젝트가 없습니다.');
@@ -988,7 +1024,8 @@ app.get('/api/admin/artifacts/:id', checkAdmin, async (req, res) => {
 app.post('/api/admin/artifacts', checkAdmin, async (req, res) => {
   try {
     const payload = payloadFromBody(req.body || {});
-    if (!payload.title || (!payload.code && !payload.code_storage_path)) return res.status(400).json({ error: 'title and code are required.' });
+    const invalid = validateArtifactPayload(payload);
+    if (invalid) return res.status(400).json({ error: invalid });
     const artifact = await store.createArtifact(payload);
     const { code, private_password_hash, private_password_salt, ...summary } = artifact;
     res.status(201).json(summary);
@@ -1002,7 +1039,8 @@ app.put('/api/admin/artifacts/:id', checkAdmin, async (req, res) => {
     const existing = await store.getArtifact(req.params.id);
     if (!existing) return res.status(404).json({ error: 'Artifact not found.' });
     const payload = payloadFromBody(req.body || {}, existing);
-    if (!payload.title || (!payload.code && !payload.code_storage_path)) return res.status(400).json({ error: 'title and code are required.' });
+    const invalid = validateArtifactPayload(payload);
+    if (invalid) return res.status(400).json({ error: invalid });
     const artifact = await store.updateArtifact(req.params.id, payload);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
     const { code, private_password_hash, private_password_salt, ...summary } = artifact;
@@ -1048,6 +1086,10 @@ app.get('/api/admin/render/:id', checkAdmin, async (req, res) => {
   try {
     const artifact = await store.getArtifact(req.params.id);
     if (!artifact) return res.status(404).json({ error: 'Artifact not found.' });
+    if (isPostArtifact(artifact)) {
+      const body = artifactDetailBody(artifact).split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('');
+      return res.json({ html:`<!doctype html><html lang="ko"><head><meta charset="utf-8"><style>body{font-family:system-ui,sans-serif;margin:0;padding:24px;color:#1f1a2d;background:#fff8fc}article{max-width:760px;margin:auto}h1{font-size:30px}p{line-height:1.8;color:#665b75}</style></head><body><article><p>POST PREVIEW</p><h1>${escHtml(artifact.title || '')}</h1>${body}</article></body></html>` });
+    }
     res.json({ html: await renderArtifactHtml(artifact, { access: String(req.query.access || '') }) });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1160,6 +1202,10 @@ app.get('/run/:id', async (req, res) => {
 
     if (isDraftArtifact(artifact)) {
       return res.status(404).send(`<!doctype html><html><body><pre>Draft project</pre></body></html>`);
+    }
+
+    if (isPostArtifact(artifact)) {
+      return res.redirect(302, `/project/${encodeURIComponent(String(artifact.id))}`);
     }
 
     if (artifact.is_private) {

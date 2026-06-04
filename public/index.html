@@ -4,16 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#090d16" />
-  <meta name="description" content="ERBELLO의 개인 프로젝트 갤러리입니다." />
+  <meta name="description" content="ERBELLO라는 활동명으로 만든 개인 프로젝트 갤러리입니다." />
   <link rel="canonical" href="https://erbello.vercel.app/" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="ERBELLO Gallery" />
-  <meta property="og:description" content="ERBELLO의 개인 프로젝트 갤러리입니다." />
+  <meta property="og:title" content="프로젝트 갤러리 · ERBELLO" />
+  <meta property="og:description" content="ERBELLO라는 활동명으로 만든 개인 프로젝트 갤러리입니다." />
   <meta property="og:url" content="https://erbello.vercel.app/" />
   <meta property="og:image" content="https://erbello.vercel.app/assets/illust/erbello-typo5.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
-  <title>ERBELLO Gallery</title>
+  <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
   <link rel="stylesheet" href="/app.css" />
 </head>
@@ -373,6 +373,13 @@
               <option value="draft" data-i18n="statusDraft">임시저장</option>
             </select>
           </div>
+          <div class="field">
+            <label for="contentKindInput" data-i18n="contentKindLabel">콘텐츠 종류</label>
+            <select id="contentKindInput" class="select">
+              <option value="project" data-i18n="contentKindProject">프로젝트</option>
+              <option value="post" data-i18n="contentKindPost">포스트</option>
+            </select>
+          </div>
         </div>
         <div class="field">
           <label for="descInput" data-i18n="descriptionLabel">설명</label>
@@ -403,7 +410,7 @@
         <span id="formatBadge" class="sr-only">HTML</span>
         <div class="field">
           <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
-          <textarea id="detailInput" class="textarea textarea-small" maxlength="4000" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
+          <textarea id="detailInput" class="textarea textarea-small" maxlength="8000" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
           <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
           <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
           <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
@@ -425,15 +432,15 @@
             <button id="clearGalleryBtn" class="btn small" type="button" data-i18n="clearGallery">추가 이미지 비우기</button>
           </div>
         </div>
-        <div id="dropZone" class="dropzone">
+        <div id="dropZone" class="dropzone project-only-field">
           <span data-i18n="dropText">HTML, JSX, TSX, ZIP 파일을 이곳에 끌어다 놓거나 선택하세요.</span>
           <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.ts,.tsx,.txt,.zip" />
         </div>
-        <div class="field">
+        <div id="codeField" class="field project-only-field">
           <label for="codeInput" data-i18n="codeLabel">코드</label>
           <textarea id="codeInput" class="textarea" spellcheck="false" data-i18n-placeholder="codePlaceholder" placeholder="HTML 전체 코드 또는 React/JSX 코드를 붙여넣으세요."></textarea>
         </div>
-        <p id="detectHint" class="hint" data-i18n="detectWaiting">감지 대기 중</p>
+        <p id="detectHint" class="hint project-only-field" data-i18n="detectWaiting">감지 대기 중</p>
         <div id="artifactError" class="error"></div>
       </div>
       <div class="modal-footer">
@@ -460,8 +467,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/vendor/jszip.min.js"></script>
-  <script>window.JSZip||document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"><\\/script>')</script>
-  <script src="/app.js"></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>
