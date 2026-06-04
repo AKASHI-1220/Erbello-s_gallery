@@ -1,8 +1,8 @@
 {
   "name": "erbello-artifact-gallery",
-  "version": "20.0.0",
+  "version": "21.0.0",
   "private": true,
-  "description": "ERBELLO project gallery with Storage uploads, detail pages, privacy controls, draft mode and admin system tools.",
+  "description": "ERBELLO project gallery with sparkly pixel UI, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",

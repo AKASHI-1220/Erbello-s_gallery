@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v17 storage uploads';
+  const VERSION = 'ERBELLO Gallery v21 sparkly pixel uploads';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -12,6 +12,11 @@
   const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
   const GAMSUNG_COVERS = ['1','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(n => `/assets/illust/gamsung-${n}.webp`);
   const SITE_ORIGIN = 'https://erbello.vercel.app';
+  const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
+  const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
+  const ZIP_UPLOAD_LIMIT = 50 * 1024 * 1024;
+  const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
+  const INLINE_CODE_LIMIT = 900 * 1024;
   const gamsungSessionCovers = new Map();
   const SCHEME_META_COLORS = { black:'#050912', white:'#f8fafc' };
   const LOCALE = { ko:'ko-KR', en:'en-US', ja:'ja-JP', zh:'zh-CN' };
@@ -67,10 +72,10 @@
 
 
   const EXTRA_I18N = {
-    ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.' },
-    en:{ navTerms:'Terms', statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.' },
-    ja:{ navTerms:'利用規約', statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。' },
-    zh:{ navTerms:'使用条款', statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。' }
+    ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.', zipTooLarge:'파일이 너무 큽니다. Supabase Free 기준 50MB를 넘을 수 있어 이미지/영상/음악을 줄이거나 파일별 업로드가 필요합니다.', zipEntryTooLarge:'ZIP 안에 너무 큰 파일이 있습니다.', zipReady:'ZIP 검사 완료: index.html을 찾았습니다.', zipUploadCheck:'ZIP 검사 중...', zipUploadExtract:'ZIP 압축 해제 중...', zipUploadFiles:'ZIP 내부 파일 업로드 중...', zipUploadManifest:'ZIP manifest 생성 중...', zipStorageNotReady:'Storage가 준비되지 않아 ZIP 저장을 진행할 수 없습니다.' },
+    en:{ navTerms:'Terms', statusLabel:'Visibility', statusPublic:'Public', statusPrivate:'Private', statusDraft:'Draft', draftBadge:'Draft', exportProjects:'Copy List', exportCopied:'Project list copied.', systemStatus:'System Status', fillDetailDraft:'Fill detail draft', detailQualityGood:'Project details look sufficient.', detailQualityShort:'Project details are short. Add more for a stronger content page.', detailChars:'Characters', imageOptimized:'Image optimized for upload.', zipTooLarge:'The file is too large. It may exceed the 50MB Supabase Free limit; reduce images, video or audio, or upload files separately.', zipEntryTooLarge:'A file inside the ZIP is too large.', zipReady:'ZIP check complete: index.html was found.', zipUploadCheck:'Checking ZIP...', zipUploadExtract:'Extracting ZIP...', zipUploadFiles:'Uploading ZIP files...', zipUploadManifest:'Creating ZIP manifest...', zipStorageNotReady:'Storage is not ready, so ZIP saving cannot continue.' },
+    ja:{ navTerms:'利用規約', statusLabel:'公開状態', statusPublic:'公開', statusPrivate:'非公開', statusDraft:'下書き', draftBadge:'下書き', exportProjects:'一覧コピー', exportCopied:'プロジェクト一覧をコピーしました。', systemStatus:'システム状態', fillDetailDraft:'詳細文の下書き', detailQualityGood:'詳細紹介は十分です。', detailQualityShort:'詳細紹介が短めです。審査用ページにはもう少し追加すると安心です。', detailChars:'文字数', imageOptimized:'画像をアップロード用に軽量化しました。', zipTooLarge:'ファイルが大きすぎます。Supabase Freeの50MB制限を超える可能性があるため、画像・動画・音声を減らすかファイル別アップロードが必要です。', zipEntryTooLarge:'ZIP内に大きすぎるファイルがあります。', zipReady:'ZIP検査完了: index.htmlを検出しました。', zipUploadCheck:'ZIPを確認中...', zipUploadExtract:'ZIPを展開中...', zipUploadFiles:'ZIP内ファイルをアップロード中...', zipUploadManifest:'ZIP manifestを作成中...', zipStorageNotReady:'Storageが準備されていないためZIP保存を続行できません。' },
+    zh:{ navTerms:'使用条款', statusLabel:'公开状态', statusPublic:'公开', statusPrivate:'私密', statusDraft:'草稿', draftBadge:'草稿', exportProjects:'复制列表', exportCopied:'项目列表已复制。', systemStatus:'系统状态', fillDetailDraft:'生成详细介绍草稿', detailQualityGood:'详细介绍内容较充足。', detailQualityShort:'详细介绍偏短。为了内容页更完整，建议再补充一些。', detailChars:'字数', imageOptimized:'图片已优化用于上传。', zipTooLarge:'文件太大。可能超过 Supabase Free 的 50MB 限制，请减少图片、视频或音频，或改为分文件上传。', zipEntryTooLarge:'ZIP 内有过大的文件。', zipReady:'ZIP 检查完成：已找到 index.html。', zipUploadCheck:'正在检查 ZIP...', zipUploadExtract:'正在解压 ZIP...', zipUploadFiles:'正在上传 ZIP 内部文件...', zipUploadManifest:'正在创建 ZIP manifest...', zipStorageNotReady:'Storage 尚未准备好，无法继续保存 ZIP。' }
   };
 
   let artifacts = [];
@@ -85,10 +90,12 @@
   let pendingSourceFile = null;
   let pendingSourceStored = false;
   let pendingSourceName = '';
+  let pendingZipInfo = null;
   let pendingCoverImage = '';
   let pendingCoverFile = null;
   let pendingGalleryImages = [];
   let pendingGalleryFiles = [];
+  let systemStatusCache = null;
   let toastTimer = null;
 
   function dict() { return I18N[currentLang] || I18N.ko; }
@@ -325,10 +332,20 @@
     const text = await response.text();
     let data = null;
     try { data = text ? JSON.parse(text) : null; } catch (_) { data = { error:text }; }
-    if (!response.ok) throw new Error((data && data.error) || `Request failed: ${response.status}`);
+    if (!response.ok) {
+      const fallback = response.status === 413 ? tr('zipTooLarge') : `Request failed: ${response.status}`;
+      throw new Error((data && data.error) || fallback);
+    }
     return data;
   }
 
+  function formatBytes(value) {
+    const bytes = Number(value || 0);
+    if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+    const units = ['B','KB','MB','GB'];
+    const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+    return `${(bytes / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+  }
 
   function uploadMime(file) {
     if (!file) return 'application/octet-stream';
@@ -355,9 +372,138 @@
     });
     if (!upload.ok) {
       const text = await upload.text().catch(() => '');
-      throw new Error(text || `Upload failed: ${upload.status}`);
+      const tooLarge = upload.status === 413 || /payload too large|exceeded|max/i.test(text);
+      throw new Error(tooLarge ? `${tr('zipTooLarge')} (${file.name || 'file'}, ${formatBytes(file.size)})` : (text || `Upload failed: ${upload.status}`));
     }
     return signed;
+  }
+
+  function normalizeZipPath(value) {
+    return String(value || '').replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/\.\//g, '/');
+  }
+
+  function zipBaseDir(path) {
+    const clean = normalizeZipPath(path);
+    return clean.includes('/') ? clean.split('/').slice(0, -1).join('/') : '';
+  }
+
+  function ignoredZipEntry(entry) {
+    const name = normalizeZipPath(entry && entry.name);
+    return !name || entry.dir || /^__MACOSX\//i.test(name) || /(^|\/)\.DS_Store$/i.test(name);
+  }
+
+  function zipIndexRank(name) {
+    const clean = normalizeZipPath(name).toLowerCase();
+    const ranks = ['index.html', 'dist/index.html', 'build/index.html', 'public/index.html'];
+    const exact = ranks.indexOf(clean);
+    if (exact !== -1) return exact;
+    if (/(^|\/)index\.html?$/.test(clean)) return 10 + clean.split('/').length;
+    if (/\.html?$/.test(clean)) return 100 + clean.length;
+    return 9999;
+  }
+
+  function findZipIndexEntry(entries) {
+    return [...entries].filter(entry => /(^|\/)index\.html?$/i.test(entry.name) || /\.html?$/i.test(entry.name)).sort((a, b) => zipIndexRank(a.name) - zipIndexRank(b.name))[0] || null;
+  }
+
+  async function readZipEntries(file) {
+    if (!window.JSZip) throw new Error(tr('zipUnsupported'));
+    const zip = await window.JSZip.loadAsync(file);
+    const entries = Object.values(zip.files).filter(entry => !ignoredZipEntry(entry));
+    return { zip, entries, index: findZipIndexEntry(entries) };
+  }
+
+  async function inspectZipFile(file) {
+    if (!file) return null;
+    if (file.size > ZIP_UPLOAD_LIMIT) {
+      throw new Error(`${tr('zipTooLarge')} (${formatBytes(file.size)} / ${formatBytes(ZIP_UPLOAD_LIMIT)})`);
+    }
+    const { entries, index } = await readZipEntries(file);
+    if (!index) throw new Error(tr('zipNoIndex'));
+    const large = entries.filter(entry => Number(entry._data && entry._data.uncompressedSize || entry._data && entry._data.compressedSize || 0) > ZIP_ENTRY_LIMIT)
+      .map(entry => `${normalizeZipPath(entry.name)} (${formatBytes(entry._data && (entry._data.uncompressedSize || entry._data.compressedSize))})`);
+    if (large.length) throw new Error(`${tr('zipEntryTooLarge')} ${large.slice(0, 4).join(', ')}`);
+    return { count: entries.length, index: normalizeZipPath(index.name), root: zipBaseDir(index.name), size: file.size };
+  }
+
+  async function getSystemStatusCached(force = false) {
+    if (!force && systemStatusCache) return systemStatusCache;
+    systemStatusCache = await api('/api/admin/system', { headers:{ 'x-admin-token':adminToken } });
+    return systemStatusCache;
+  }
+
+  async function assertZipStorageReady() {
+    const status = await getSystemStatusCached(true);
+    const ok = status && status.mode === 'supabase' && status.storageOk && status.artifactBucketOk && status.storageUploadOk;
+    if (!ok) {
+      const reason = [
+        !status || status.mode !== 'supabase' ? 'Supabase 환경변수 없음' : '',
+        status && !status.artifactBucketOk ? `${status.artifactBucket || 'artifact'} bucket 없음` : '',
+        status && !status.storageUploadOk ? (status.storageUploadError || 'Storage upload check failed') : ''
+      ].filter(Boolean).join(' · ');
+      throw new Error(`${tr('zipStorageNotReady')} ${reason}`);
+    }
+    return status;
+  }
+
+  async function uploadZipAsManifest(file) {
+    if (!file) return null;
+    toast(tr('zipUploadCheck'));
+    await assertZipStorageReady();
+    const info = await inspectZipFile(file);
+    toast(tr('zipUploadExtract'));
+    const { entries, index } = await readZipEntries(file);
+    const files = [];
+    let done = 0;
+    for (const entry of entries) {
+      const zipPath = normalizeZipPath(entry.name);
+      const blob = await entry.async('blob');
+      if (blob.size > ZIP_ENTRY_LIMIT) throw new Error(`${tr('zipEntryTooLarge')} ${zipPath} (${formatBytes(blob.size)})`);
+      toast(`${tr('zipUploadFiles')} ${done + 1}/${entries.length}`);
+      const uploadFile = new File([blob], zipPath.split('/').pop() || 'asset', { type: uploadMime({ name: zipPath, type: blob.type }) });
+      const uploaded = await uploadFileToStorage('source', uploadFile);
+      files.push({ path: zipPath, storage_path: uploaded.path, bucket: uploaded.bucket, mime: uploadMime({ name: zipPath, type: blob.type }), size: blob.size });
+      done += 1;
+    }
+    toast(tr('zipUploadManifest'));
+    const manifest = {
+      version: 2,
+      originalName: file.name || 'project.zip',
+      entry: normalizeZipPath(index.name),
+      root: info.root,
+      files
+    };
+    const indexRecord = files.find(item => item.path === normalizeZipPath(index.name));
+    if (!indexRecord) throw new Error(tr('zipNoIndex'));
+    return {
+      bucket: indexRecord.bucket || 'erbello-artifacts',
+      path: indexRecord.storage_path,
+      mime: 'text/html',
+      filename: file.name || 'project.zip',
+      code: `${ZIP_MANIFEST_PREFIX}${JSON.stringify(manifest)}`,
+      manifest
+    };
+  }
+
+  async function uploadManualCodeIfNeeded(code, format) {
+    const source = normalizeCode(code);
+    const size = new Blob([source]).size;
+    if (!source || size <= INLINE_CODE_LIMIT) return null;
+    await assertZipStorageReady();
+    const ext = format === 'jsx' ? 'jsx' : 'html';
+    const file = new File([source], `erbello-source.${ext}`, { type: ext === 'jsx' ? 'text/javascript' : 'text/html' });
+    return uploadFileToStorage('source', file);
+  }
+
+  function storageSourceCode(upload, format) {
+    if (!upload || !upload.path) return '';
+    return `${STORAGE_SOURCE_PREFIX}${JSON.stringify({
+      bucket: upload.bucket,
+      path: upload.path,
+      mime: upload.mime,
+      filename: upload.filename,
+      source_kind: format || 'html'
+    })}`;
   }
 
 
@@ -727,6 +873,7 @@
     const q = searchQuery.trim().toLowerCase();
     return artifacts.filter((item) => {
       if (!isAdminOn() && statusKey(item) === 'draft') return false;
+      if (!isAdminOn() && (statusKey(item) === 'private' || item.is_private)) return false;
       const type = typeKey(item.type);
       const tags = artifactTags(item);
       if (!itemMatchesFilter(item, currentFilter)) return false;
@@ -768,10 +915,10 @@
     const extraTags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
     const tagHtml = extraTags.length ? `<div class="card-tags">${extraTags.map(tag => `<span class="card-tag-chip">${esc(tag)}</span>`).join('')}</div>` : '';
     const privateAdmin = status === 'private' ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : draftAdmin;
-    return `<article class="card ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
-      <div class="card-visual has-cover ${esc(profile.klass)}"><img class="card-cover-img" src="${esc(artifactCover(item))}" alt="" loading="lazy" /><span class="visual-title">${esc(catLabel(type))}</span><span class="visual-emoji" aria-hidden="true">${esc(profile.icon)}</span><span class="tag">${esc(catLabel(type))}</span></div>
-      <div class="card-body"><h3 class="card-title">${esc(title)}${privateAdmin}</h3><p class="card-desc">${esc(compact(desc, 118))}</p>${tagHtml}
-        <div class="card-foot"><span class="card-date">▣ ${esc(fmtMonth(item.updated_at || item.created_at))}</span><span class="view-count admin-only">◉ ${esc(tr('views'))} ${views}</span>
+    return `<article class="card v21-card ${compactCard ? 'card-compact' : ''} ${esc(profile.klass)}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
+      <span class="card-sticker" aria-hidden="true">${esc(profile.icon)}</span>
+      <div class="card-body"><div class="card-meta-line"><span class="tag">${esc(catLabel(type))}</span><span class="card-date">${esc(fmtMonth(item.updated_at || item.created_at))}</span></div><h3 class="card-title">${esc(title)}${privateAdmin}</h3><p class="card-desc">${esc(compact(desc, 132))}</p>${tagHtml}
+        <div class="card-foot"><span class="view-count admin-only">◉ ${esc(tr('views'))} ${views}</span><span class="card-charm" aria-hidden="true">✦</span>
           <div class="card-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div>
         </div></div></article>`;
   }
@@ -801,7 +948,7 @@
   function renderFeaturedGrid() {
     const grid = $('featuredGrid');
     if (!grid) return;
-    const items = artifacts.filter(item => isAdminOn() || statusKey(item) !== 'draft').slice(0, 4);
+    const items = artifacts.filter(item => isAdminOn() || (statusKey(item) !== 'draft' && statusKey(item) !== 'private' && !item.is_private)).slice(0, 4);
     if (!items.length) { grid.innerHTML = emptyMessage(true); return; }
     grid.innerHTML = items.map((item) => cardMarkup(item, true)).join('');
     bindCardEvents(grid);
@@ -882,7 +1029,7 @@
     const code = $('codeInput')?.value || '';
     const currentFormat = formatKey($('formatInput')?.value || '');
     if (pendingSourceFile) {
-      if (currentFormat === 'zip') node.textContent = tr('detectZip');
+      if (currentFormat === 'zip') node.textContent = pendingZipInfo ? `${tr('detectZip')} · ${pendingZipInfo.index} · ${pendingZipInfo.count} files` : tr('detectZip');
       else if (currentFormat === 'jsx') node.textContent = tr('detectJsx');
       else node.textContent = tr('detectHtml');
       return;
@@ -1012,6 +1159,7 @@
     pendingSourceFile = null;
     pendingSourceStored = false;
     pendingSourceName = '';
+    pendingZipInfo = null;
     pendingCoverImage = '';
     pendingCoverFile = null;
     pendingGalleryImages = [];
@@ -1046,6 +1194,7 @@
       pendingSourceFile = null;
       pendingSourceStored = Boolean(item.code_storage_path);
       pendingSourceName = item.source_filename || (pendingSourceStored ? 'Storage source' : '');
+      pendingZipInfo = null;
       pendingCoverImage = item.cover_image || '';
       pendingCoverFile = null;
       pendingGalleryImages = galleryImages(item);
@@ -1076,9 +1225,27 @@
     $('artifactError').textContent = '';
     if (!title || (!manualCode && !pendingSourceFile && !pendingSourceStored)) { $('artifactError').textContent = tr('required'); return; }
     try {
+      const saveBtn = $('saveArtifactBtn');
+      if (saveBtn) saveBtn.disabled = true;
       toast('Storage 업로드를 확인하는 중입니다...');
       let sourceUpload = null;
-      if (pendingSourceFile) sourceUpload = await uploadFileToStorage('source', pendingSourceFile);
+      let code = manualCode;
+      let format = (($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html'));
+      if (pendingSourceFile && isZipFile(pendingSourceFile)) {
+        format = 'zip';
+        sourceUpload = await uploadZipAsManifest(pendingSourceFile);
+        code = sourceUpload.code;
+      } else if (pendingSourceFile) {
+        sourceUpload = await uploadFileToStorage('source', pendingSourceFile);
+        format = (($('formatInput') && $('formatInput').value) || (/\.(jsx?|tsx?)$/i.test(pendingSourceFile.name || '') ? 'jsx' : 'html'));
+        code = storageSourceCode(sourceUpload, format);
+      } else if (manualCode) {
+        const largeCodeUpload = await uploadManualCodeIfNeeded(manualCode, format);
+        if (largeCodeUpload) {
+          sourceUpload = largeCodeUpload;
+          code = storageSourceCode(sourceUpload, format);
+        }
+      }
 
       let cover_image = pendingCoverImage || '';
       if (pendingCoverFile) {
@@ -1099,8 +1266,6 @@
         }
       }
 
-      const code = sourceUpload ? '' : manualCode;
-      const format = sourceUpload ? (($('formatInput') && $('formatInput').value) || (isZipFile(pendingSourceFile) ? 'zip' : 'html')) : (($('formatInput') && $('formatInput').value) || (looksLikeJsx(code) ? 'jsx' : 'html'));
       const payload = {
         title, description, type, tags, status, format, code, detail_text, cover_image, gallery_images, is_private, private_password,
         code_storage_bucket: sourceUpload ? sourceUpload.bucket : '',
@@ -1113,7 +1278,13 @@
       closeModal('artifactModal');
       toast(tr('saved'));
       await loadArtifacts();
-    } catch (error) { console.error(error); $('artifactError').textContent = error.message || tr('saveError'); }
+    } catch (error) {
+      console.error(error);
+      $('artifactError').textContent = error.message || tr('saveError');
+    } finally {
+      const saveBtn = $('saveArtifactBtn');
+      if (saveBtn) saveBtn.disabled = false;
+    }
   }
 
   async function deleteArtifact(id) {
@@ -1158,133 +1329,46 @@
     return !!file && (/\.zip$/i.test(file.name || '') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed');
   }
 
-  function mimeFromPath(filePath) {
-    const ext = String(filePath || '').split('.').pop().toLowerCase();
-    return ({ png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', svg:'image/svg+xml', webp:'image/webp', avif:'image/avif', ico:'image/x-icon', css:'text/css', js:'text/javascript', mjs:'text/javascript', json:'application/json', woff:'font/woff', woff2:'font/woff2', ttf:'font/ttf', otf:'font/otf', mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', mp4:'video/mp4', webm:'video/webm' })[ext] || 'application/octet-stream';
-  }
-
-  function isExternalRef(ref) {
-    return /^(?:https?:|data:|blob:|mailto:|tel:|#|javascript:)/i.test(String(ref || '').trim());
-  }
-
-  function zipEntry(zip, filePath) {
-    const normalized = String(filePath || '').replace(/^\/+/, '').replace(/\\/g, '/');
-    if (zip.files[normalized] && !zip.files[normalized].dir) return zip.files[normalized];
-    const lower = normalized.toLowerCase();
-    return Object.values(zip.files).find(entry => !entry.dir && entry.name.toLowerCase() === lower) || null;
-  }
-
-  function resolveZipRef(zip, basePath, ref) {
-    const raw = String(ref || '').trim();
-    if (!raw || isExternalRef(raw)) return null;
-    const clean = raw.split('#')[0].split('?')[0];
-    if (!clean) return null;
-    const baseDir = String(basePath || '').replace(/[^/]*$/, '');
-    let pathPart = clean;
-    try { pathPart = decodeURIComponent(clean); } catch (_) {}
-    try {
-      const url = new URL(pathPart, `https://erbello.local/${baseDir}`);
-      return zipEntry(zip, url.pathname.replace(/^\/+/, ''));
-    } catch (_) {
-      return zipEntry(zip, `${baseDir}${pathPart}`);
-    }
-  }
-
-  async function zipDataUrl(entry) {
-    const base64 = await entry.async('base64');
-    return `data:${mimeFromPath(entry.name)};base64,${base64}`;
-  }
-
-  async function inlineCssUrls(css, zip, basePath) {
-    const re = /url\((['"]?)([^'")]+)\1\)/gi;
-    let output = '';
-    let last = 0;
-    let match;
-    while ((match = re.exec(css))) {
-      output += css.slice(last, match.index);
-      const original = match[0];
-      const ref = String(match[2] || '').trim();
-      const entry = resolveZipRef(zip, basePath, ref);
-      if (entry) output += `url("${await zipDataUrl(entry)}")`;
-      else output += original;
-      last = re.lastIndex;
-    }
-    output += css.slice(last);
-    return output;
-  }
-
-  async function standaloneHtmlFromZip(file) {
-    if (!window.JSZip) throw new Error(tr('zipUnsupported'));
-    const zip = await window.JSZip.loadAsync(file);
-    const entries = Object.values(zip.files).filter(entry => !entry.dir && !/^__MACOSX\//i.test(entry.name) && !/(^|\/)\.DS_Store$/i.test(entry.name));
-    const index = entries
-      .filter(entry => /(^|\/)index\.html?$/i.test(entry.name))
-      .sort((a, b) => a.name.length - b.name.length)[0];
-    if (!index) throw new Error(tr('zipNoIndex'));
-    const source = await index.async('string');
-    const doc = new DOMParser().parseFromString(source, 'text/html');
-    const basePath = index.name;
-
-    for (const link of Array.from(doc.querySelectorAll('link[href]'))) {
-      const rel = String(link.getAttribute('rel') || '').toLowerCase();
-      if (!rel.includes('stylesheet')) continue;
-      const entry = resolveZipRef(zip, basePath, link.getAttribute('href'));
-      if (!entry) continue;
-      const css = await inlineCssUrls(await entry.async('string'), zip, entry.name);
-      const style = doc.createElement('style');
-      style.textContent = css;
-      link.replaceWith(style);
-    }
-
-    for (const style of Array.from(doc.querySelectorAll('style'))) {
-      style.textContent = await inlineCssUrls(style.textContent || '', zip, basePath);
-    }
-
-    for (const script of Array.from(doc.querySelectorAll('script[src]'))) {
-      const entry = resolveZipRef(zip, basePath, script.getAttribute('src'));
-      if (!entry) continue;
-      script.removeAttribute('src');
-      script.textContent = (await entry.async('string')).replace(/<\/script/gi, '<\\/script');
-    }
-
-    const attrTargets = [['img','src'], ['source','src'], ['video','src'], ['video','poster'], ['audio','src'], ['track','src'], ['input','src'], ['embed','src'], ['object','data']];
-    for (const [selector, attr] of attrTargets) {
-      for (const node of Array.from(doc.querySelectorAll(`${selector}[${attr}]`))) {
-        const entry = resolveZipRef(zip, basePath, node.getAttribute(attr));
-        if (entry) node.setAttribute(attr, await zipDataUrl(entry));
-      }
-    }
-
-    return `<!DOCTYPE html>\n${doc.documentElement.outerHTML}`;
-  }
-
   async function handleFile(file) {
     if (!file) return;
     const dz = $('dropZone');
     dz?.classList.remove('zip-ready','zip-error');
     $('artifactError').textContent = '';
     if (isZipFile(file)) {
-      pendingSourceFile = file;
-      pendingSourceStored = false;
-      pendingSourceName = file.name || 'ZIP file';
-      $('codeInput').value = '';
-      if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ');
-      $('typeInput').value = 'tool';
-    if ($('statusInput')) $('statusInput').value = 'public';
-      if ($('formatInput')) $('formatInput').value = 'zip';
-      if ($('formatBadge')) $('formatBadge').textContent = tr('formatZip');
-      const tags = normalizeTags($('tagsInput')?.value || '');
-      if (!tags.some(tag => tagMatchesCategory(tag, 'html'))) tags.push(catLabel('html'));
-      if (!tags.some(tag => normalizeTagValue(tag) === 'zip')) tags.push('ZIP');
-      setArtifactTags(tags);
-      dz?.classList.add('zip-ready');
-      updateDetectHint();
-      toast(tr('zipLoaded'));
+      try {
+        toast(tr('zipUploadCheck'));
+        pendingZipInfo = await inspectZipFile(file);
+        pendingSourceFile = file;
+        pendingSourceStored = false;
+        pendingSourceName = file.name || 'ZIP file';
+        $('codeInput').value = '';
+        if (!$('titleInput').value.trim()) $('titleInput').value = file.name.replace(/\.zip$/i, '').replace(/[-_]+/g, ' ');
+        $('typeInput').value = 'tool';
+        if ($('statusInput')) $('statusInput').value = 'public';
+        if ($('formatInput')) $('formatInput').value = 'zip';
+        if ($('formatBadge')) $('formatBadge').textContent = tr('formatZip');
+        const tags = normalizeTags($('tagsInput')?.value || '');
+        if (!tags.some(tag => tagMatchesCategory(tag, 'html'))) tags.push(catLabel('html'));
+        if (!tags.some(tag => normalizeTagValue(tag) === 'zip')) tags.push('ZIP');
+        setArtifactTags(tags);
+        dz?.classList.add('zip-ready');
+        updateDetectHint();
+        toast(`${tr('zipReady')} (${pendingZipInfo.index})`);
+      } catch (error) {
+        pendingSourceFile = null;
+        pendingSourceStored = false;
+        pendingSourceName = '';
+        pendingZipInfo = null;
+        dz?.classList.add('zip-error');
+        $('artifactError').textContent = error.message || tr('zipReaderError');
+        updateDetectHint();
+      }
       return;
     }
     pendingSourceFile = file;
     pendingSourceStored = false;
     pendingSourceName = file.name || 'source file';
+    pendingZipInfo = null;
     const reader = new FileReader();
     reader.onload = () => {
       $('codeInput').value = file.size <= 1024 * 1024 ? String(reader.result || '') : '';
@@ -1443,6 +1527,8 @@
       row('Site pages table', Boolean(data.pagesOk), `rows ${data.pageCount ?? '-'}`),
       row('Media bucket', Boolean(data.mediaBucketOk) || data.mode === 'local-json', data.mediaBucket || ''),
       row('Artifact bucket', Boolean(data.artifactBucketOk) || data.mode === 'local-json', data.artifactBucket || ''),
+      row('Storage upload', Boolean(data.storageUploadOk) || data.mode === 'local-json', data.storageUploadOk ? 'signed upload ready' : (data.storageUploadError || 'check required')),
+      row('Artifact storage columns', Boolean(data.artifactStorageColumnsOk) || data.mode === 'local-json', data.artifactStorageColumnsOk ? 'code_storage_* / source_filename ready' : (data.artifactStorageColumnsError || 'migration required')),
       row('Visibility counts', true, `public ${data.publicCount ?? 0} · private ${data.privateCount ?? 0} · draft ${data.draftCount ?? 0}`),
       row('Site URL', true, data.siteOrigin || location.origin),
       row('AdSense', Boolean(data.adsenseClient), data.adsenseClient || 'not configured'),
@@ -1527,7 +1613,7 @@
     if (ownerModeRequested) document.body.classList.add('owner-requested');
     const storedScheme = safeStorage.get('local', 'erbello-scheme-v11');
     const storedColor = safeStorage.get('local', 'erbello-color-v11');
-    applyTheme(SCHEMES.includes(storedScheme) ? storedScheme : 'black', COLORS.includes(storedColor) ? storedColor : 'crimson');
+    applyTheme(SCHEMES.includes(storedScheme) ? storedScheme : 'white', COLORS.includes(storedColor) ? storedColor : 'pixel');
     bindEvents();
     const storedLang = safeStorage.get('local', 'erbello-lang');
     applyLanguage(LANGS.includes(storedLang) ? storedLang : 'ko');
