@@ -67,8 +67,8 @@ function renderPostBodyHtml(value) {
       const src = safePostInlineAssetUrl(imageMatch[2]);
       if (!src) return '';
       const alt = imageMatch[1] || '';
-      const caption = alt ? `<figcaption>${escHtml(alt)}</figcaption>` : '';
-      return `<figure class="post-body-asset"><img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy">${caption}</figure>`;
+      const decorative = /\/assets\/illust\//i.test(src) || /\/(?:divider|index)-/i.test(src);
+      return `<figure class="post-body-asset${decorative ? ' decorative' : ''}"><img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy"></figure>`;
     }
     return `<p>${escHtml(block).replace(/\n/g, '<br>')}</p>`;
   }).filter(Boolean).join('');

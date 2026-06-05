@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v29 more blog assets';
+  const VERSION = 'ERBELLO Gallery v30 blog editor categories';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -136,6 +136,66 @@
   };
   Object.keys(V28_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V28_I18N[lang]));
 
+  const V30_I18N = {
+    ko:{
+      postCategoriesLabel:'포스트 카테고리',
+      postCategoriesPlaceholder:'분류명 | key | 하위주제A, 하위주제B | divider-pink-beads.png',
+      postCategoriesHint:'한 줄에 하나씩 적으면 포스트 필터와 작성 화면에 반영됩니다. key는 영어 소문자, 숫자, - 조합을 추천합니다.',
+      postDividerLabel:'포스트 기본 구분선',
+      postEditorToolbar:'포스트 작성 도구',
+      postEditorPlaceholder:'본문을 이곳에 작성하고, 에셋이나 사진을 중간에 넣을 수 있습니다.',
+      postInsertParagraph:'문단',
+      postInsertDivider:'구분선',
+      postInsertImage:'사진',
+      postSyncMarkdown:'본문 정리',
+      postInlineUploading:'본문 이미지를 업로드하는 중입니다...',
+      postAssetsHint:'에셋을 누르거나 본문에 끌어오면 바로 삽입됩니다. 아이콘은 글 안에서 장식처럼 사용할 수 있습니다.'
+    },
+    en:{
+      postCategoriesLabel:'Post categories',
+      postCategoriesPlaceholder:'Label | key | topic A, topic B | divider-pink-beads.png',
+      postCategoriesHint:'One category per line. These categories appear in post filters and in the post editor.',
+      postDividerLabel:'Default post divider',
+      postEditorToolbar:'Post writing tools',
+      postEditorPlaceholder:'Write the post here, then insert assets or photos into the body.',
+      postInsertParagraph:'Paragraph',
+      postInsertDivider:'Divider',
+      postInsertImage:'Photo',
+      postSyncMarkdown:'Tidy body',
+      postInlineUploading:'Uploading inline images...',
+      postAssetsHint:'Click or drag an asset into the editor. Assets are inserted as decorative post icons.'
+    },
+    ja:{
+      postCategoriesLabel:'ポストカテゴリー',
+      postCategoriesPlaceholder:'表示名 | key | 小テーマA, 小テーマB | divider-pink-beads.png',
+      postCategoriesHint:'1行に1カテゴリーを書きます。ポストのフィルターと編集画面に反映されます。',
+      postDividerLabel:'ポスト基本区切り線',
+      postEditorToolbar:'ポスト作成ツール',
+      postEditorPlaceholder:'ここに本文を書き、素材や写真を本文の途中に入れられます。',
+      postInsertParagraph:'段落',
+      postInsertDivider:'区切り線',
+      postInsertImage:'写真',
+      postSyncMarkdown:'本文整理',
+      postInlineUploading:'本文画像をアップロード中...',
+      postAssetsHint:'素材をクリック、または本文へドラッグすると装飾アイコンとして挿入されます。'
+    },
+    zh:{
+      postCategoriesLabel:'帖子分类',
+      postCategoriesPlaceholder:'名称 | key | 子主题A, 子主题B | divider-pink-beads.png',
+      postCategoriesHint:'每行一个分类。会显示在帖子筛选和编辑界面中。',
+      postDividerLabel:'帖子默认分隔线',
+      postEditorToolbar:'帖子写作工具',
+      postEditorPlaceholder:'在这里写正文，也可以把素材或照片插入到正文中。',
+      postInsertParagraph:'段落',
+      postInsertDivider:'分隔线',
+      postInsertImage:'照片',
+      postSyncMarkdown:'整理正文',
+      postInlineUploading:'正在上传正文图片...',
+      postAssetsHint:'点击或拖入编辑器即可插入素材，作为正文装饰图标使用。'
+    }
+  };
+  Object.keys(V30_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V30_I18N[lang]));
+
   let artifacts = [];
   let pageRows = [];
   let currentRoute = initialRoute();
@@ -156,19 +216,34 @@
   let pendingGalleryFiles = [];
   let pendingPostAttachments = [];
   let pendingPostFiles = [];
+  let pendingInlineImages = [];
   let systemStatusCache = null;
   let toastTimer = null;
 
   function dict() { return I18N[currentLang] || I18N.ko; }
   function tr(key) { return (EXTRA_I18N[currentLang] && EXTRA_I18N[currentLang][key]) ?? dict()[key] ?? (EXTRA_I18N.ko && EXTRA_I18N.ko[key]) ?? I18N.ko[key] ?? key; }
-  function catLabel(type) { return type === 'secret' ? tr('filterSecret') : (type === 'post' ? tr('typePost') : (dict().categories[type] || dict().categories.other)); }
+  function catLabel(type) {
+    const key = String(type || '').toLowerCase();
+    if (key === 'secret') return tr('filterSecret');
+    if (key === 'post') return tr('typePost');
+    const custom = postCategoryByKey(key);
+    if (custom) return custom.label;
+    const explicit = { game:'typeGame', tool:'typeTool', daily:'typeDaily', study:'typeStudy', cooking:'typeCooking', fandom:'typeFandom', design:'typeDesign', chart:'typeChart', experiment:'typeExperiment', other:'typeOther' };
+    return (dict().categories && dict().categories[key]) || (explicit[key] ? tr(explicit[key]) : '') || (dict().categories && dict().categories.other) || key;
+  }
   function colorLabel(color) { return (dict().colors && dict().colors[color]) || (I18N.en.colors && I18N.en.colors[color]) || color; }
   function schemeLabel(scheme) { return (dict().schemes && dict().schemes[scheme]) || (I18N.en.schemes && I18N.en.schemes[scheme]) || scheme; }
   function colorShortLabel(color) { return ({ crimson:'Crim', sky:'Sky', lavender:'Lav', yellowblue:'YB', cream:'Cream', rose:'Rose', ocean:'Ocean', aurora:'Aurora', mint:'Mint', pixel:'Pixel' })[color] || colorLabel(color); }
   function themeButtonLabel(scheme, color) { return `${scheme === 'white' ? 'W' : 'B'} · ${colorShortLabel(color)}`; }
   function esc(value) { return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
   function compact(value, max = 150) { const text = String(value || '').replace(/\s+/g, ' ').trim(); return text.length > max ? `${text.slice(0, Math.max(0, max - 1))}…` : text; }
-  function typeKey(value) { const t = String(value || 'other').toLowerCase(); if (t === 'html' || t === 'react') return 'tool'; return CATEGORIES.includes(t) && !['all','secret','post'].includes(t) ? t : 'other'; }
+  function typeKey(value) {
+    const t = String(value || 'other').toLowerCase();
+    if (t === 'html' || t === 'react') return 'tool';
+    if (CATEGORIES.includes(t) && !['all','secret','post'].includes(t)) return t;
+    if (postCategoryByKey(t)) return t;
+    return 'other';
+  }
   function cleanTags(value) {
     const raw = Array.isArray(value) ? value : String(value || '').split(/[#,，、\n]+/);
     const seen = new Set();
@@ -207,6 +282,11 @@
     const terms = new Set([key]);
     Object.values(I18N).forEach(dict => { if (dict.categories && dict.categories[key]) terms.add(String(dict.categories[key]).toLowerCase()); });
     ({ secret:['secret','private','비밀','비공개','非公開','私密'], post:['post','blog','포스트','블로그','記事','投稿','帖子','文章'], tool:['tool','도구','ツール','工具'], game:['game','게임','ゲーム','游戏'], daily:['daily','일상','日常'], study:['study','공부','학습','勉強','学习'], cooking:['cooking','cook','요리','料理'], fandom:['fandom','덕질','굿즈','推し活','追星'], design:['design','디자인','デザイン','设计'], chart:['chart','차트','图表'], experiment:['experiment','실험','実験','实验'], other:['other','기타','その他','其他'] }[key] || []).forEach(v => terms.add(v.toLowerCase()));
+    const custom = postCategoryByKey(key);
+    if (custom) {
+      terms.add(String(custom.label || '').toLowerCase());
+      (custom.subtopics || []).forEach(item => terms.add(String(item || '').toLowerCase()));
+    }
     return terms;
   }
   function matchesFilter(item, filter) {
@@ -219,11 +299,10 @@
   }
   function defaultFilterKeysForRoute(route = currentRoute) {
     return route === 'posts'
-      ? ['all', 'daily', 'study', 'cooking', 'game', 'fandom', 'design', 'other', 'secret']
+      ? ['all', ...postCategoryConfigs().map(item => item.key), 'secret']
       : ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other', 'secret'];
   }
-  function normalizeFilterOrder(value, route = currentRoute) {
-    const defaults = defaultFilterKeysForRoute(route);
+  function normalizeFilterOrderWithDefaults(value, defaults) {
     const raw = Array.isArray(value) ? value : String(value || '').split(/[\s,|/]+/);
     const seen = new Set();
     const ordered = [];
@@ -241,6 +320,12 @@
       ordered.push('secret');
     }
     return ordered;
+  }
+  function normalizeFilterOrder(value, route = currentRoute) {
+    return normalizeFilterOrderWithDefaults(value, defaultFilterKeysForRoute(route));
+  }
+  function normalizePostFilterOrder(value, configs = postCategoryConfigs()) {
+    return normalizeFilterOrderWithDefaults(value, ['all', ...configs.map(item => item.key), 'secret']);
   }
   function filterKeysForRoute(route = currentRoute) {
     const page = pageContent(route, currentLang);
@@ -268,6 +353,98 @@
     const base = cleanTags(tags).filter(tag => !isSubcategoryTag(tag));
     const sub = String(subcategory || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0, 40);
     return sub ? [...base, `${POST_SUBCATEGORY_PREFIX}${sub}`] : base;
+  }
+  function builtinPostCategoryLabel(key, lang = currentLang) {
+    const source = (I18N[lang] || I18N.ko).categories || I18N.ko.categories || {};
+    const explicit = { game:'typeGame', tool:'typeTool', daily:'typeDaily', study:'typeStudy', cooking:'typeCooking', fandom:'typeFandom', design:'typeDesign', chart:'typeChart', experiment:'typeExperiment', other:'typeOther' };
+    const extra = EXTRA_I18N[lang] || {};
+    return source[key] || (explicit[key] && (extra[explicit[key]] || (I18N[lang] && I18N[lang][explicit[key]]) || (EXTRA_I18N.ko && EXTRA_I18N.ko[explicit[key]]) || I18N.ko[explicit[key]])) || (I18N.ko.categories && I18N.ko.categories[key]) || key;
+  }
+  function sanitizePostCategoryKey(value, index = 0) {
+    const raw = String(value || '').trim().toLowerCase();
+    const cleaned = raw.normalize('NFKD').replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').replace(/-{2,}/g, '-').slice(0, 42);
+    return cleaned && !['all','secret','post'].includes(cleaned) ? cleaned : `post-${index + 1}`;
+  }
+  function postDividerAssets() {
+    return POST_ASSETS.filter(asset => /^divider-/i.test(asset.file));
+  }
+  function safePostDividerFile(value) {
+    const file = String(value || '').trim();
+    return postDividerAssets().some(asset => asset.file === file) ? file : '';
+  }
+  function defaultPostCategoryConfigs(lang = currentLang) {
+    return ['daily','study','cooking','game','fandom','design','other'].map((key) => ({
+      key,
+      label:builtinPostCategoryLabel(key, lang),
+      subtopics:[],
+      divider:''
+    }));
+  }
+  function normalizePostCategoryConfig(value, index = 0, lang = currentLang) {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      const parts = value.split('|').map(part => part.trim());
+      const label = parts[0] || '';
+      if (!label) return null;
+      const key = sanitizePostCategoryKey(parts[1] || label, index);
+      const subtopics = cleanTags(parts[2] || '');
+      const divider = safePostDividerFile(parts[3] || '');
+      return { key, label, subtopics, divider };
+    }
+    if (typeof value === 'object') {
+      const label = String(value.label || value.name || '').trim();
+      if (!label) return null;
+      const key = sanitizePostCategoryKey(value.key || label, index);
+      const subtopics = Array.isArray(value.subtopics) ? cleanTags(value.subtopics) : cleanTags(value.subtopics || value.children || '');
+      const divider = safePostDividerFile(value.divider || value.dividerAsset || '');
+      return { key, label, subtopics, divider };
+    }
+    return null;
+  }
+  function parsePostCategoryConfig(value, lang = currentLang) {
+    const raw = Array.isArray(value)
+      ? value
+      : String(value || '').split(/\n+/).map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+    const seen = new Set();
+    const result = [];
+    raw.forEach((item, index) => {
+      const config = normalizePostCategoryConfig(item, index, lang);
+      if (!config || seen.has(config.key)) return;
+      seen.add(config.key);
+      result.push(config);
+    });
+    return result.slice(0, 24);
+  }
+  function formatPostCategoryConfig(categories) {
+    return (Array.isArray(categories) ? categories : []).map((item) => {
+      const config = normalizePostCategoryConfig(item);
+      if (!config) return '';
+      return [config.label, config.key, (config.subtopics || []).join(', '), config.divider || ''].join(' | ').replace(/\s+\|$/, ' |');
+    }).filter(Boolean).join('\n');
+  }
+  function postCategoryConfigs(lang = currentLang) {
+    const page = pageContent('posts', lang);
+    const parsed = parsePostCategoryConfig(page.postCategories, lang);
+    return parsed.length ? parsed : defaultPostCategoryConfigs(lang);
+  }
+  function postCategoryByKey(key, lang = currentLang) {
+    const normalized = String(key || '').toLowerCase();
+    return postCategoryConfigs(lang).find(item => item.key === normalized) || null;
+  }
+  function postCategoryForItem(item, lang = currentLang) {
+    const type = typeKey(item && item.type);
+    return postCategoryByKey(type, lang) || postCategoryConfigs(lang).find(config => {
+      const terms = categoryTerms(config.key);
+      return artifactTags(item).some(tag => terms.has(normalizeTagValue(tag)));
+    }) || null;
+  }
+  function defaultPostDividerFile(lang = currentLang) {
+    const page = pageContent('posts', lang);
+    return safePostDividerFile(page.postDivider) || 'divider-pink-beads.png';
+  }
+  function postDividerForItem(item, lang = currentLang) {
+    const config = postCategoryForItem(item, lang);
+    return (config && config.divider) || defaultPostDividerFile(lang);
   }
   function gamsungCover(seed) {
     if (!GAMSUNG_COVERS.length) return '/assets/illust/cover-abstract.webp';
@@ -1172,6 +1349,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (meta) meta.content = tr('metaDescription');
     document.querySelectorAll('[data-i18n]').forEach((node) => { node.textContent = tr(node.dataset.i18n); });
     document.querySelectorAll('[data-i18n-placeholder]').forEach((node) => { node.placeholder = tr(node.dataset.i18nPlaceholder); });
+    document.querySelectorAll('[data-i18n-data-placeholder]').forEach((node) => { node.dataset.placeholder = tr(node.dataset.i18nDataPlaceholder); });
     document.querySelectorAll('[data-i18n-aria-label]').forEach((node) => { node.setAttribute('aria-label', tr(node.dataset.i18nAriaLabel)); });
     document.querySelectorAll('[data-i18n-title]').forEach((node) => { node.setAttribute('title', tr(node.dataset.i18nTitle)); });
     updateThemeOptions();
@@ -1181,6 +1359,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     renderPostAssetLibrary();
     renderFilters();
     renderQuickTags();
+    renderTypeOptions();
+    updatePostSubcategoryOptions();
     renderRoute();
     updateDetectHint();
     detailQualityText();
@@ -1201,6 +1381,18 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
 
   function openModal(id) { $(id)?.classList.add('open'); }
   function closeModal(id) { $(id)?.classList.remove('open'); }
+
+  function installContentProtection() {
+    document.addEventListener('contextmenu', (event) => {
+      if (isAdminOn()) return;
+      if (event.target.closest('input, textarea, select, button, a, [contenteditable="true"], .overlay, .theme-menu')) return;
+      event.preventDefault();
+    });
+    document.addEventListener('dragstart', (event) => {
+      if (isAdminOn()) return;
+      if (event.target && event.target.matches('img')) event.preventDefault();
+    });
+  }
 
   async function unlockAdmin() {
     const password = $('passwordInput').value.trim();
@@ -1577,6 +1769,19 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   function renderPostSidebar(items = postSidebarItems()) {
+    const categoryNode = $('postCategoryList');
+    if (categoryNode) {
+      const keys = filterKeysForRoute('posts');
+      const countFor = (key) => {
+        if (key === 'secret') return items.filter(item => isSecretItem(item)).length;
+        if (key === 'all') return items.filter(item => !isSecretItem(item)).length;
+        return items.filter(item => !isSecretItem(item) && itemMatchesFilter(item, key)).length;
+      };
+      categoryNode.innerHTML = keys.map((key) => `<button class="post-category-item ${key === currentFilter ? 'active' : ''}" type="button" data-post-category="${esc(key)}"><span>${esc(catLabel(key))}</span><small>${countFor(key)}</small></button>`).join('');
+      categoryNode.querySelectorAll('[data-post-category]').forEach((button) => {
+        button.addEventListener('click', () => setPostFilter(button.dataset.postCategory || 'all'));
+      });
+    }
     const recentNode = $('postRecentList');
     if (recentNode) {
       const recent = items.filter(item => !isSecretItem(item)).slice(0, 6);
@@ -1632,8 +1837,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         const src = safePostAssetSrc(image[2]);
         if (!src) return '';
         const alt = image[1] || tr('postAssetsLabel');
-        const decorative = /\/(divider|index)-/i.test(src);
-        return `<figure class="post-body-asset ${decorative ? 'decorative' : ''}"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy">${decorative ? '' : `<figcaption>${esc(alt)}</figcaption>`}</figure>`;
+        const decorative = /\/assets\/illust\//i.test(src) || /\/(divider|index)-/i.test(src);
+        return `<figure class="post-body-asset ${decorative ? 'decorative' : ''}"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy"></figure>`;
       }
       return `<p>${esc(text).replace(/\n/g, '<br />')}</p>`;
     }).join('');
@@ -1660,7 +1865,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const attachments = (parts.attachments || []).map(file => `<a class="detail-attachment" href="${esc(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(file.name || 'attachment')}</strong><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><span>↗</span></a>`).join('');
     const status = statusKey(item);
     const adminStatus = isAdminOn() && status !== 'public' ? `<span class="post-reader-status">${esc(statusLabel(status))}</span>` : '';
-    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header><div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}`;
+    const dividerFile = postDividerForItem(item);
+    const divider = dividerFile ? `<img class="post-reader-divider-img" src="${esc(`${POST_ASSET_BASE}${dividerFile}`)}" alt="" loading="lazy" aria-hidden="true">` : '';
+    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}`;
   }
 
   function findArtifact(id) { return artifacts.find((item) => String(item.id) === String(id)); }
@@ -1794,14 +2001,106 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function renderPostAssetLibrary() {
     const node = $('postAssetLibrary');
     if (!node) return;
-    node.innerHTML = POST_ASSETS.map((asset) => `<button class="post-asset-btn" type="button" draggable="true" data-post-asset="${esc(asset.file)}" title="${esc(tr('insertAsset'))}: ${esc(asset.label)}"><img src="${esc(asset.src)}" alt="" loading="lazy" /><span>${esc(asset.label)}</span></button>`).join('');
+    node.innerHTML = POST_ASSETS.map((asset) => `<button class="post-asset-btn" type="button" draggable="true" data-post-asset="${esc(asset.file)}" title="${esc(tr('insertAsset'))}: ${esc(asset.label)}" aria-label="${esc(tr('insertAsset'))}: ${esc(asset.label)}"><img src="${esc(asset.src)}" alt="" loading="lazy" /></button>`).join('');
   }
 
   function postAssetMarkdown(asset) {
     return asset ? `![${asset.label}](${asset.src})` : '';
   }
 
+  function postEditorReady() {
+    return contentKindValue() === 'post' && Boolean($('postRichEditor'));
+  }
+
+  function postEditorImageHtml(src, alt = '', token = '') {
+    const safeSrc = esc(src);
+    const safeAlt = esc(alt || tr('postAssetsLabel'));
+    return `<figure class="post-editor-asset"><img src="${safeSrc}" alt="${safeAlt}"${token ? ` data-inline-token="${esc(token)}"` : ''} loading="lazy"></figure>`;
+  }
+
+  function postMarkdownBlockToEditorHtml(snippet) {
+    const text = String(snippet || '').trim();
+    if (!text) return '';
+    if (/^[-*_]{3,}$/.test(text)) return '<hr class="post-editor-divider">';
+    const image = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    if (image) return postEditorImageHtml(image[2], image[1]);
+    return `<p>${esc(text).replace(/\n/g, '<br>')}</p>`;
+  }
+
+  function postMarkdownToEditorHtml(value) {
+    const body = String(value || '').replace(/\r\n/g, '\n').trim();
+    if (!body) return '';
+    return body.split(/\n{2,}/).map(postMarkdownBlockToEditorHtml).filter(Boolean).join('');
+  }
+
+  function postEditorText(node) {
+    if (!node) return '';
+    const html = node.innerHTML || '';
+    return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(div|p)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ').trim();
+  }
+
+  function postEditorToMarkdown() {
+    const editor = $('postRichEditor');
+    if (!editor) return $('detailInput')?.value || '';
+    const blocks = [];
+    Array.from(editor.childNodes).forEach((node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const text = String(node.textContent || '').trim();
+        if (text) blocks.push(text);
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const element = node;
+      if (element.matches('hr')) {
+        blocks.push('---');
+        return;
+      }
+      const img = element.matches('img') ? element : element.querySelector('img');
+      if (img) {
+        const token = img.getAttribute('data-inline-token');
+        const src = token || img.getAttribute('src') || '';
+        const text = postEditorText(element);
+        if (text) blocks.push(text);
+        if (src) blocks.push(`![${img.getAttribute('alt') || tr('postAssetsLabel')}](${src})`);
+        return;
+      }
+      const text = postEditorText(element);
+      if (text) blocks.push(text);
+    });
+    return blocks.join('\n\n').trim();
+  }
+
+  function syncPostEditorFromTextarea() {
+    const editor = $('postRichEditor');
+    const textarea = $('detailInput');
+    if (!editor || !textarea || contentKindValue() !== 'post') return;
+    editor.innerHTML = postMarkdownToEditorHtml(textarea.value);
+  }
+
+  function syncTextareaFromPostEditor() {
+    if (!postEditorReady()) return;
+    const textarea = $('detailInput');
+    if (!textarea) return;
+    textarea.value = postEditorToMarkdown();
+    detailQualityText();
+  }
+
+  function insertPostEditorHtml(html) {
+    const editor = $('postRichEditor');
+    if (!editor || !html) return false;
+    editor.focus();
+    const selection = window.getSelection && window.getSelection();
+    if (selection && selection.rangeCount && editor.contains(selection.anchorNode)) {
+      document.execCommand('insertHTML', false, html);
+    } else {
+      editor.insertAdjacentHTML('beforeend', html);
+    }
+    syncTextareaFromPostEditor();
+    return true;
+  }
+
   function insertPostMarkdown(snippet) {
+    if (postEditorReady() && insertPostEditorHtml(postMarkdownBlockToEditorHtml(snippet))) return;
     const node = $('detailInput');
     if (!snippet || !node) return;
     const block = `\n\n${snippet}\n\n`;
@@ -1817,6 +2116,37 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function insertPostAsset(file) {
     const asset = POST_ASSETS.find(item => item.file === file);
     insertPostMarkdown(postAssetMarkdown(asset));
+  }
+
+  function clearPendingInlineImages() {
+    pendingInlineImages.forEach(item => { if (item.previewUrl) URL.revokeObjectURL(item.previewUrl); });
+    pendingInlineImages = [];
+  }
+
+  function handleInlineImageFiles(files) {
+    const list = Array.from(files || []).filter(file => /^image\//.test(file.type || '')).slice(0, 12);
+    if (!list.length) return;
+    for (const file of list) {
+      const token = `inline-image:${Date.now()}-${pendingInlineImages.length}`;
+      const previewUrl = URL.createObjectURL(file);
+      pendingInlineImages.push({ file, previewUrl, token });
+      insertPostEditorHtml(postEditorImageHtml(previewUrl, file.name || tr('postInsertImage'), token));
+    }
+    syncTextareaFromPostEditor();
+  }
+
+  async function uploadPendingInlineImages(markdown) {
+    let text = String(markdown || '');
+    const used = pendingInlineImages.filter(item => text.includes(item.token));
+    if (!used.length) return text;
+    toast(tr('postInlineUploading'));
+    for (const item of used) {
+      const optimized = await optimizeImageFile(item.file);
+      const uploaded = await uploadFileToStorage('post-inline', optimized);
+      if (!uploaded || !uploaded.publicUrl) throw new Error(tr('saveError'));
+      text = text.split(item.token).join(uploaded.publicUrl);
+    }
+    return text;
   }
 
   function renderPostFilePreviews() {
@@ -1857,10 +2187,39 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return $('contentKindInput') && $('contentKindInput').value === 'post' ? 'post' : 'project';
   }
 
+  function projectTypeOptions() {
+    return ['game','tool','daily','study','cooking','fandom','design','chart','experiment','other'].map(key => ({ key, label:catLabel(key) }));
+  }
+
+  function renderTypeOptions() {
+    const node = $('typeInput');
+    if (!node) return;
+    const isPost = contentKindValue() === 'post';
+    const previous = node.value;
+    const options = isPost ? postCategoryConfigs().map(item => ({ key:item.key, label:item.label })) : projectTypeOptions();
+    let next = options.some(item => item.key === previous) ? previous : (options[0] && options[0].key) || 'other';
+    if (previous && !options.some(item => item.key === previous) && isPost) {
+      options.push({ key:previous, label:catLabel(previous) });
+      next = previous;
+    }
+    node.innerHTML = options.map(item => `<option value="${esc(item.key)}">${esc(item.label)}</option>`).join('');
+    node.value = next;
+    updatePostSubcategoryOptions();
+  }
+
+  function updatePostSubcategoryOptions() {
+    const list = $('postSubcategoryList');
+    if (!list) return;
+    const config = contentKindValue() === 'post' ? postCategoryByKey($('typeInput')?.value || '') : null;
+    const topics = config && Array.isArray(config.subtopics) ? config.subtopics : [];
+    list.innerHTML = topics.map(item => `<option value="${esc(item)}"></option>`).join('');
+  }
+
   function updateContentKindFields() {
     const isPost = contentKindValue() === 'post';
     const modal = $('artifactModal');
     if (modal) modal.classList.toggle('post-mode', isPost);
+    renderTypeOptions();
     if ($('formatInput')) {
       if (isPost) $('formatInput').value = 'post';
       else if (formatKey($('formatInput').value) === 'post') $('formatInput').value = 'html';
@@ -1874,6 +2233,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const detailHint = document.querySelector('[data-i18n="detailHint"]');
     if (detailHint) detailHint.textContent = isPost ? tr('postDetailHint') : tr('detailHint');
     if ($('detailInput')) $('detailInput').placeholder = isPost ? tr('postDetailHint') : tr('detailPlaceholder');
+    if (isPost) syncPostEditorFromTextarea();
     if ($('artifactModalTitle')) {
       $('artifactModalTitle').textContent = editingId ? tr('artifactModalTitleEdit') : (isPost ? tr('addPost') : tr('artifactModalTitleAdd'));
     }
@@ -1960,10 +2320,12 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (current && current.length > 120 && !window.confirm('이미 상세 소개가 있습니다. 초안으로 덮어쓸까요?')) return;
     if (contentKindValue() === 'post') {
       node.value = `${title}\n\n${desc || '이 포스트에는 ERBELLO라는 활동명으로 만든 작업물과 기록을 정리합니다.'}\n\n작업을 만들게 된 이유, 사용하면서 느낀 점, 참고하면 좋은 부분을 자유롭게 적어둘 수 있습니다. 이미지가 필요한 경우 대표 이미지나 추가 이미지를 함께 등록해 글처럼 보여줄 수 있습니다.\n\n${tags ? `관련 태그는 ${tags}입니다. ` : ''}프로젝트 실행 코드가 없는 기록용 콘텐츠라면 포스트로 저장하면 되고, 실행 가능한 HTML/JSX/ZIP 작업물은 프로젝트로 저장하면 됩니다.`;
+      syncPostEditorFromTextarea();
       detailQualityText();
       return;
     }
     node.value = `${title}는 ERBELLO에 보관된 ${category} 프로젝트입니다. ${desc || '짧게 열어보고 사용해볼 수 있는 개인 웹 프로젝트로, 아이디어를 실제 화면으로 옮기는 과정을 기록하기 위해 정리했습니다.'}\n\n이 상세 페이지에서는 프로젝트가 어떤 목적으로 만들어졌는지, 어떤 화면이나 기능을 확인하면 좋은지, 실행 전에 알아두면 좋은 정보를 함께 정리합니다. 방문자는 카드 목록에서 바로 실행 화면으로 이동하지 않고, 먼저 이 소개 페이지에서 프로젝트의 성격과 구성 요소를 확인할 수 있습니다.\n\n실행 버튼을 누르면 실제 HTML, JSX 또는 ZIP 기반 화면이 열립니다. 모바일과 PC에서 배치나 조작 방식이 다를 수 있으므로 화면 크기에 따라 주요 버튼, 입력 영역, 이미지 표시 방식이 어떻게 달라지는지도 확인해보면 좋습니다.\n\n${tags ? `관련 태그는 ${tags}입니다. ` : ''}커버 이미지와 추가 이미지가 등록된 경우에는 프로젝트 분위기와 주요 화면을 미리 볼 수 있습니다. 이 프로젝트는 작은 기능을 직접 사용해보고, 결과를 공유하거나 다시 확인할 수 있도록 구성했습니다.`;
+    if (contentKindValue() === 'post') syncPostEditorFromTextarea();
     detailQualityText();
   }
 
@@ -1991,6 +2353,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     pendingGalleryFiles = [];
     pendingPostAttachments = [];
     pendingPostFiles = [];
+    clearPendingInlineImages();
     renderImagePreviews();
     detailQualityText();
     if ($('formatInput')) $('formatInput').value = 'html';
@@ -2019,7 +2382,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       $('artifactModalTitle').textContent = tr('artifactModalTitleEdit');
       $('titleInput').value = item.title || '';
       $('descInput').value = item.description || '';
-      { const itemType = typeKey(item.type); $('typeInput').value = $('typeInput').querySelector(`option[value="${itemType}"]`) ? itemType : 'other'; }
+      const itemType = typeKey(item.type);
       const isPost = isPostItem(item);
       if ($('tagsInput')) $('tagsInput').value = tagsText(isPost ? visibleArtifactTags(item) : (item.tags || []));
       if ($('postSubcategoryInput')) $('postSubcategoryInput').value = isPost ? postSubcategory(item) : '';
@@ -2040,6 +2403,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       pendingGalleryFiles = pendingGalleryImages.map(() => null);
       pendingPostAttachments = postParts.attachments;
       pendingPostFiles = [];
+      clearPendingInlineImages();
       renderImagePreviews();
       if ($('formatInput')) $('formatInput').value = formatKey(item);
       if ($('formatBadge')) $('formatBadge').textContent = formatLabel(item);
@@ -2048,6 +2412,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if ($('postFileInput')) $('postFileInput').value = '';
       $('artifactError').textContent = '';
       updateContentKindFields();
+      if ($('typeInput')) {
+        $('typeInput').value = $('typeInput').querySelector(`option[value="${itemType}"]`) ? itemType : ($('typeInput').value || 'other');
+        updatePostSubcategoryOptions();
+      }
+      if (isPost) syncPostEditorFromTextarea();
       updateDetectHint();
       detailQualityText();
       openModal('artifactModal');
@@ -2060,8 +2429,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const description = $('descInput').value.trim();
     const type = $('typeInput').value;
     let tags = collectArtifactTags();
-    let detail_text = $('detailInput') ? $('detailInput').value.trim() : '';
     const isPost = contentKindValue() === 'post';
+    if (isPost) syncTextareaFromPostEditor();
+    let detail_text = $('detailInput') ? $('detailInput').value.trim() : '';
     const manualCode = isPost ? '' : normalizeCode($('codeInput').value);
     const status = $('statusInput') ? $('statusInput').value : (Boolean($('privateInput') && $('privateInput').checked) ? 'private' : 'public');
     const is_private = status === 'private' || Boolean($('privateInput') && $('privateInput').checked);
@@ -2115,6 +2485,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       }
 
       if (isPost) {
+        detail_text = await uploadPendingInlineImages(detail_text);
         const attachments = [...pendingPostAttachments];
         for (const file of pendingPostFiles.slice(0, Math.max(0, 12 - attachments.length))) {
           const uploaded = await uploadFileToStorage('post-file', file);
@@ -2140,6 +2511,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if (editingId) await api(`/api/admin/artifacts/${encodeURIComponent(editingId)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       else await api('/api/admin/artifacts', { method:'POST', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       closeModal('artifactModal');
+      clearPendingInlineImages();
       toast(tr('saved'));
       await loadArtifacts();
     } catch (error) {
@@ -2304,6 +2676,16 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     setHidden('pageEmailField', !isContact);
     setHidden('pageLinksField', !isContact);
     setHidden('pageFilterField', !hasFilters);
+    setHidden('pagePostCategoriesField', slug !== 'posts');
+    setHidden('pagePostDividerField', slug !== 'posts');
+  }
+
+  function renderPagePostDividerSelect(page) {
+    const node = $('pagePostDividerInput');
+    if (!node) return;
+    const current = safePostDividerFile(page && page.postDivider) || 'divider-pink-beads.png';
+    node.innerHTML = postDividerAssets().map(asset => `<option value="${esc(asset.file)}">${esc(asset.label)}</option>`).join('');
+    node.value = postDividerAssets().some(asset => asset.file === current) ? current : 'divider-pink-beads.png';
   }
 
   function fillPageEditor() {
@@ -2322,6 +2704,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     }
     $('pageEmailInput').value = page.email || '';
     if ($('pageFilterOrderInput')) $('pageFilterOrderInput').value = normalizeFilterOrder(page.filterOrder, slug).join(', ');
+    if ($('pagePostCategoriesInput')) $('pagePostCategoriesInput').value = formatPostCategoryConfig(postCategoryConfigs(lang));
+    renderPagePostDividerSelect(page);
     renderContactLinkEditor(page.links || []);
     updatePageEditorVisibility();
     $('pageError').textContent = '';
@@ -2339,7 +2723,13 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const slug = $('pageSlugInput').value;
     const lang = $('pageLangInput').value;
     const blocks = [1,2,3].map((i) => ({ title:$(`block${i}Title`).value.trim(), text:$(`block${i}Text`).value.trim() })).filter(block => block.title || block.text);
+    const postCategories = slug === 'posts' ? parsePostCategoryConfig($('pagePostCategoriesInput')?.value || '', lang) : [];
     const content = { script:$('pageScriptInput').value.trim(), eyebrow:$('pageEyebrowInput').value.trim(), infoTitle:$('pageInfoTitleInput').value.trim(), title:$('pageTitleInput').value.trim(), body:$('pageBodyInput').value.trim(), blocks, email:$('pageEmailInput').value.trim(), links: slug === 'contact' ? collectContactLinks() : [], filterOrder: (slug === 'projects' || slug === 'posts') ? normalizeFilterOrder($('pageFilterOrderInput')?.value || '', slug) : [] };
+    if (slug === 'posts') {
+      content.postCategories = postCategories;
+      content.postDivider = safePostDividerFile($('pagePostDividerInput')?.value || '') || defaultPostDividerFile(lang);
+      content.filterOrder = normalizePostFilterOrder($('pageFilterOrderInput')?.value || '', postCategories.length ? postCategories : defaultPostCategoryConfigs(lang));
+    }
     try {
       $('pageError').textContent = '';
       const row = await api(`/api/admin/pages/${encodeURIComponent(slug)}/${encodeURIComponent(lang)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify({ content }) });
@@ -2455,6 +2845,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('unlockBtn')?.addEventListener('click', unlockAdmin);
     $('passwordInput')?.addEventListener('keydown', (event) => { if (event.key === 'Enter') unlockAdmin(); });
     $('saveArtifactBtn')?.addEventListener('click', saveArtifact);
+    $('typeInput')?.addEventListener('change', updatePostSubcategoryOptions);
     $('statusInput')?.addEventListener('change', syncStatusPrivate);
     $('privateInput')?.addEventListener('change', syncPrivateStatus);
     $('contentKindInput')?.addEventListener('change', () => {
@@ -2471,6 +2862,19 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       detailQualityText();
     });
     $('detailInput')?.addEventListener('input', detailQualityText);
+    $('postRichEditor')?.addEventListener('input', syncTextareaFromPostEditor);
+    $('postParagraphBtn')?.addEventListener('click', () => insertPostEditorHtml('<p><br></p>'));
+    $('postDividerBtn')?.addEventListener('click', () => insertPostMarkdown('---'));
+    $('postInlineImageBtn')?.addEventListener('click', () => $('postInlineImageInput')?.click());
+    $('postInlineImageInput')?.addEventListener('change', (event) => {
+      handleInlineImageFiles(event.target.files);
+      event.target.value = '';
+    });
+    $('postSyncBtn')?.addEventListener('click', () => {
+      syncTextareaFromPostEditor();
+      syncPostEditorFromTextarea();
+      detailQualityText();
+    });
     $('fillDetailBtn')?.addEventListener('click', fillDetailDraft);
     $('exportBtn')?.addEventListener('click', () => requireAdmin(exportProjectList));
     $('systemBtn')?.addEventListener('click', () => requireAdmin(openSystemStatus));
@@ -2515,6 +2919,20 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if (!event.dataTransfer || !Array.from(event.dataTransfer.types || []).includes('application/x-erbello-post-asset')) return;
       event.preventDefault();
       insertPostMarkdown(event.dataTransfer.getData('application/x-erbello-post-asset') || event.dataTransfer.getData('text/plain'));
+    });
+    $('postRichEditor')?.addEventListener('dragover', (event) => {
+      if (event.dataTransfer && (Array.from(event.dataTransfer.types || []).includes('application/x-erbello-post-asset') || Array.from(event.dataTransfer.types || []).includes('Files'))) event.preventDefault();
+    });
+    $('postRichEditor')?.addEventListener('drop', (event) => {
+      if (!event.dataTransfer) return;
+      const types = Array.from(event.dataTransfer.types || []);
+      if (types.includes('application/x-erbello-post-asset')) {
+        event.preventDefault();
+        insertPostMarkdown(event.dataTransfer.getData('application/x-erbello-post-asset') || event.dataTransfer.getData('text/plain'));
+      } else if (types.includes('Files')) {
+        event.preventDefault();
+        handleInlineImageFiles(event.dataTransfer.files);
+      }
     });
     $('clearCoverBtn')?.addEventListener('click', () => { pendingCoverImage = ''; pendingCoverFile = null; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); });
     $('randomCoverBtn')?.addEventListener('click', () => { pendingCoverImage = RANDOM_GAMSUNG_COVER; pendingCoverFile = null; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); toast(tr('randomCoverActive')); });
@@ -2561,6 +2979,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const storedScheme = safeStorage.get('local', 'erbello-scheme-v11');
     const storedColor = safeStorage.get('local', 'erbello-color-v11');
     applyTheme(SCHEMES.includes(storedScheme) ? storedScheme : 'white', COLORS.includes(storedColor) ? storedColor : 'pixel');
+    installContentProtection();
     bindEvents();
     const storedLang = safeStorage.get('local', 'erbello-lang');
     applyLanguage(LANGS.includes(storedLang) ? storedLang : 'ko');

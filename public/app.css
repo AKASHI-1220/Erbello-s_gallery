@@ -861,3 +861,148 @@ body[data-scheme=black] .post-list-tags span{background:rgba(255,255,255,.035)}
 @media(max-width:360px){
   .nav-tabs{grid-template-columns:repeat(2,minmax(0,1fr))!important}
 }
+
+/* v30: blog editor, custom post categories, and quiet asset labels */
+body:not(.admin-on) img{
+  -webkit-user-drag:none;
+  user-select:none;
+}
+.page-config-textarea{min-height:128px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#artifactModal.post-mode #detailInput{
+  position:absolute!important;
+  width:1px!important;
+  height:1px!important;
+  min-height:0!important;
+  padding:0!important;
+  opacity:0!important;
+  pointer-events:none!important;
+}
+.post-editor-shell.post-only-field{
+  display:none!important;
+}
+#artifactModal.post-mode .post-editor-shell.post-only-field{
+  display:grid!important;
+  gap:10px;
+  border:1px solid color-mix(in srgb,var(--accent) 26%,var(--border));
+  background:
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/24px 24px,
+    linear-gradient(0deg,var(--grid) 1px,transparent 1px) 0 0/24px 24px,
+    color-mix(in srgb,var(--panel2) 92%,transparent);
+  padding:12px;
+  box-shadow:0 14px 34px rgba(205,123,184,.08);
+}
+.post-editor-toolbar{
+  display:flex;
+  align-items:center;
+  gap:7px;
+  flex-wrap:wrap;
+  padding-bottom:8px;
+  border-bottom:1px dashed var(--line);
+}
+.post-rich-editor{
+  min-height:360px;
+  max-height:52vh;
+  overflow:auto;
+  padding:20px;
+  border:1px solid color-mix(in srgb,var(--accent2) 26%,var(--border));
+  background:rgba(255,255,255,.58);
+  color:var(--text);
+  outline:0;
+  line-height:1.82;
+  font-size:15px;
+  word-break:keep-all;
+}
+body[data-scheme=black] .post-rich-editor{background:rgba(255,255,255,.035)}
+.post-rich-editor:focus{
+  border-color:var(--accent);
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 16%,transparent);
+}
+.post-rich-editor:empty::before{
+  content:attr(data-placeholder);
+  color:var(--faint);
+}
+.post-rich-editor p{margin:0 0 16px;min-height:1.5em}
+.post-editor-asset{
+  display:grid;
+  justify-items:center;
+  margin:12px 0 16px;
+}
+.post-editor-asset img{
+  max-width:min(100%,620px);
+  max-height:320px;
+  object-fit:contain;
+}
+.post-editor-asset img[src*="/assets/illust/"]{
+  max-width:130px;
+  max-height:92px;
+}
+.post-editor-asset img[src*="/divider-"]{
+  max-width:min(100%,520px);
+  max-height:52px;
+}
+.post-editor-divider{
+  width:min(100%,520px);
+  height:34px;
+  border:0;
+  margin:14px auto 18px;
+  background:url('/assets/illust/imagegen-assets/web/divider-pink-beads.png') center/contain no-repeat;
+}
+.post-asset-tools{
+  background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 5%,transparent),color-mix(in srgb,var(--accent2) 4%,transparent));
+}
+.post-asset-library{
+  grid-template-columns:repeat(auto-fill,minmax(48px,1fr));
+  max-height:220px;
+  gap:7px;
+}
+.post-asset-btn{
+  min-height:52px;
+  grid-template-rows:1fr;
+  padding:5px;
+  border-radius:8px;
+}
+.post-asset-btn img{
+  max-width:42px;
+  max-height:38px;
+}
+.post-asset-btn span{display:none!important}
+.post-reader-divider-img{
+  display:block;
+  width:min(100%,520px);
+  max-height:46px;
+  object-fit:contain;
+  margin:15px auto 0;
+  opacity:.92;
+}
+.post-body-asset figcaption{display:none!important}
+.post-body-asset.decorative img{
+  max-width:min(100%,520px);
+  max-height:112px;
+}
+.post-category-list{
+  align-items:start;
+}
+.post-category-item{
+  border-radius:8px;
+}
+.post-category-item span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.post-category-item[data-post-category=secret]{
+  order:99;
+  opacity:.72;
+}
+@media(max-width:720px){
+  .modal-wide{width:min(100%,calc(100vw - 18px))}
+  .modal-body{padding:14px}
+  .post-editor-shell{padding:10px}
+  .post-rich-editor{min-height:300px;max-height:46vh;padding:16px;font-size:14px}
+  .post-editor-toolbar .btn.small{min-height:34px;padding:0 10px;font-size:12px}
+  .post-asset-library{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));max-height:180px}
+  .post-asset-btn{min-height:48px}
+  .post-asset-btn img{max-width:38px;max-height:34px}
+  .post-category-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .post-reader-divider-img{max-height:40px}
+}

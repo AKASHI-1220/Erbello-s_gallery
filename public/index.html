@@ -15,7 +15,7 @@
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/app.css?v=29" />
+  <link rel="stylesheet" href="/app.css?v=30" />
 </head>
 <body data-scheme="white" data-color="pixel" data-theme="white-pixel">
   <div class="site-bg" aria-hidden="true">
@@ -182,6 +182,10 @@
                 <span class="post-profile-icon" aria-hidden="true">✎</span>
                 <strong data-i18n="postSidebarTitle">ERBELLO NOTE</strong>
                 <p data-i18n="postSidebarBody">글, 이미지, 파일 기록을 카테고리별로 모아둡니다.</p>
+              </div>
+              <div class="post-side-block">
+                <h2 data-i18n="postCategoryTitle">category</h2>
+                <div id="postCategoryList" class="post-category-list"></div>
               </div>
               <div class="post-side-block">
                 <h2 data-i18n="postRecentTitle">recent posts</h2>
@@ -384,6 +388,15 @@
           <input id="pageFilterOrderInput" class="input" type="text" maxlength="240" placeholder="all, tool, game, daily, design, chart, experiment, other, secret" />
           <p class="hint" data-i18n="filterOrderHint">쉼표로 순서를 적어주세요. 예: all, tool, game, daily, design, chart, experiment, other, secret</p>
         </div>
+        <div id="pagePostCategoriesField" class="field page-post-config-only" hidden>
+          <label for="pagePostCategoriesInput" data-i18n="postCategoriesLabel">포스트 카테고리</label>
+          <textarea id="pagePostCategoriesInput" class="textarea textarea-small page-config-textarea" maxlength="3000" data-i18n-placeholder="postCategoriesPlaceholder" placeholder="분류명 | key | 하위주제A, 하위주제B | divider-pink-beads.png"></textarea>
+          <p class="hint" data-i18n="postCategoriesHint">한 줄에 하나씩 적으면 포스트 필터와 작성 화면에 반영됩니다. key는 영어 소문자, 숫자, - 조합을 추천합니다.</p>
+        </div>
+        <div id="pagePostDividerField" class="field page-post-config-only" hidden>
+          <label for="pagePostDividerInput" data-i18n="postDividerLabel">포스트 기본 구분선</label>
+          <select id="pagePostDividerInput" class="select"></select>
+        </div>
         <p class="hint" data-i18n="pageEditHint">현재 선택한 언어의 페이지 문구만 저장됩니다.</p>
         <div id="pageError" class="error"></div>
       </div>
@@ -423,7 +436,8 @@
           </div>
           <div class="field post-only-field">
             <label for="postSubcategoryInput" data-i18n="postSubcategoryLabel">작은 분류</label>
-            <input id="postSubcategoryInput" class="input" type="text" maxlength="40" data-i18n-placeholder="postSubcategoryPlaceholder" placeholder="예: 노래방 번호 정리" />
+            <input id="postSubcategoryInput" class="input" type="text" maxlength="40" list="postSubcategoryList" data-i18n-placeholder="postSubcategoryPlaceholder" placeholder="예: 노래방 번호 정리" />
+            <datalist id="postSubcategoryList"></datalist>
           </div>
           <div class="field">
             <label for="statusInput" data-i18n="statusLabel">공개 상태</label>
@@ -470,6 +484,16 @@
         <span id="formatBadge" class="sr-only">HTML</span>
         <div class="field">
           <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
+          <div id="postEditorShell" class="post-editor-shell post-only-field" aria-label="Post editor">
+            <div class="post-editor-toolbar" role="toolbar" data-i18n-aria-label="postEditorToolbar">
+              <button id="postParagraphBtn" class="btn small" type="button" data-i18n="postInsertParagraph">문단</button>
+              <button id="postDividerBtn" class="btn small" type="button" data-i18n="postInsertDivider">구분선</button>
+              <button id="postInlineImageBtn" class="btn small" type="button" data-i18n="postInsertImage">사진</button>
+              <button id="postSyncBtn" class="btn small" type="button" data-i18n="postSyncMarkdown">본문 정리</button>
+            </div>
+            <div id="postRichEditor" class="post-rich-editor" contenteditable="true" data-i18n-data-placeholder="postEditorPlaceholder" data-placeholder="본문을 이곳에 작성하고, 에셋이나 사진을 중간에 넣을 수 있습니다."></div>
+            <input id="postInlineImageInput" type="file" accept="image/*" multiple hidden />
+          </div>
           <textarea id="detailInput" class="textarea textarea-small" maxlength="8000" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
           <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
           <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
@@ -538,6 +562,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=29" defer></script>
+  <script src="/app.js?v=30" defer></script>
 </body>
 </html>
