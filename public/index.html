@@ -15,7 +15,7 @@
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/app.css?v=30" />
+  <link rel="stylesheet" href="/app.css?v=32" />
 </head>
 <body data-scheme="white" data-color="pixel" data-theme="white-pixel">
   <div class="site-bg" aria-hidden="true">
@@ -182,10 +182,6 @@
                 <span class="post-profile-icon" aria-hidden="true">✎</span>
                 <strong data-i18n="postSidebarTitle">ERBELLO NOTE</strong>
                 <p data-i18n="postSidebarBody">글, 이미지, 파일 기록을 카테고리별로 모아둡니다.</p>
-              </div>
-              <div class="post-side-block">
-                <h2 data-i18n="postCategoryTitle">category</h2>
-                <div id="postCategoryList" class="post-category-list"></div>
               </div>
               <div class="post-side-block">
                 <h2 data-i18n="postRecentTitle">recent posts</h2>
@@ -397,6 +393,43 @@
           <label for="pagePostDividerInput" data-i18n="postDividerLabel">포스트 기본 구분선</label>
           <select id="pagePostDividerInput" class="select"></select>
         </div>
+        <div id="pagePostBlogSettingsField" class="page-post-config-only blog-settings-panel" hidden>
+          <h3 data-i18n="blogManageTitle">블로그 관리</h3>
+          <div class="form-grid form-grid-quad">
+            <div class="field">
+              <label for="pagePostsPerPageInput" data-i18n="postsPerPageLabel">페이지당 글</label>
+              <select id="pagePostsPerPageInput" class="select">
+                <option value="1">1</option>
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pageSidebarModeInput" data-i18n="sidebarModeLabel">좌측 사이드</label>
+              <select id="pageSidebarModeInput" class="select">
+                <option value="recent" data-i18n="sidebarModeRecent">프로필 + 최근 글</option>
+                <option value="profile" data-i18n="sidebarModeProfile">프로필만</option>
+                <option value="hidden" data-i18n="sidebarModeHidden">숨김</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pageRecentLimitInput" data-i18n="recentLimitLabel">최근 글 수</label>
+              <select id="pageRecentLimitInput" class="select">
+                <option value="3">3</option>
+                <option value="5">5</option>
+                <option value="10">10</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="pageCategoryFoldInput" data-i18n="categoryFoldLabel">카테고리 펼침</label>
+              <select id="pageCategoryFoldInput" class="select">
+                <option value="open" data-i18n="categoryFoldOpen">펼치기</option>
+                <option value="closed" data-i18n="categoryFoldClosed">접기</option>
+              </select>
+            </div>
+          </div>
+        </div>
         <p class="hint" data-i18n="pageEditHint">현재 선택한 언어의 페이지 문구만 저장됩니다.</p>
         <div id="pageError" class="error"></div>
       </div>
@@ -407,143 +440,196 @@
     </div>
   </div>
 
-  <div id="artifactModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="artifactModalTitle">
-    <div class="modal modal-wide">
+  <section id="artifactModal" class="route-page editor-page" data-page="editor" aria-labelledby="artifactModalTitle">
+    <div class="editor-page-shell">
       <div class="modal-header">
         <h2 id="artifactModalTitle" data-i18n="artifactModalTitleAdd">프로젝트 추가</h2>
-        <button class="btn small" type="button" data-close="artifactModal" data-i18n="close">닫기</button>
+        <button id="editorCloseBtn" class="btn small" type="button" data-i18n="close">닫기</button>
       </div>
-      <div class="modal-body">
-        <div class="form-grid">
-          <div class="field">
-            <label for="titleInput" data-i18n="titleLabel">제목</label>
-            <input id="titleInput" class="input" type="text" maxlength="80" data-i18n-placeholder="titlePlaceholder" placeholder="예: 오늘의 타로" />
-          </div>
-          <div class="field">
-            <label for="typeInput" data-i18n="categoryLabel">카테고리</label>
-            <select id="typeInput" class="select">
-              <option value="game" data-i18n="typeGame">게임</option>
-              <option value="tool" data-i18n="typeTool">도구</option>
-              <option value="daily" data-i18n="typeDaily">일상</option>
-              <option value="study" data-i18n="typeStudy">공부</option>
-              <option value="cooking" data-i18n="typeCooking">요리</option>
-              <option value="fandom" data-i18n="typeFandom">덕질</option>
-              <option value="design" data-i18n="typeDesign">디자인</option>
-              <option value="chart" data-i18n="typeChart">차트</option>
-              <option value="experiment" data-i18n="typeExperiment">실험</option>
-              <option value="other" data-i18n="typeOther">기타</option>
-            </select>
-          </div>
-          <div class="field post-only-field">
-            <label for="postSubcategoryInput" data-i18n="postSubcategoryLabel">작은 분류</label>
-            <input id="postSubcategoryInput" class="input" type="text" maxlength="40" list="postSubcategoryList" data-i18n-placeholder="postSubcategoryPlaceholder" placeholder="세부 주제를 입력하세요" />
-            <datalist id="postSubcategoryList"></datalist>
-          </div>
-          <div class="field">
-            <label for="statusInput" data-i18n="statusLabel">공개 상태</label>
-            <select id="statusInput" class="select">
-              <option value="public" data-i18n="statusPublic">공개</option>
-              <option value="private" data-i18n="statusPrivate">비밀</option>
-              <option value="draft" data-i18n="statusDraft">임시저장</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="contentKindInput" data-i18n="contentKindLabel">콘텐츠 종류</label>
-            <select id="contentKindInput" class="select">
-              <option value="project" data-i18n="contentKindProject">프로젝트</option>
-              <option value="post" data-i18n="contentKindPost">포스트</option>
-            </select>
-          </div>
-        </div>
-        <div class="field">
-          <label for="descInput" data-i18n="descriptionLabel">설명</label>
-          <input id="descInput" class="input" type="text" maxlength="240" data-i18n-placeholder="descriptionPlaceholder" placeholder="카드에 표시될 짧은 소개 문구" />
-        </div>
-        <div class="field">
-          <label for="tagsInput" data-i18n="tagsLabel">태그</label>
-          <input id="tagsInput" class="input" type="text" maxlength="240" data-i18n-placeholder="tagsPlaceholder" placeholder="예: HTML, 도구, 타로" />
-          <div id="quickTags" class="quick-tags" data-i18n-aria-label="quickTags"></div>
-          <p class="hint tag-hint" data-i18n="tagHint">대표 카테고리는 하나만 고르고, 추가 태그로 여러 분류를 같이 넣을 수 있습니다.</p>
-        </div>
-        <div class="private-panel">
-          <label class="private-toggle" for="privateInput">
-            <input id="privateInput" type="checkbox" />
-            <span class="private-toggle-box" aria-hidden="true">🔒</span>
-            <span class="private-toggle-copy">
-              <strong data-i18n="privateProject">비밀 / 비밀번호 필요</strong>
-              <small data-i18n="privateProjectHint">방문자에게는 제목만 보이고, 비밀번호를 입력해야 열립니다.</small>
-            </span>
-          </label>
-          <div id="privatePasswordField" class="field private-password-field">
-            <label for="privatePasswordInput" data-i18n="privatePasswordLabel">비밀 프로젝트 비밀번호</label>
-            <input id="privatePasswordInput" class="input" type="password" maxlength="120" data-i18n-placeholder="privatePasswordPlaceholder" placeholder="비밀 프로젝트 비밀번호" autocomplete="new-password" />
-            <p class="hint" data-i18n="privatePasswordHint">수정할 때 비워두면 기존 비밀번호가 유지됩니다.</p>
-          </div>
-        </div>
-        <input id="formatInput" type="hidden" value="html" />
-        <span id="formatBadge" class="sr-only">HTML</span>
-        <div class="field">
-          <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
-          <div id="postEditorShell" class="post-editor-shell post-only-field" aria-label="Post editor">
-            <div class="post-editor-toolbar" role="toolbar" data-i18n-aria-label="postEditorToolbar">
-              <button id="postParagraphBtn" class="btn small" type="button" data-i18n="postInsertParagraph">문단</button>
-              <button id="postDividerBtn" class="btn small" type="button" data-i18n="postInsertDivider">구분선</button>
-              <button id="postInlineImageBtn" class="btn small" type="button" data-i18n="postInsertImage">사진</button>
-              <button id="postSyncBtn" class="btn small" type="button" data-i18n="postSyncMarkdown">본문 정리</button>
+      <div class="modal-body artifact-editor-body">
+        <div class="artifact-editor-layout">
+          <aside class="artifact-editor-side">
+            <div class="editor-side-card editor-side-card-sticky">
+              <p class="editor-side-kicker">WRITE</p>
+              <div class="field">
+                <label for="contentKindInput" data-i18n="contentKindLabel">콘텐츠 종류</label>
+                <select id="contentKindInput" class="select">
+                  <option value="project" data-i18n="contentKindProject">프로젝트</option>
+                  <option value="post" data-i18n="contentKindPost">포스트</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="typeInput" data-i18n="categoryLabel">카테고리</label>
+                <select id="typeInput" class="select">
+                  <option value="game" data-i18n="typeGame">게임</option>
+                  <option value="tool" data-i18n="typeTool">도구</option>
+                  <option value="daily" data-i18n="typeDaily">일상</option>
+                  <option value="study" data-i18n="typeStudy">공부</option>
+                  <option value="cooking" data-i18n="typeCooking">요리</option>
+                  <option value="fandom" data-i18n="typeFandom">덕질</option>
+                  <option value="design" data-i18n="typeDesign">디자인</option>
+                  <option value="chart" data-i18n="typeChart">차트</option>
+                  <option value="experiment" data-i18n="typeExperiment">실험</option>
+                  <option value="other" data-i18n="typeOther">기타</option>
+                </select>
+              </div>
+              <div class="field post-only-field">
+                <label for="postSubcategoryInput" data-i18n="postSubcategoryLabel">작은 분류</label>
+                <input id="postSubcategoryInput" class="input" type="text" maxlength="40" list="postSubcategoryList" data-i18n-placeholder="postSubcategoryPlaceholder" placeholder="세부 주제를 입력하세요" />
+                <datalist id="postSubcategoryList"></datalist>
+              </div>
+              <div class="field">
+                <label for="statusInput" data-i18n="statusLabel">공개 상태</label>
+                <select id="statusInput" class="select">
+                  <option value="public" data-i18n="statusPublic">공개</option>
+                  <option value="private" data-i18n="statusPrivate">비밀</option>
+                  <option value="draft" data-i18n="statusDraft">임시저장</option>
+                </select>
+              </div>
             </div>
-            <div id="postRichEditor" class="post-rich-editor" contenteditable="true" data-i18n-data-placeholder="postEditorPlaceholder" data-placeholder="본문을 이곳에 작성하고, 에셋이나 사진을 중간에 넣을 수 있습니다."></div>
-            <input id="postInlineImageInput" type="file" accept="image/*" multiple hidden />
-          </div>
-          <textarea id="detailInput" class="textarea textarea-small" maxlength="8000" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
-          <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
-          <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
-          <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
-        </div>
-        <div class="field post-only-field post-asset-tools">
-          <label data-i18n="postAssetsLabel">포스트 에셋</label>
-          <div id="postAssetLibrary" class="post-asset-library" aria-live="polite"></div>
-          <p class="hint" data-i18n="postAssetsHint">누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.</p>
-        </div>
-        <div class="media-fields">
-          <div class="field">
-            <label for="coverInput" data-i18n="coverLabel">대표 커버 이미지</label>
-            <div class="cover-uploader">
-              <input id="coverInput" type="file" accept="image/*" />
-              <button id="clearCoverBtn" class="btn small" type="button" data-i18n="removeImage">이미지 제거</button>
-              <button id="randomCoverBtn" class="btn small" type="button" data-i18n="randomCover">GAMSUNG 랜덤</button>
+
+            <div class="editor-side-card">
+              <div class="field">
+                <label for="tagsInput" data-i18n="tagsLabel">태그</label>
+                <input id="tagsInput" class="input" type="text" maxlength="240" data-i18n-placeholder="tagsPlaceholder" placeholder="예: HTML, 도구, 타로" />
+                <div id="quickTags" class="quick-tags" data-i18n-aria-label="quickTags"></div>
+                <p class="hint tag-hint" data-i18n="tagHint">대표 카테고리는 하나만 고르고, 추가 태그로 여러 분류를 같이 넣을 수 있습니다.</p>
+              </div>
             </div>
-            <div id="coverPreview" class="image-preview empty-preview" data-i18n="coverEmpty">커버 이미지 없음</div>
-          </div>
-          <div class="field">
-            <label for="galleryInput" data-i18n="galleryImagesLabel">추가 이미지</label>
-            <input id="galleryInput" type="file" accept="image/*" multiple />
-            <div id="galleryPreview" class="gallery-preview"></div>
-            <button id="clearGalleryBtn" class="btn small" type="button" data-i18n="clearGallery">추가 이미지 비우기</button>
-          </div>
+
+            <div class="editor-side-card private-panel">
+              <label class="private-toggle" for="privateInput">
+                <input id="privateInput" type="checkbox" />
+                <span class="private-toggle-box" aria-hidden="true">🔒</span>
+                <span class="private-toggle-copy">
+                  <strong data-i18n="privateProject">비밀 / 비밀번호 필요</strong>
+                  <small data-i18n="privateProjectHint">방문자에게는 제목만 보이고, 비밀번호를 입력해야 열립니다.</small>
+                </span>
+              </label>
+              <div id="privatePasswordField" class="field private-password-field">
+                <label for="privatePasswordInput" data-i18n="privatePasswordLabel">비밀 프로젝트 비밀번호</label>
+                <input id="privatePasswordInput" class="input" type="password" maxlength="120" data-i18n-placeholder="privatePasswordPlaceholder" placeholder="비밀 프로젝트 비밀번호" autocomplete="new-password" />
+                <p class="hint" data-i18n="privatePasswordHint">수정할 때 비워두면 기존 비밀번호가 유지됩니다.</p>
+              </div>
+            </div>
+
+            <div class="editor-side-card media-fields">
+              <div class="field">
+                <label for="coverInput" data-i18n="coverLabel">대표 커버 이미지</label>
+                <div class="cover-uploader">
+                  <input id="coverInput" type="file" accept="image/*" />
+                  <button id="clearCoverBtn" class="btn small" type="button" data-i18n="removeImage">이미지 제거</button>
+                  <button id="randomCoverBtn" class="btn small" type="button" data-i18n="randomCover">GAMSUNG 랜덤</button>
+                </div>
+                <div id="coverPreview" class="image-preview empty-preview" data-i18n="coverEmpty">커버 이미지 없음</div>
+              </div>
+              <div class="field">
+                <label for="galleryInput" data-i18n="galleryImagesLabel">추가 이미지</label>
+                <input id="galleryInput" type="file" accept="image/*" multiple />
+                <div id="galleryPreview" class="gallery-preview"></div>
+                <button id="clearGalleryBtn" class="btn small" type="button" data-i18n="clearGallery">추가 이미지 비우기</button>
+              </div>
+            </div>
+          </aside>
+
+          <section class="artifact-editor-main">
+            <input id="formatInput" type="hidden" value="html" />
+            <span id="formatBadge" class="sr-only">HTML</span>
+            <div class="editor-tool-strip" role="toolbar" aria-label="Writing tools">
+              <button id="editorPhotoToolBtn" class="btn small" type="button" data-i18n="postInsertImage">사진</button>
+              <button id="editorTableToolBtn" class="btn small" type="button" data-i18n="editorInsertTable">표</button>
+              <button id="editorDividerToolBtn" class="btn small" type="button" data-i18n="postInsertDivider">구분선</button>
+              <button id="editorAssetToolBtn" class="btn small post-only-field" type="button" data-i18n="postAssetsLabel">포스트 에셋</button>
+              <button id="editorFileToolBtn" class="btn small post-only-field" type="button" data-i18n="postFilesLabel">첨부 파일</button>
+              <button id="editorSourceToolBtn" class="btn small project-only-field" type="button" data-i18n="codeLabel">코드</button>
+            </div>
+            <div class="field editor-title-field">
+              <label for="titleInput" data-i18n="titleLabel">제목</label>
+              <input id="titleInput" class="input" type="text" maxlength="80" data-i18n-placeholder="titlePlaceholder" placeholder="예: 오늘의 타로" />
+            </div>
+            <div class="field">
+              <label for="descInput" data-i18n="descriptionLabel">설명</label>
+              <input id="descInput" class="input" type="text" maxlength="240" data-i18n-placeholder="descriptionPlaceholder" placeholder="카드에 표시될 짧은 소개 문구" />
+            </div>
+            <div class="field editor-body-field">
+              <label for="detailInput" data-i18n="detailLabel">상세 소개</label>
+              <div id="postEditorShell" class="post-editor-shell post-only-field" aria-label="Post editor">
+                <div class="post-editor-toolbar" role="toolbar" data-i18n-aria-label="postEditorToolbar">
+                  <button id="postParagraphBtn" class="btn small" type="button" data-i18n="postInsertParagraph">문단</button>
+                  <button id="postDividerBtn" class="btn small" type="button" data-i18n="postInsertDivider">구분선</button>
+                  <button id="postInlineImageBtn" class="btn small" type="button" data-i18n="postInsertImage">사진</button>
+                  <button id="postSyncBtn" class="btn small" type="button" data-i18n="postSyncMarkdown">본문 정리</button>
+                </div>
+                <div id="postRichEditor" class="post-rich-editor" contenteditable="true" data-i18n-data-placeholder="postEditorPlaceholder" data-placeholder="본문을 이곳에 작성하고, 에셋이나 사진을 중간에 넣을 수 있습니다."></div>
+                <input id="postInlineImageInput" type="file" accept="image/*" multiple hidden />
+              </div>
+              <textarea id="detailInput" class="textarea textarea-small" maxlength="8000" data-i18n-placeholder="detailPlaceholder" placeholder="프로젝트를 어떻게 쓰는지, 어떤 점을 볼 만한지 조금 더 적어주세요."></textarea>
+              <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
+              <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
+              <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
+            </div>
+            <div class="field post-only-field post-asset-tools">
+              <label data-i18n="postAssetsLabel">포스트 에셋</label>
+              <div id="postAssetLibrary" class="post-asset-library" aria-live="polite"></div>
+              <p class="hint" data-i18n="postAssetsHint">누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.</p>
+            </div>
+            <div class="field post-only-field post-file-tools">
+              <label for="postFileInput" data-i18n="postFilesLabel">첨부 파일</label>
+              <input id="postFileInput" type="file" multiple />
+              <div id="postFilePreview" class="post-file-preview"></div>
+              <p class="hint" data-i18n="postFilesHint">포스트에 함께 보여줄 파일을 첨부할 수 있습니다.</p>
+            </div>
+            <div id="postInteractionSettings" class="field post-only-field post-interaction-settings">
+              <h3 data-i18n="postInteractionTitle">메시지 / 투표</h3>
+              <div class="post-setting-row">
+                <label class="checkline"><input id="messageEnabledInput" type="checkbox" /> <span data-i18n="messageEnabledLabel">메시지 폼 사용</span></label>
+                <label for="messageVisibilityInput" data-i18n="messageVisibilityLabel">메시지 공개</label>
+                <select id="messageVisibilityInput" class="select">
+                  <option value="private" data-i18n="visibilityPrivate">비밀</option>
+                  <option value="public" data-i18n="visibilityPublic">공개</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="messagePromptInput" data-i18n="messagePromptLabel">메시지 안내 문구</label>
+                <input id="messagePromptInput" class="input" type="text" maxlength="160" />
+              </div>
+              <div class="post-setting-row">
+                <label class="checkline"><input id="pollEnabledInput" type="checkbox" /> <span data-i18n="pollEnabledLabel">투표 사용</span></label>
+                <label for="pollVisibilityInput" data-i18n="pollVisibilityLabel">투표 결과 공개</label>
+                <select id="pollVisibilityInput" class="select">
+                  <option value="private" data-i18n="visibilityPrivate">비밀</option>
+                  <option value="public" data-i18n="visibilityPublic">공개</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="pollQuestionInput" data-i18n="pollQuestionLabel">투표 질문</label>
+                <input id="pollQuestionInput" class="input" type="text" maxlength="180" />
+              </div>
+              <div class="field">
+                <label for="pollOptionsInput" data-i18n="pollOptionsLabel">투표 선택지</label>
+                <textarea id="pollOptionsInput" class="textarea textarea-mini" maxlength="1000"></textarea>
+                <p class="hint" data-i18n="pollOptionsHint">한 줄에 하나씩 적어주세요.</p>
+              </div>
+            </div>
+            <div id="dropZone" class="dropzone project-only-field">
+              <span data-i18n="dropText">HTML, JSX, TSX, ZIP 파일을 이곳에 끌어다 놓거나 선택하세요.</span>
+              <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.ts,.tsx,.txt,.zip" />
+            </div>
+            <div id="codeField" class="field project-only-field">
+              <label for="codeInput" data-i18n="codeLabel">코드</label>
+              <textarea id="codeInput" class="textarea" spellcheck="false" data-i18n-placeholder="codePlaceholder" placeholder="HTML 전체 코드 또는 React/JSX 코드를 붙여넣으세요."></textarea>
+            </div>
+            <p id="detectHint" class="hint project-only-field" data-i18n="detectWaiting">감지 대기 중</p>
+            <div id="artifactError" class="error"></div>
+          </section>
         </div>
-        <div class="field post-only-field">
-          <label for="postFileInput" data-i18n="postFilesLabel">첨부 파일</label>
-          <input id="postFileInput" type="file" multiple />
-          <div id="postFilePreview" class="post-file-preview"></div>
-          <p class="hint" data-i18n="postFilesHint">포스트에 함께 보여줄 파일을 첨부할 수 있습니다.</p>
-        </div>
-        <div id="dropZone" class="dropzone project-only-field">
-          <span data-i18n="dropText">HTML, JSX, TSX, ZIP 파일을 이곳에 끌어다 놓거나 선택하세요.</span>
-          <input id="fileInput" type="file" accept=".html,.htm,.js,.jsx,.ts,.tsx,.txt,.zip" />
-        </div>
-        <div id="codeField" class="field project-only-field">
-          <label for="codeInput" data-i18n="codeLabel">코드</label>
-          <textarea id="codeInput" class="textarea" spellcheck="false" data-i18n-placeholder="codePlaceholder" placeholder="HTML 전체 코드 또는 React/JSX 코드를 붙여넣으세요."></textarea>
-        </div>
-        <p id="detectHint" class="hint project-only-field" data-i18n="detectWaiting">감지 대기 중</p>
-        <div id="artifactError" class="error"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn" type="button" data-close="artifactModal" data-i18n="cancel">취소</button>
+        <button id="editorCancelBtn" class="btn" type="button" data-i18n="cancel">취소</button>
         <button id="saveArtifactBtn" class="btn primary" type="button" data-i18n="save">저장</button>
       </div>
     </div>
-  </div>
+  </section>
 
 
   <div id="systemModal" class="overlay" role="dialog" aria-modal="true" aria-labelledby="systemModalTitle">
@@ -562,6 +648,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=30" defer></script>
+  <script src="/app.js?v=32" defer></script>
 </body>
 </html>

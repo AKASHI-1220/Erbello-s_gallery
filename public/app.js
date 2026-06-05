@@ -1,13 +1,13 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v30 blog editor categories';
+  const VERSION = 'ERBELLO Gallery v32 blog settings and post interactions';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
   const COLORS = ['crimson','sky','lavender','yellowblue','cream','rose','ocean','aurora','mint','pixel'];
   const LANGS = ['ko','en','ja','zh'];
-  const ROUTES = ['home','projects','posts','about','contact','privacy','terms'];
+  const ROUTES = ['home','projects','posts','editor','about','contact','privacy','terms'];
   const CATEGORIES = ['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret'];
   const POST_ASSET_BASE = '/assets/illust/imagegen-assets/web/';
   const POST_ASSETS = [
@@ -29,6 +29,7 @@
   const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
   const POST_SOURCE_CODE = '__ERBELLO_POST__';
   const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
+  const POST_WIDGET_PREFIX = 'ERBELLO_POST_WIDGETS_V1:';
   const POST_SUBCATEGORY_PREFIX = 'sub:';
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
@@ -147,6 +148,7 @@
       postInsertParagraph:'문단',
       postInsertDivider:'구분선',
       postInsertImage:'사진',
+      editorInsertTable:'표',
       postSyncMarkdown:'본문 정리',
       postInlineUploading:'본문 이미지를 업로드하는 중입니다...',
       postAssetsHint:'에셋을 누르거나 본문에 끌어오면 바로 삽입됩니다. 아이콘은 글 안에서 장식처럼 사용할 수 있습니다.'
@@ -161,6 +163,7 @@
       postInsertParagraph:'Paragraph',
       postInsertDivider:'Divider',
       postInsertImage:'Photo',
+      editorInsertTable:'Table',
       postSyncMarkdown:'Tidy body',
       postInlineUploading:'Uploading inline images...',
       postAssetsHint:'Click or drag an asset into the editor. Assets are inserted as decorative post icons.'
@@ -175,6 +178,7 @@
       postInsertParagraph:'段落',
       postInsertDivider:'区切り線',
       postInsertImage:'写真',
+      editorInsertTable:'表',
       postSyncMarkdown:'本文整理',
       postInlineUploading:'本文画像をアップロード中...',
       postAssetsHint:'素材をクリック、または本文へドラッグすると装飾アイコンとして挿入されます。'
@@ -189,6 +193,7 @@
       postInsertParagraph:'段落',
       postInsertDivider:'分隔线',
       postInsertImage:'照片',
+      editorInsertTable:'表格',
       postSyncMarkdown:'整理正文',
       postInlineUploading:'正在上传正文图片...',
       postAssetsHint:'点击或拖入编辑器即可插入素材，作为正文装饰图标使用。'
@@ -196,16 +201,154 @@
   };
   Object.keys(V30_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V30_I18N[lang]));
 
+  const V32_I18N = {
+    ko:{
+      blogManageTitle:'블로그 관리',
+      postsPerPageLabel:'페이지당 글',
+      sidebarModeLabel:'좌측 사이드',
+      sidebarModeRecent:'프로필 + 최근 글',
+      sidebarModeProfile:'프로필만',
+      sidebarModeHidden:'숨김',
+      recentLimitLabel:'최근 글 수',
+      categoryFoldLabel:'카테고리 펼침',
+      categoryFoldOpen:'펼치기',
+      categoryFoldClosed:'접기',
+      postInteractionTitle:'메시지 / 투표',
+      messageEnabledLabel:'메시지 폼 사용',
+      messageVisibilityLabel:'메시지 공개',
+      visibilityPublic:'공개',
+      visibilityPrivate:'비밀',
+      messagePromptLabel:'메시지 안내 문구',
+      pollEnabledLabel:'투표 사용',
+      pollVisibilityLabel:'투표 결과 공개',
+      pollQuestionLabel:'투표 질문',
+      pollOptionsLabel:'투표 선택지',
+      pollOptionsHint:'한 줄에 하나씩 적어주세요.',
+      postMessageTitle:'메시지 남기기',
+      postMessageName:'이름',
+      postMessageBody:'메시지',
+      postMessageSubmit:'메시지 보내기',
+      postMessagePrivateNote:'남긴 메시지는 관리자만 확인할 수 있습니다.',
+      postMessagesEmpty:'아직 남긴 메시지가 없습니다.',
+      postPollTitle:'투표',
+      postVoteSubmit:'투표하기',
+      postPollPrivateNote:'투표 결과는 관리자만 확인할 수 있습니다.',
+      postInteractionSaved:'저장되었습니다.'
+    },
+    en:{
+      blogManageTitle:'Blog settings',
+      postsPerPageLabel:'Posts per page',
+      sidebarModeLabel:'Left sidebar',
+      sidebarModeRecent:'Profile + recent posts',
+      sidebarModeProfile:'Profile only',
+      sidebarModeHidden:'Hidden',
+      recentLimitLabel:'Recent post count',
+      categoryFoldLabel:'Category fold',
+      categoryFoldOpen:'Open',
+      categoryFoldClosed:'Fold',
+      postInteractionTitle:'Messages / Poll',
+      messageEnabledLabel:'Use message form',
+      messageVisibilityLabel:'Message visibility',
+      visibilityPublic:'Public',
+      visibilityPrivate:'Private',
+      messagePromptLabel:'Message prompt',
+      pollEnabledLabel:'Use poll',
+      pollVisibilityLabel:'Poll result visibility',
+      pollQuestionLabel:'Poll question',
+      pollOptionsLabel:'Poll options',
+      pollOptionsHint:'One option per line.',
+      postMessageTitle:'Leave a message',
+      postMessageName:'Name',
+      postMessageBody:'Message',
+      postMessageSubmit:'Send message',
+      postMessagePrivateNote:'Messages are visible only to the owner.',
+      postMessagesEmpty:'No messages yet.',
+      postPollTitle:'Poll',
+      postVoteSubmit:'Vote',
+      postPollPrivateNote:'Poll results are visible only to the owner.',
+      postInteractionSaved:'Saved.'
+    },
+    ja:{
+      blogManageTitle:'ブログ管理',
+      postsPerPageLabel:'1ページの記事数',
+      sidebarModeLabel:'左サイド',
+      sidebarModeRecent:'プロフィール + 最近の記事',
+      sidebarModeProfile:'プロフィールのみ',
+      sidebarModeHidden:'非表示',
+      recentLimitLabel:'最近の記事数',
+      categoryFoldLabel:'カテゴリー表示',
+      categoryFoldOpen:'開く',
+      categoryFoldClosed:'折りたたむ',
+      postInteractionTitle:'メッセージ / 投票',
+      messageEnabledLabel:'メッセージフォームを使う',
+      messageVisibilityLabel:'メッセージ公開',
+      visibilityPublic:'公開',
+      visibilityPrivate:'非公開',
+      messagePromptLabel:'メッセージ案内文',
+      pollEnabledLabel:'投票を使う',
+      pollVisibilityLabel:'投票結果公開',
+      pollQuestionLabel:'投票質問',
+      pollOptionsLabel:'投票選択肢',
+      pollOptionsHint:'1行に1つずつ入力してください。',
+      postMessageTitle:'メッセージを残す',
+      postMessageName:'名前',
+      postMessageBody:'メッセージ',
+      postMessageSubmit:'送信',
+      postMessagePrivateNote:'メッセージは管理者だけが確認できます。',
+      postMessagesEmpty:'まだメッセージはありません。',
+      postPollTitle:'投票',
+      postVoteSubmit:'投票する',
+      postPollPrivateNote:'投票結果は管理者だけが確認できます。',
+      postInteractionSaved:'保存しました。'
+    },
+    zh:{
+      blogManageTitle:'博客管理',
+      postsPerPageLabel:'每页文章数',
+      sidebarModeLabel:'左侧栏',
+      sidebarModeRecent:'资料 + 最近文章',
+      sidebarModeProfile:'仅资料',
+      sidebarModeHidden:'隐藏',
+      recentLimitLabel:'最近文章数',
+      categoryFoldLabel:'分类展开',
+      categoryFoldOpen:'展开',
+      categoryFoldClosed:'折叠',
+      postInteractionTitle:'留言 / 投票',
+      messageEnabledLabel:'使用留言表单',
+      messageVisibilityLabel:'留言公开',
+      visibilityPublic:'公开',
+      visibilityPrivate:'私密',
+      messagePromptLabel:'留言提示',
+      pollEnabledLabel:'使用投票',
+      pollVisibilityLabel:'投票结果公开',
+      pollQuestionLabel:'投票问题',
+      pollOptionsLabel:'投票选项',
+      pollOptionsHint:'每行一个选项。',
+      postMessageTitle:'留下留言',
+      postMessageName:'名称',
+      postMessageBody:'留言',
+      postMessageSubmit:'发送留言',
+      postMessagePrivateNote:'留言仅管理员可见。',
+      postMessagesEmpty:'还没有留言。',
+      postPollTitle:'投票',
+      postVoteSubmit:'投票',
+      postPollPrivateNote:'投票结果仅管理员可见。',
+      postInteractionSaved:'已保存。'
+    }
+  };
+  Object.keys(V32_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V32_I18N[lang]));
+
   let artifacts = [];
   let pageRows = [];
   let currentRoute = initialRoute();
   let currentFilter = 'all';
+  let currentPostPage = 1;
   let searchQuery = '';
   let currentLang = 'ko';
   let adminToken = safeStorage.get('session', 'erbello-admin-token') || '';
   let currentId = null;
   let selectedPostId = null;
   let editingId = null;
+  let editorReturnRoute = 'projects';
   let pendingSourceFile = null;
   let pendingSourceStored = false;
   let pendingSourceName = '';
@@ -442,9 +585,103 @@
     const page = pageContent('posts', lang);
     return safePostDividerFile(page.postDivider) || 'divider-pink-beads.png';
   }
+  function postBlogSettings(lang = currentLang) {
+    const page = pageContent('posts', lang);
+    const perPage = [1,3,5,10].includes(Number(page.postsPerPage)) ? Number(page.postsPerPage) : 5;
+    const sidebarMode = ['recent','profile','hidden'].includes(String(page.sidebarMode || '')) ? page.sidebarMode : 'recent';
+    const recentLimit = [3,5,10].includes(Number(page.recentLimit)) ? Number(page.recentLimit) : 5;
+    const categoryFold = String(page.categoryFold || 'open') === 'closed' ? 'closed' : 'open';
+    return { perPage, sidebarMode, recentLimit, categoryFold };
+  }
   function postDividerForItem(item, lang = currentLang) {
     const config = postCategoryForItem(item, lang);
     return (config && config.divider) || defaultPostDividerFile(lang);
+  }
+
+  function normalizeVisibility(value, fallback = 'private') {
+    return String(value || '').toLowerCase() === 'public' ? 'public' : fallback;
+  }
+
+  function normalizePostWidgetConfig(value = {}) {
+    const data = value && typeof value === 'object' ? value : {};
+    const message = data.message && typeof data.message === 'object' ? data.message : {};
+    const poll = data.poll && typeof data.poll === 'object' ? data.poll : {};
+    const seen = new Set();
+    const options = (Array.isArray(poll.options) ? poll.options : String(poll.options || '').split(/\n+/)).map((option, index) => {
+      const label = String(option && option.label || option || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+      const rawKey = String(option && option.key || label || `option-${index + 1}`).toLowerCase();
+      const key = rawKey.replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 42) || `option-${index + 1}`;
+      return { key, label };
+    }).filter((option) => {
+      if (!option.label || seen.has(option.key)) return false;
+      seen.add(option.key);
+      return true;
+    }).slice(0, 10);
+    return {
+      message:{
+        enabled:Boolean(message.enabled),
+        visibility:normalizeVisibility(message.visibility, 'private'),
+        prompt:String(message.prompt || '').trim().slice(0, 160)
+      },
+      poll:{
+        enabled:Boolean(poll.enabled),
+        visibility:normalizeVisibility(poll.visibility, 'private'),
+        question:String(poll.question || '').trim().slice(0, 180),
+        options
+      }
+    };
+  }
+
+  function splitPostWidgetText(value) {
+    const text = String(value || '').replace(/\r\n/g, '\n');
+    const index = text.lastIndexOf(POST_WIDGET_PREFIX);
+    if (index < 0) return { body:text.trim(), widgets:normalizePostWidgetConfig({}) };
+    const body = text.slice(0, index).trim();
+    const raw = text.slice(index + POST_WIDGET_PREFIX.length).split(/\n/, 1)[0].trim();
+    let parsed = {};
+    try { parsed = JSON.parse(decodeURIComponent(raw)); } catch (_) { parsed = {}; }
+    return { body, widgets:normalizePostWidgetConfig(parsed) };
+  }
+
+  function splitPostContentText(value) {
+    const widgetParts = splitPostWidgetText(value);
+    const attachmentParts = splitPostAttachmentText(widgetParts.body);
+    return { body:attachmentParts.body, attachments:attachmentParts.attachments, widgets:widgetParts.widgets };
+  }
+
+  function detailWithPostWidgets(body, config) {
+    const normalized = normalizePostWidgetConfig(config);
+    const enabled = normalized.message.enabled || normalized.poll.enabled;
+    const text = String(body || '').trim();
+    if (!enabled) return text;
+    return `${text}\n\n${POST_WIDGET_PREFIX}${encodeURIComponent(JSON.stringify(normalized))}`;
+  }
+
+  function collectPostWidgetConfig() {
+    return normalizePostWidgetConfig({
+      message:{
+        enabled:Boolean($('messageEnabledInput') && $('messageEnabledInput').checked),
+        visibility:$('messageVisibilityInput')?.value || 'private',
+        prompt:$('messagePromptInput')?.value || ''
+      },
+      poll:{
+        enabled:Boolean($('pollEnabledInput') && $('pollEnabledInput').checked),
+        visibility:$('pollVisibilityInput')?.value || 'private',
+        question:$('pollQuestionInput')?.value || '',
+        options:String($('pollOptionsInput')?.value || '').split(/\n+/)
+      }
+    });
+  }
+
+  function fillPostWidgetConfig(config = {}) {
+    const normalized = normalizePostWidgetConfig(config);
+    if ($('messageEnabledInput')) $('messageEnabledInput').checked = normalized.message.enabled;
+    if ($('messageVisibilityInput')) $('messageVisibilityInput').value = normalized.message.visibility;
+    if ($('messagePromptInput')) $('messagePromptInput').value = normalized.message.prompt;
+    if ($('pollEnabledInput')) $('pollEnabledInput').checked = normalized.poll.enabled;
+    if ($('pollVisibilityInput')) $('pollVisibilityInput').value = normalized.poll.visibility;
+    if ($('pollQuestionInput')) $('pollQuestionInput').value = normalized.poll.question;
+    if ($('pollOptionsInput')) $('pollOptionsInput').value = normalized.poll.options.map(option => option.label).join('\n');
   }
   function gamsungCover(seed) {
     if (!GAMSUNG_COVERS.length) return '/assets/illust/cover-abstract.webp';
@@ -487,7 +724,7 @@
 
   function initialRoute() {
     const path = location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
-    if (path === 'projects' || path === 'posts' || path === 'about' || path === 'contact' || path === 'privacy' || path === 'terms') return path;
+    if (path === 'projects' || path === 'posts' || path === 'editor' || path === 'about' || path === 'contact' || path === 'privacy' || path === 'terms') return path;
     return 'home';
   }
 
@@ -1008,6 +1245,15 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   function routeSeo(route = currentRoute) {
+    if (route === 'editor') {
+      return {
+        title:`${editingId ? tr('artifactModalTitleEdit') : (contentKindValue() === 'post' ? tr('addPost') : tr('artifactModalTitleAdd'))} · ERBELLO`,
+        description:'ERBELLO owner writing page.',
+        url:`${SITE_ORIGIN}/editor`,
+        image:`${SITE_ORIGIN}/assets/illust/erbello-typo5.png`,
+        robots:'noindex,nofollow'
+      };
+    }
     const page = pageContent(route);
     const path = pageUrl(route);
     const titleText = page.title || tr('pageTitle');
@@ -1028,6 +1274,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     setMeta('meta[name="twitter:title"]', '<meta name="twitter:title">', 'content', seo.title);
     setMeta('meta[name="twitter:description"]', '<meta name="twitter:description">', 'content', seo.description);
     setMeta('meta[name="twitter:image"]', '<meta name="twitter:image">', 'content', seo.image);
+    setMeta('meta[name="robots"]', '<meta name="robots">', 'content', seo.robots || 'index,follow');
   }
 
   function toast(message) {
@@ -1447,6 +1694,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function goRoute(route, replace = false) {
     const next = ROUTES.includes(route) ? route : 'home';
     if (next !== currentRoute || next !== 'posts') selectedPostId = null;
+    if (next !== currentRoute) currentPostPage = 1;
+    if (currentRoute === 'editor' && next !== 'editor') editingId = null;
     currentRoute = next;
     if (!PREVIEW_MODE) {
       const url = pageUrl(next) + (ownerModeRequested ? '?admin=1' : '');
@@ -1458,6 +1707,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   function renderRoute() {
+    document.body.classList.toggle('editor-route', currentRoute === 'editor');
     document.querySelectorAll('.route-page').forEach((page) => page.classList.toggle('active', page.dataset.page === currentRoute));
     document.querySelectorAll('[data-route]').forEach((link) => link.classList.toggle('active', link.dataset.route === currentRoute));
     const editBtn = $('editPageBtn');
@@ -1645,9 +1895,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     targets.forEach(({ node, route }) => {
       if (!node) return;
       const routeKeys = filterKeysForRoute(route);
+      if (route === 'posts') node.classList.toggle('filters-folded', postBlogSettings().categoryFold === 'closed');
       node.innerHTML = routeKeys.map((key) => `<button class="filter-btn ${key === currentFilter && route === currentRoute ? 'active' : ''}" type="button" data-filter="${esc(key)}">${esc(catLabel(key))}</button>`).join('');
       node.querySelectorAll('[data-filter]').forEach((button) => {
-        button.addEventListener('click', () => { currentFilter = button.dataset.filter || 'all'; if (currentRoute === 'posts') selectedPostId = null; renderFilters(); renderGrid(); });
+        button.addEventListener('click', () => { currentFilter = button.dataset.filter || 'all'; if (currentRoute === 'posts') { selectedPostId = null; currentPostPage = 1; } renderFilters(); renderGrid(); });
       });
     });
   }
@@ -1732,15 +1983,31 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function renderGrid() {
     const grid = currentRoute === 'posts' ? $('postsGrid') : $('grid');
     if (!grid) return;
-    const items = filteredArtifacts();
-    if (!items.length) { if (currentRoute === 'posts') renderPostSidebar(); grid.innerHTML = emptyMessage(false); renderPostReader([]); return; }
-    if (currentRoute === 'posts' && !items.some(item => String(item.id) === String(selectedPostId))) selectedPostId = String(items[0].id);
-    if (currentRoute === 'posts') renderPostSidebar();
+    const allItems = filteredArtifacts();
+    if (!allItems.length) { if (currentRoute === 'posts') renderPostSidebar([]); grid.innerHTML = emptyMessage(false); renderPostReader([]); return; }
+    let items = allItems;
+    let pager = '';
+    if (currentRoute === 'posts') {
+      const settings = postBlogSettings();
+      const totalPages = Math.max(1, Math.ceil(allItems.length / settings.perPage));
+      currentPostPage = Math.min(Math.max(1, Number(currentPostPage || 1)), totalPages);
+      const start = (currentPostPage - 1) * settings.perPage;
+      items = allItems.slice(start, start + settings.perPage);
+      if (!allItems.some(item => String(item.id) === String(selectedPostId))) selectedPostId = String(allItems[0].id);
+      renderPostSidebar(allItems);
+      if (totalPages > 1) {
+        pager = `<nav class="post-pager" aria-label="Post pages"><button class="btn small" type="button" data-post-page="${currentPostPage - 1}" ${currentPostPage <= 1 ? 'disabled' : ''}>‹</button><span>${currentPostPage} / ${totalPages}</span><button class="btn small" type="button" data-post-page="${currentPostPage + 1}" ${currentPostPage >= totalPages ? 'disabled' : ''}>›</button></nav>`;
+      }
+    }
     grid.innerHTML = currentRoute === 'posts'
-      ? items.map((item) => postListMarkup(item)).join('')
+      ? `${items.map((item) => postListMarkup(item)).join('')}${pager}`
       : items.map((item) => cardMarkup(item, false)).join('');
     bindCardEvents(grid);
-    if (currentRoute === 'posts') renderPostReader(items);
+    grid.querySelectorAll('[data-post-page]').forEach((button) => button.addEventListener('click', () => {
+      currentPostPage = Number(button.dataset.postPage || 1);
+      renderGrid();
+    }));
+    if (currentRoute === 'posts') renderPostReader(allItems);
   }
 
   function renderFeaturedGrid() {
@@ -1764,27 +2031,22 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     currentRoute = 'posts';
     currentFilter = filter || 'all';
     selectedPostId = null;
+    currentPostPage = 1;
     renderFilters();
     renderGrid();
   }
 
   function renderPostSidebar(items = postSidebarItems()) {
-    const categoryNode = $('postCategoryList');
-    if (categoryNode) {
-      const keys = filterKeysForRoute('posts');
-      const countFor = (key) => {
-        if (key === 'secret') return items.filter(item => isSecretItem(item)).length;
-        if (key === 'all') return items.filter(item => !isSecretItem(item)).length;
-        return items.filter(item => !isSecretItem(item) && itemMatchesFilter(item, key)).length;
-      };
-      categoryNode.innerHTML = keys.map((key) => `<button class="post-category-item ${key === currentFilter ? 'active' : ''}" type="button" data-post-category="${esc(key)}"><span>${esc(catLabel(key))}</span><small>${countFor(key)}</small></button>`).join('');
-      categoryNode.querySelectorAll('[data-post-category]').forEach((button) => {
-        button.addEventListener('click', () => setPostFilter(button.dataset.postCategory || 'all'));
-      });
-    }
+    const sidebar = document.querySelector('.post-sidebar');
+    const profile = sidebar && sidebar.querySelector('.post-profile');
+    const block = sidebar && sidebar.querySelector('.post-side-block');
+    const settings = postBlogSettings();
+    if (sidebar) sidebar.hidden = settings.sidebarMode === 'hidden';
+    if (profile) profile.hidden = settings.sidebarMode === 'hidden';
+    if (block) block.hidden = settings.sidebarMode !== 'recent';
     const recentNode = $('postRecentList');
     if (recentNode) {
-      const recent = items.filter(item => !isSecretItem(item)).slice(0, 6);
+      const recent = items.filter(item => !isSecretItem(item)).slice(0, settings.recentLimit);
       recentNode.innerHTML = recent.length
         ? recent.map(item => `<button class="post-recent-item ${String(item.id) === String(selectedPostId) ? 'active' : ''}" type="button" data-select-post="${esc(item.id)}"><strong>${esc(compact(item.title || tr('untitled'), 34))}</strong><small>${esc(fmtMonth(item.updated_at || item.created_at))}</small></button>`).join('')
         : `<p class="post-recent-empty">${esc(tr('postNoRecent'))}</p>`;
@@ -1832,6 +2094,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const text = chunk.trim();
       if (!text) return '';
       if (/^[-*_]{3,}$/.test(text)) return '<hr class="post-body-divider">';
+      if (isMarkdownTableBlock(text)) return markdownTableToHtml(text, 'post-body-table');
       const image = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
       if (image) {
         const src = safePostAssetSrc(image[2]);
@@ -1842,6 +2105,91 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       }
       return `<p>${esc(text).replace(/\n/g, '<br />')}</p>`;
     }).join('');
+  }
+
+  function postInteractionMarkup(item, widgets) {
+    const config = normalizePostWidgetConfig(widgets);
+    if (!config.message.enabled && !config.poll.enabled) return '';
+    const id = String(item && item.id || '');
+    const messageHtml = config.message.enabled ? `<section class="post-widget-box post-message-widget"><h3>${esc(tr('postMessageTitle'))}</h3>${config.message.prompt ? `<p>${esc(config.message.prompt)}</p>` : ''}<form class="post-message-form" data-post-message-form="${esc(id)}"><input class="input" name="name" maxlength="40" data-i18n-placeholder="postMessageName" placeholder="${esc(tr('postMessageName'))}" /><textarea class="textarea textarea-mini" name="body" maxlength="1000" required data-i18n-placeholder="postMessageBody" placeholder="${esc(tr('postMessageBody'))}"></textarea><button class="btn primary" type="submit">${esc(tr('postMessageSubmit'))}</button>${config.message.visibility === 'private' ? `<small>${esc(tr('postMessagePrivateNote'))}</small>` : ''}</form><div class="post-message-list" data-post-message-list="${esc(id)}"></div></section>` : '';
+    const pollOptions = config.poll.options.length ? config.poll.options : [];
+    const pollHtml = config.poll.enabled ? `<section class="post-widget-box post-poll-widget"><h3>${esc(tr('postPollTitle'))}</h3><p>${esc(config.poll.question || tr('postPollTitle'))}</p><form class="post-poll-form" data-post-poll-form="${esc(id)}">${pollOptions.map(option => `<label class="post-poll-option"><input type="radio" name="option" value="${esc(option.key)}" required /> <span>${esc(option.label)}</span></label>`).join('')}<button class="btn primary" type="submit">${esc(tr('postVoteSubmit'))}</button>${config.poll.visibility === 'private' ? `<small>${esc(tr('postPollPrivateNote'))}</small>` : ''}</form><div class="post-poll-results" data-post-poll-results="${esc(id)}"></div></section>` : '';
+    return `<section class="post-interaction-panel" data-post-interactions="${esc(id)}">${messageHtml}${pollHtml}</section>`;
+  }
+
+  function postInteractionHeaders() {
+    return isAdminOn() && adminToken ? { 'x-admin-token':adminToken } : {};
+  }
+
+  function renderPostInteractionData(postId, data) {
+    const root = document.querySelector(`[data-post-interactions="${CSS.escape(String(postId))}"]`);
+    if (!root || !data) return;
+    const list = root.querySelector(`[data-post-message-list="${CSS.escape(String(postId))}"]`);
+    if (list) {
+      const messages = data.message && Array.isArray(data.message.messages) ? data.message.messages : [];
+      list.innerHTML = messages.length
+        ? messages.map(msg => `<article class="post-message-item"><strong>${esc(msg.name || '익명')}</strong><p>${esc(msg.body || '')}</p><time>${esc(fmtMonth(msg.created_at))}</time></article>`).join('')
+        : `<p class="post-widget-empty">${esc(data.message && data.message.visibility === 'private' && !data.admin ? tr('postMessagePrivateNote') : tr('postMessagesEmpty'))}</p>`;
+    }
+    const results = root.querySelector(`[data-post-poll-results="${CSS.escape(String(postId))}"]`);
+    if (results && data.poll) {
+      if (!data.poll.resultVisible) {
+        results.innerHTML = `<p class="post-widget-empty">${esc(tr('postPollPrivateNote'))}</p>`;
+      } else {
+        const rows = Array.isArray(data.poll.results) ? data.poll.results : [];
+        const total = rows.reduce((sum, item) => sum + Number(item.count || 0), 0);
+        results.innerHTML = rows.map((item) => {
+          const count = Number(item.count || 0);
+          const pct = total ? Math.round((count / total) * 100) : 0;
+          return `<div class="post-poll-result"><span>${esc(item.label)}</span><b>${count}</b><i style="--pct:${pct}%"></i></div>`;
+        }).join('');
+      }
+    }
+  }
+
+  async function loadPostInteractions(postId) {
+    const root = document.querySelector(`[data-post-interactions="${CSS.escape(String(postId))}"]`);
+    if (!root || PREVIEW_MODE) return;
+    try {
+      const data = await api(`/api/posts/${encodeURIComponent(postId)}/interactions`, { headers:postInteractionHeaders() });
+      renderPostInteractionData(postId, data);
+    } catch (error) {
+      root.insertAdjacentHTML('beforeend', `<p class="error">${esc(error.message || 'Interaction load failed')}</p>`);
+    }
+  }
+
+  async function submitPostMessage(postId, form) {
+    const body = form && form.elements.body ? form.elements.body.value.trim() : '';
+    if (!body) return;
+    const payload = { name:form.elements.name ? form.elements.name.value.trim() : '', body };
+    const data = await api(`/api/posts/${encodeURIComponent(postId)}/messages`, { method:'POST', headers:postInteractionHeaders(), body:JSON.stringify(payload) });
+    form.reset();
+    renderPostInteractionData(postId, data);
+    toast(tr('postInteractionSaved'));
+  }
+
+  async function submitPostVote(postId, form) {
+    const option = form && form.elements.option ? form.elements.option.value : '';
+    if (!option) return;
+    const data = await api(`/api/posts/${encodeURIComponent(postId)}/votes`, { method:'POST', headers:postInteractionHeaders(), body:JSON.stringify({ option }) });
+    renderPostInteractionData(postId, data);
+    toast(tr('postInteractionSaved'));
+  }
+
+  function bindPostInteractions(postId) {
+    const root = document.querySelector(`[data-post-interactions="${CSS.escape(String(postId))}"]`);
+    if (!root) return;
+    root.querySelector('[data-post-message-form]')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await submitPostMessage(postId, event.currentTarget); }
+      catch (error) { toast(error.message || tr('saveError')); }
+    });
+    root.querySelector('[data-post-poll-form]')?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      try { await submitPostVote(postId, event.currentTarget); }
+      catch (error) { toast(error.message || tr('saveError')); }
+    });
+    loadPostInteractions(postId);
   }
 
   function renderPostReader(items = filteredArtifacts()) {
@@ -1860,14 +2208,15 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(tr('privateBadge'))}</p><h2>${esc(title)}</h2><p>${esc(tr('lockedDescription'))}</p></header><div class="locked-blind post-reader-blind" aria-hidden="true"><span></span><span></span><span></span></div>`;
       return;
     }
-    const parts = splitPostAttachmentText(item.detail_text || '');
+    const parts = splitPostContentText(item.detail_text || '');
     const body = postBodyMarkup(parts.body || item.description || '');
     const attachments = (parts.attachments || []).map(file => `<a class="detail-attachment" href="${esc(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(file.name || 'attachment')}</strong><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><span>↗</span></a>`).join('');
     const status = statusKey(item);
     const adminStatus = isAdminOn() && status !== 'public' ? `<span class="post-reader-status">${esc(statusLabel(status))}</span>` : '';
     const dividerFile = postDividerForItem(item);
     const divider = dividerFile ? `<img class="post-reader-divider-img" src="${esc(`${POST_ASSET_BASE}${dividerFile}`)}" alt="" loading="lazy" aria-hidden="true">` : '';
-    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}`;
+    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}${postInteractionMarkup(item, parts.widgets)}`;
+    bindPostInteractions(item.id);
   }
 
   function findArtifact(id) { return artifacts.find((item) => String(item.id) === String(id)); }
@@ -2018,10 +2367,26 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return `<figure class="post-editor-asset"><img src="${safeSrc}" alt="${safeAlt}"${token ? ` data-inline-token="${esc(token)}"` : ''} loading="lazy"></figure>`;
   }
 
+  function isMarkdownTableBlock(value) {
+    const lines = String(value || '').trim().split('\n').map(line => line.trim()).filter(Boolean);
+    return lines.length >= 2 && lines[0].includes('|') && /^[\s|:-]+$/.test(lines[1]);
+  }
+
+  function markdownTableToHtml(value, className = 'post-editor-table') {
+    const lines = String(value || '').trim().split('\n').map(line => line.trim()).filter(Boolean);
+    if (!isMarkdownTableBlock(lines.join('\n'))) return '';
+    const rows = lines.filter((_, index) => index !== 1).map(line => line.replace(/^\||\|$/g, '').split('|').map(cell => cell.trim()));
+    if (!rows.length) return '';
+    const head = rows[0] || [];
+    const body = rows.slice(1);
+    return `<table class="${esc(className)}" data-markdown="${esc(lines.join('\n'))}"><thead><tr>${head.map(cell => `<th>${esc(cell || ' ')}</th>`).join('')}</tr></thead><tbody>${body.map(row => `<tr>${head.map((_, index) => `<td>${esc(row[index] || ' ')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  }
+
   function postMarkdownBlockToEditorHtml(snippet) {
     const text = String(snippet || '').trim();
     if (!text) return '';
     if (/^[-*_]{3,}$/.test(text)) return '<hr class="post-editor-divider">';
+    if (isMarkdownTableBlock(text)) return markdownTableToHtml(text);
     const image = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (image) return postEditorImageHtml(image[2], image[1]);
     return `<p>${esc(text).replace(/\n/g, '<br>')}</p>`;
@@ -2053,6 +2418,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const element = node;
       if (element.matches('hr')) {
         blocks.push('---');
+        return;
+      }
+      if (element.matches('table[data-markdown]')) {
+        blocks.push(element.getAttribute('data-markdown') || '');
         return;
       }
       const img = element.matches('img') ? element : element.querySelector('img');
@@ -2116,6 +2485,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function insertPostAsset(file) {
     const asset = POST_ASSETS.find(item => item.file === file);
     insertPostMarkdown(postAssetMarkdown(asset));
+  }
+
+  function insertEditorTable() {
+    insertPostMarkdown('| 제목 | 내용 | 메모 |\n| --- | --- | --- |\n|  |  |  |');
   }
 
   function clearPendingInlineImages() {
@@ -2219,6 +2592,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const isPost = contentKindValue() === 'post';
     const modal = $('artifactModal');
     if (modal) modal.classList.toggle('post-mode', isPost);
+    if (modal && !isPost) modal.classList.remove('assets-open', 'files-open');
     renderTypeOptions();
     if ($('formatInput')) {
       if (isPost) $('formatInput').value = 'post';
@@ -2340,6 +2714,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if ($('tagsInput')) $('tagsInput').value = '';
     if ($('postSubcategoryInput')) $('postSubcategoryInput').value = '';
     if ($('detailInput')) $('detailInput').value = '';
+    fillPostWidgetConfig({});
     if ($('privateInput')) $('privateInput').checked = false;
     if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
     updatePrivateFields();
@@ -2366,12 +2741,44 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     updateContentKindFields();
   }
 
+  function editorPathWithAdmin() {
+    return pageUrl('editor') + (ownerModeRequested ? '?admin=1' : '');
+  }
+
+  function routePathWithAdmin(route) {
+    return pageUrl(route || 'projects') + (ownerModeRequested ? '?admin=1' : '');
+  }
+
+  function openEditorRoute(kind = contentKindValue(), replace = false) {
+    editorReturnRoute = kind === 'post' ? 'posts' : 'projects';
+    currentRoute = 'editor';
+    if (!PREVIEW_MODE) {
+      if (replace) history.replaceState({ route:'editor' }, '', editorPathWithAdmin());
+      else history.pushState({ route:'editor' }, '', editorPathWithAdmin());
+    }
+    renderRoute();
+    updateContentKindFields();
+    window.scrollTo({ top:0, behavior:'smooth' });
+    setTimeout(() => $('titleInput')?.focus(), 60);
+  }
+
+  function closeEditorRoute(replace = false) {
+    const next = editorReturnRoute || (contentKindValue() === 'post' ? 'posts' : 'projects');
+    currentRoute = ROUTES.includes(next) ? next : 'projects';
+    editingId = null;
+    if (!PREVIEW_MODE) {
+      if (replace) history.replaceState({ route:currentRoute }, '', routePathWithAdmin(currentRoute));
+      else history.pushState({ route:currentRoute }, '', routePathWithAdmin(currentRoute));
+    }
+    renderRoute();
+    window.scrollTo({ top:0, behavior:'smooth' });
+  }
+
   function openAddModal(kind = routeContentKind()) {
     resetArtifactForm();
     if ($('contentKindInput')) $('contentKindInput').value = kind === 'post' ? 'post' : 'project';
     updateContentKindFields();
-    openModal('artifactModal');
-    setTimeout(() => $('titleInput').focus(), 60);
+    openEditorRoute(kind === 'post' ? 'post' : 'project');
   }
 
   async function editArtifact(id) {
@@ -2386,8 +2793,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const isPost = isPostItem(item);
       if ($('tagsInput')) $('tagsInput').value = tagsText(isPost ? visibleArtifactTags(item) : (item.tags || []));
       if ($('postSubcategoryInput')) $('postSubcategoryInput').value = isPost ? postSubcategory(item) : '';
-      const postParts = isPost ? splitPostAttachmentText(item.detail_text || '') : { body:item.detail_text || '', attachments:[] };
+      const postParts = isPost ? splitPostContentText(item.detail_text || '') : { body:item.detail_text || '', attachments:[], widgets:normalizePostWidgetConfig({}) };
       if ($('detailInput')) $('detailInput').value = postParts.body || '';
+      fillPostWidgetConfig(postParts.widgets || {});
       if ($('statusInput')) $('statusInput').value = statusKey(item);
       if ($('contentKindInput')) $('contentKindInput').value = isPost ? 'post' : 'project';
       if ($('privateInput')) $('privateInput').checked = statusKey(item) === 'private' || Boolean(item.is_private);
@@ -2419,7 +2827,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if (isPost) syncPostEditorFromTextarea();
       updateDetectHint();
       detailQualityText();
-      openModal('artifactModal');
+      openEditorRoute(isPost ? 'post' : 'project');
     } catch (error) { console.error(error); toast(tr('loadError')); }
   }
 
@@ -2499,6 +2907,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
           }
         }
         detail_text = detailWithPostAttachments(detail_text, attachments);
+        detail_text = detailWithPostWidgets(detail_text, collectPostWidgetConfig());
       }
 
       const payload = {
@@ -2510,7 +2919,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       };
       if (editingId) await api(`/api/admin/artifacts/${encodeURIComponent(editingId)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
       else await api('/api/admin/artifacts', { method:'POST', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify(payload) });
-      closeModal('artifactModal');
+      closeEditorRoute(true);
       clearPendingInlineImages();
       toast(tr('saved'));
       await loadArtifacts();
@@ -2678,6 +3087,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     setHidden('pageFilterField', !hasFilters);
     setHidden('pagePostCategoriesField', slug !== 'posts');
     setHidden('pagePostDividerField', slug !== 'posts');
+    setHidden('pagePostBlogSettingsField', slug !== 'posts');
   }
 
   function renderPagePostDividerSelect(page) {
@@ -2705,6 +3115,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('pageEmailInput').value = page.email || '';
     if ($('pageFilterOrderInput')) $('pageFilterOrderInput').value = normalizeFilterOrder(page.filterOrder, slug).join(', ');
     if ($('pagePostCategoriesInput')) $('pagePostCategoriesInput').value = formatPostCategoryConfig(postCategoryConfigs(lang));
+    const blog = postBlogSettings(lang);
+    if ($('pagePostsPerPageInput')) $('pagePostsPerPageInput').value = String(blog.perPage);
+    if ($('pageSidebarModeInput')) $('pageSidebarModeInput').value = blog.sidebarMode;
+    if ($('pageRecentLimitInput')) $('pageRecentLimitInput').value = String(blog.recentLimit);
+    if ($('pageCategoryFoldInput')) $('pageCategoryFoldInput').value = blog.categoryFold;
     renderPagePostDividerSelect(page);
     renderContactLinkEditor(page.links || []);
     updatePageEditorVisibility();
@@ -2729,6 +3144,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       content.postCategories = postCategories;
       content.postDivider = safePostDividerFile($('pagePostDividerInput')?.value || '') || defaultPostDividerFile(lang);
       content.filterOrder = normalizePostFilterOrder($('pageFilterOrderInput')?.value || '', postCategories.length ? postCategories : defaultPostCategoryConfigs(lang));
+      content.postsPerPage = Number($('pagePostsPerPageInput')?.value || 5);
+      content.sidebarMode = ['recent','profile','hidden'].includes($('pageSidebarModeInput')?.value) ? $('pageSidebarModeInput').value : 'recent';
+      content.recentLimit = Number($('pageRecentLimitInput')?.value || 5);
+      content.categoryFold = $('pageCategoryFoldInput')?.value === 'closed' ? 'closed' : 'open';
     }
     try {
       $('pageError').textContent = '';
@@ -2739,6 +3158,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       closeModal('pageModal');
       toast(tr('pageSaved'));
       renderPageContent();
+      renderFilters();
+      renderGrid();
     } catch (error) { console.error(error); $('pageError').textContent = error.message || tr('pageSaveError'); }
   }
 
@@ -2785,6 +3206,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       row('Storage connection', Boolean(data.storageOk || data.mode === 'local-json'), data.mode === 'local-json' ? 'local-json' : 'Supabase Storage'),
       row('Artifacts table', Boolean(data.artifactsOk), `projects ${data.artifactCount ?? '-'}`),
       row('Site pages table', Boolean(data.pagesOk), `rows ${data.pageCount ?? '-'}`),
+      row('Post interactions table', Boolean(data.postInteractionsOk) || data.mode === 'local-json', `rows ${data.postInteractionCount ?? 0}${data.postInteractionsError ? ` · ${data.postInteractionsError}` : ''}`),
       row('Media bucket', Boolean(data.mediaBucketOk) || data.mode === 'local-json', data.mediaBucket || ''),
       row('Artifact bucket', Boolean(data.artifactBucketOk) || data.mode === 'local-json', data.artifactBucket || ''),
       row('Storage upload', Boolean(data.storageUploadOk) || data.mode === 'local-json', data.storageUploadOk ? 'signed upload ready' : (data.storageUploadError || 'check required')),
@@ -2818,6 +3240,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     window.addEventListener('popstate', () => { currentRoute = initialRoute(); if (currentRoute !== 'posts') selectedPostId = null; renderRoute(); });
     const syncSearch = (value) => {
       searchQuery = value;
+      currentPostPage = 1;
       if ($('searchInput') && $('searchInput').value !== value) $('searchInput').value = value;
       if ($('postSearchInput') && $('postSearchInput').value !== value) $('postSearchInput').value = value;
       renderGrid();
@@ -2840,6 +3263,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('addBtnToolbar')?.addEventListener('click', () => requireAdmin(() => openAddModal('project')));
     $('postAddBtn')?.addEventListener('click', () => requireAdmin(() => openAddModal('post')));
     $('postAddBtnToolbar')?.addEventListener('click', () => requireAdmin(() => openAddModal('post')));
+    $('editorCloseBtn')?.addEventListener('click', () => closeEditorRoute());
+    $('editorCancelBtn')?.addEventListener('click', () => closeEditorRoute());
     document.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => closeModal(button.dataset.close)));
     document.querySelectorAll('.overlay').forEach((overlay) => overlay.addEventListener('click', (event) => { if (event.target === overlay) closeModal(overlay.id); }));
     $('unlockBtn')?.addEventListener('click', unlockAdmin);
@@ -2874,6 +3299,22 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       syncTextareaFromPostEditor();
       syncPostEditorFromTextarea();
       detailQualityText();
+    });
+    $('editorPhotoToolBtn')?.addEventListener('click', () => {
+      if (contentKindValue() === 'post') $('postInlineImageInput')?.click();
+      else $('galleryInput')?.click();
+    });
+    $('editorTableToolBtn')?.addEventListener('click', insertEditorTable);
+    $('editorDividerToolBtn')?.addEventListener('click', () => insertPostMarkdown('---'));
+    $('editorAssetToolBtn')?.addEventListener('click', () => $('artifactModal')?.classList.toggle('assets-open'));
+    $('editorFileToolBtn')?.addEventListener('click', () => {
+      $('artifactModal')?.classList.toggle('files-open', true);
+      $('postFileInput')?.click();
+    });
+    $('editorSourceToolBtn')?.addEventListener('click', () => {
+      const target = $('dropZone') || $('codeInput');
+      target?.scrollIntoView({ behavior:'smooth', block:'center' });
+      setTimeout(() => $('fileInput')?.focus(), 180);
     });
     $('fillDetailBtn')?.addEventListener('click', fillDetailDraft);
     $('exportBtn')?.addEventListener('click', () => requireAdmin(exportProjectList));

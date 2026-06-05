@@ -14,6 +14,7 @@ const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
 const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
 const POST_SOURCE_CODE = '__ERBELLO_POST__';
 const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
+const POST_WIDGET_PREFIX = 'ERBELLO_POST_WIDGETS_V1:';
 const STORAGE_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -23,6 +24,13 @@ const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
   ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}" crossorigin="anonymous"></script>`
   : '';
+
+const interactionLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 function injectAdSense(html) {
   const text = String(html || '');
@@ -57,11 +65,27 @@ function safePostInlineAssetUrl(value) {
   return '';
 }
 
+function isMarkdownTableBlock(value) {
+  const lines = String(value || '').trim().split('\n').map(line => line.trim()).filter(Boolean);
+  return lines.length >= 2 && lines[0].includes('|') && /^[\s|:-]+$/.test(lines[1]);
+}
+
+function renderMarkdownTable(value) {
+  const lines = String(value || '').trim().split('\n').map(line => line.trim()).filter(Boolean);
+  if (!isMarkdownTableBlock(lines.join('\n'))) return '';
+  const rows = lines.filter((_, index) => index !== 1).map(line => line.replace(/^\||\|$/g, '').split('|').map(cell => cell.trim()));
+  if (!rows.length) return '';
+  const head = rows[0] || [];
+  const body = rows.slice(1);
+  return `<table class="post-body-table"><thead><tr>${head.map(cell => `<th>${escHtml(cell || ' ')}</th>`).join('')}</tr></thead><tbody>${body.map(row => `<tr>${head.map((_, index) => `<td>${escHtml(row[index] || ' ')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
 function renderPostBodyHtml(value) {
   const blocks = String(value || '').replace(/\r\n/g, '\n').split(/\n{2,}/).map(part => part.trim()).filter(Boolean).slice(0, 80);
   if (!blocks.length) return '<p>아직 본문이 없습니다.</p>';
   return blocks.map((block) => {
     if (/^(?:---|\*\*\*)$/.test(block)) return '<hr class="post-body-divider">';
+    if (isMarkdownTableBlock(block)) return renderMarkdownTable(block);
     const imageMatch = block.match(/^!\[([^\]\n]{0,120})\]\(([^)\s]+)\)$/);
     if (imageMatch) {
       const src = safePostInlineAssetUrl(imageMatch[2]);
@@ -93,6 +117,66 @@ function splitPostAttachments(value) {
     attachments = [];
   }
   return { body, attachments };
+}
+
+function normalizeVisibility(value, fallback = 'private') {
+  const text = String(value || '').toLowerCase().trim();
+  return text === 'public' ? 'public' : fallback;
+}
+
+function normalizePostWidgetConfig(value) {
+  const data = value && typeof value === 'object' ? value : {};
+  const message = data.message && typeof data.message === 'object' ? data.message : {};
+  const poll = data.poll && typeof data.poll === 'object' ? data.poll : {};
+  const options = Array.isArray(poll.options) ? poll.options : [];
+  const seen = new Set();
+  return {
+    message:{
+      enabled:Boolean(message.enabled),
+      visibility:normalizeVisibility(message.visibility, 'private'),
+      prompt:String(message.prompt || '').trim().slice(0, 160)
+    },
+    poll:{
+      enabled:Boolean(poll.enabled),
+      visibility:normalizeVisibility(poll.visibility, 'private'),
+      question:String(poll.question || '').trim().slice(0, 180),
+      options:options.map((option, index) => {
+        const label = String(option && option.label || option || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+        const rawKey = String(option && option.key || label || `option-${index + 1}`).toLowerCase();
+        const key = rawKey.replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 42) || `option-${index + 1}`;
+        return { key, label };
+      }).filter(option => {
+        if (!option.label || seen.has(option.key)) return false;
+        seen.add(option.key);
+        return true;
+      }).slice(0, 10)
+    }
+  };
+}
+
+function splitPostWidgets(value) {
+  const text = String(value || '').replace(/\r\n/g, '\n');
+  const index = text.lastIndexOf(POST_WIDGET_PREFIX);
+  if (index < 0) return { body:text.trim(), config:normalizePostWidgetConfig({}) };
+  const body = text.slice(0, index).trim();
+  const raw = text.slice(index + POST_WIDGET_PREFIX.length).split(/\n/, 1)[0].trim();
+  let parsed = {};
+  try { parsed = JSON.parse(decodeURIComponent(raw)); } catch (_) { parsed = {}; }
+  return { body, config:normalizePostWidgetConfig(parsed) };
+}
+
+function splitPostContent(value) {
+  const widgetParts = splitPostWidgets(value);
+  const attachmentParts = splitPostAttachments(widgetParts.body);
+  return { body:attachmentParts.body, attachments:attachmentParts.attachments, widgets:widgetParts.config };
+}
+
+function pollResults(interactions, options) {
+  const counts = new Map((options || []).map(option => [option.key, 0]));
+  (interactions || []).filter(item => item.kind === 'vote').forEach((vote) => {
+    if (counts.has(vote.option_key)) counts.set(vote.option_key, counts.get(vote.option_key) + 1);
+  });
+  return (options || []).map(option => ({ ...option, count:counts.get(option.key) || 0 }));
 }
 
 function fmtMonthKo(value) {
@@ -134,7 +218,7 @@ function absoluteSiteUrl(value, origin = DEFAULT_SITE_ORIGIN) {
 }
 
 function artifactSummaryText(artifact) {
-  const detail = plainText(splitPostAttachments(artifact.detail_text).body, 4000);
+  const detail = plainText(splitPostContent(artifact.detail_text).body, 4000);
   if (detail) return detail;
   const desc = plainText(artifact.description, 500);
   if (desc) return desc;
@@ -144,7 +228,7 @@ function artifactSummaryText(artifact) {
 }
 
 function artifactDetailBody(artifact) {
-  const detail = splitPostAttachments(artifact && artifact.detail_text || '').body.slice(0, 8000);
+  const detail = splitPostContent(artifact && artifact.detail_text || '').body.slice(0, 8000);
   if (detail) return detail;
   const desc = String(artifact && artifact.description || '').trim();
   if (desc) return desc;
@@ -691,7 +775,8 @@ function renderProjectDetailPage(req, artifact) {
   const title = artifact.title || 'Untitled project';
   const isPost = isPostArtifact(artifact);
   const desc = artifact.description || (isPost ? 'ERBELLO가 작성한 포스트입니다.' : 'ERBELLO에 보관된 프로젝트입니다.');
-  const postAttachmentData = isPost ? splitPostAttachments(artifact.detail_text).attachments : [];
+  const postContentData = isPost ? splitPostContent(artifact.detail_text) : { attachments:[], widgets:normalizePostWidgetConfig({}) };
+  const postAttachmentData = postContentData.attachments || [];
   const summary = artifactDetailBody(artifact);
   const summaryPlain = plainText(summary || desc, 5000);
   const tags = tagList(artifact);
@@ -830,13 +915,17 @@ function cleanLang(value) {
 function cleanPageContent(value) {
   const src = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
   const cleanString = (v, max = 1000) => String(v || '').trim().slice(0, max);
-  const cleanBlocks = Array.isArray(src.blocks) ? src.blocks.slice(0, 4).map((block) => ({ title: cleanString(block && block.title, 120), text: cleanString(block && block.text, 500) })) : [];
+  const cleanBlocks = Array.isArray(src.blocks) ? src.blocks.slice(0, 10).map((block) => ({ title: cleanString(block && block.title, 120), text: cleanString(block && block.text, 1600) })) : [];
   const cleanLinks = Array.isArray(src.links) ? src.links.slice(0, 12).map((link) => ({ label: cleanString(link && link.label, 80), url: cleanString(link && link.url, 300) })) : [];
   const allowedFilters = new Set(['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret']);
   const cleanFilterOrder = (Array.isArray(src.filterOrder) ? src.filterOrder : String(src.filterOrder || '').split(/[\s,|/]+/))
     .map(item => String(item || '').trim().toLowerCase())
     .filter((item, index, arr) => allowedFilters.has(item) && arr.indexOf(item) === index)
     .slice(0, 12);
+  const postsPerPage = [1, 3, 5, 10].includes(Number(src.postsPerPage)) ? Number(src.postsPerPage) : undefined;
+  const sidebarMode = ['recent', 'profile', 'hidden'].includes(String(src.sidebarMode || '')) ? src.sidebarMode : undefined;
+  const recentLimit = [3, 5, 10].includes(Number(src.recentLimit)) ? Number(src.recentLimit) : undefined;
+  const categoryFold = String(src.categoryFold || '') === 'closed' ? 'closed' : (String(src.categoryFold || '') === 'open' ? 'open' : undefined);
   return {
     eyebrow: cleanString(src.eyebrow, 120),
     script: cleanString(src.script, 120),
@@ -846,7 +935,13 @@ function cleanPageContent(value) {
     email: cleanString(src.email, 200),
     blocks: cleanBlocks,
     links: cleanLinks,
-    filterOrder: cleanFilterOrder
+    filterOrder: cleanFilterOrder,
+    postCategories: cleanString(src.postCategories, 3000),
+    postDivider: cleanString(src.postDivider, 160),
+    ...(postsPerPage ? { postsPerPage } : {}),
+    ...(sidebarMode ? { sidebarMode } : {}),
+    ...(recentLimit ? { recentLimit } : {}),
+    ...(categoryFold ? { categoryFold } : {})
   };
 }
 
@@ -950,7 +1045,7 @@ function payloadFromBody(body, existing = null) {
 }
 
 function hasPostContent(payload) {
-  const postParts = splitPostAttachments(payload && payload.detail_text || '');
+  const postParts = splitPostContent(payload && payload.detail_text || '');
   return Boolean(payload && (
     plainText(postParts.body, 20)
     || plainText(payload.description, 20)
@@ -968,8 +1063,108 @@ function validateArtifactPayload(payload) {
   return (payload.code || payload.code_storage_path) ? '' : 'title and code are required.';
 }
 
+async function interactionPostFromRequest(req, res) {
+  const artifact = await store.getArtifact(req.params.id);
+  if (!artifact || !isPostArtifact(artifact) || isDraftArtifact(artifact)) {
+    res.status(404).json({ error:'Post not found.' });
+    return null;
+  }
+  if (artifact.is_private && !isAdminRequest(req)) {
+    res.status(404).json({ error:'Post not found.' });
+    return null;
+  }
+  return artifact;
+}
+
+function interactionSummary(config, interactions, isAdmin) {
+  const messages = config.message.enabled && (config.message.visibility === 'public' || isAdmin)
+    ? interactions.filter(item => item.kind === 'message').map(item => ({
+      id:item.id,
+      name:item.name || '익명',
+      body:item.body,
+      visibility:item.visibility,
+      created_at:item.created_at
+    })).slice(-80)
+    : [];
+  const resultVisible = config.poll.enabled && (config.poll.visibility === 'public' || isAdmin);
+  const results = resultVisible ? pollResults(interactions, config.poll.options) : [];
+  return {
+    message:{
+      enabled:config.message.enabled,
+      visibility:config.message.visibility,
+      prompt:config.message.prompt,
+      messages
+    },
+    poll:{
+      enabled:config.poll.enabled,
+      visibility:config.poll.visibility,
+      question:config.poll.question,
+      options:config.poll.options,
+      results,
+      resultVisible
+    },
+    admin:isAdmin
+  };
+}
+
 app.get('/api/status', (_req, res) => {
   res.json({ ok: true, storage: store.mode, adminConfigured: Boolean(getAdminHash()) });
+});
+
+app.get('/api/posts/:id/interactions', async (req, res) => {
+  try {
+    const artifact = await interactionPostFromRequest(req, res);
+    if (!artifact) return;
+    const isAdmin = isAdminRequest(req);
+    const config = splitPostContent(artifact.detail_text || '').widgets;
+    const interactions = await store.listPostInteractions(req.params.id, { includePrivate:isAdmin });
+    res.json(interactionSummary(config, interactions, isAdmin));
+  } catch (error) {
+    res.status(500).json({ error:error.message || 'Could not load post interactions.' });
+  }
+});
+
+app.post('/api/posts/:id/messages', interactionLimit, async (req, res) => {
+  try {
+    const artifact = await interactionPostFromRequest(req, res);
+    if (!artifact) return;
+    const config = splitPostContent(artifact.detail_text || '').widgets;
+    if (!config.message.enabled) return res.status(403).json({ error:'Message form is not enabled.' });
+    const body = cleanText(req.body && req.body.body, 1000);
+    if (!body) return res.status(400).json({ error:'Message is required.' });
+    await store.createPostInteraction({
+      post_id:req.params.id,
+      kind:'message',
+      visibility:config.message.visibility,
+      name:cleanText(req.body && req.body.name, 40) || '익명',
+      body
+    });
+    const interactions = await store.listPostInteractions(req.params.id, { includePrivate:isAdminRequest(req) });
+    res.json(interactionSummary(config, interactions, isAdminRequest(req)));
+  } catch (error) {
+    res.status(500).json({ error:error.message || 'Could not save message.' });
+  }
+});
+
+app.post('/api/posts/:id/votes', interactionLimit, async (req, res) => {
+  try {
+    const artifact = await interactionPostFromRequest(req, res);
+    if (!artifact) return;
+    const config = splitPostContent(artifact.detail_text || '').widgets;
+    if (!config.poll.enabled) return res.status(403).json({ error:'Poll is not enabled.' });
+    const option = String(req.body && req.body.option || '').trim();
+    if (!config.poll.options.some(item => item.key === option)) return res.status(400).json({ error:'Invalid poll option.' });
+    await store.createPostInteraction({
+      post_id:req.params.id,
+      kind:'vote',
+      visibility:config.poll.visibility,
+      option_key:option
+    });
+    const interactions = await store.listPostInteractions(req.params.id, { includePrivate:isAdminRequest(req) });
+    res.json(interactionSummary(config, interactions, isAdminRequest(req)));
+  } catch (error) {
+    res.status(500).json({ error:error.message || 'Could not save vote.' });
+  }
 });
 
 app.get('/api/admin/system', checkAdmin, async (req, res) => {

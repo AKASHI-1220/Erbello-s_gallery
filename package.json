@@ -1,8 +1,8 @@
 {
   "name": "erbello-artifact-gallery",
-  "version": "30.0.0",
+  "version": "32.0.0",
   "private": true,
-  "description": "ERBELLO project gallery with blog-style post editor, custom post categories, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
+  "description": "ERBELLO project gallery with blog-style posts, custom categories, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
