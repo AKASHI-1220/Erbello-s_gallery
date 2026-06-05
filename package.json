@@ -1,8 +1,8 @@
 {
   "name": "erbello-artifact-gallery",
-  "version": "25.0.0",
+  "version": "29.0.0",
   "private": true,
-  "description": "ERBELLO project gallery and blog-style post archive with clean cute pixel UI, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
+  "description": "ERBELLO project gallery and blog-style post archive with post asset library, admin filter ordering, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",

@@ -1,14 +1,27 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v25 blog posts';
+  const VERSION = 'ERBELLO Gallery v29 more blog assets';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
   const COLORS = ['crimson','sky','lavender','yellowblue','cream','rose','ocean','aurora','mint','pixel'];
   const LANGS = ['ko','en','ja','zh'];
   const ROUTES = ['home','projects','posts','about','contact','privacy','terms'];
-  const CATEGORIES = ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other', 'secret'];
+  const CATEGORIES = ['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret'];
+  const POST_ASSET_BASE = '/assets/illust/imagegen-assets/web/';
+  const POST_ASSETS = [
+    ['bunny-mascot.png','토끼 마스코트'], ['heart-gem.png','보석 하트'], ['bow-heart.png','리본 하트'], ['potion-charm.png','물약 참'], ['rose-bouquet.png','장미 꽃다발'], ['pink-candy.png','핑크 캔디'], ['gold-star.png','골드 스타'], ['cloud-soft.png','구름'],
+    ['charm-garland.png','참 가랜드'], ['divider-pink-beads.png','핑크 비즈선'], ['divider-blue-stars.png','블루 별선'], ['divider-lace-heart.png','레이스 하트선'], ['divider-cloud-moon.png','구름 달선'], ['divider-floral-rose.png','장미 꽃선'],
+    ['divider-solid-heart-pink.png','실선 하트'], ['divider-dotted-bow-heart.png','점선 리본하트'], ['divider-dashed-cloud-stars.png','대시 구름별'], ['divider-lace-rose-pearl.png','레이스 장미진주'], ['divider-checkered-heart-tape.png','체크 하트테이프'], ['divider-lavender-potion-gems.png','라벤더 물약선'],
+    ['memo-card.png','메모 카드'], ['index-tabs.png','인덱스 탭'], ['index-tab-stack.png','인덱스 묶음'], ['index-bookmarks.png','북마크 인덱스'], ['index-memo-tab.png','메모 인덱스'],
+    ['index-single-heart-pink.png','핑크 하트 인덱스'], ['index-single-star-blue.png','블루 스타 인덱스'], ['index-single-moon-lavender.png','라벤더 북마크'], ['index-single-bow-cream.png','크림 리본 인덱스'],
+    ['daily-teacup.png','일상 찻잔'], ['daily-calendar.png','일상 달력'],
+    ['study-book.png','공부 책'], ['study-pencil.png','공부 연필'], ['study-laptop.png','공부 노트북'],
+    ['cooking-pot.png','요리 냄비'], ['cooking-cake.png','요리 케이크'], ['cooking-utensils.png','요리 도구'],
+    ['game-controller.png','게임 컨트롤러'], ['game-dice.png','게임 주사위'],
+    ['fandom-plush.png','굿즈 인형'], ['fandom-acrylic-stand.png','아크릴 스탠드'], ['fandom-ticket.png','티켓'], ['fandom-keychain.png','키링'], ['fandom-trading-card.png','포카'], ['fandom-rosette.png','로제트']
+  ].map(([file, label]) => ({ file, label, src:`${POST_ASSET_BASE}${file}` }));
   const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
   const GAMSUNG_COVERS = ['1','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(n => `/assets/illust/gamsung-${n}.webp`);
   const SITE_ORIGIN = 'https://erbello.vercel.app';
@@ -16,6 +29,7 @@
   const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
   const POST_SOURCE_CODE = '__ERBELLO_POST__';
   const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
+  const POST_SUBCATEGORY_PREFIX = 'sub:';
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
   const INLINE_CODE_LIMIT = 900 * 1024;
@@ -72,6 +86,16 @@
     }
   };
 
+  const CATEGORY_LABEL_PATCH = {
+    ko:{ study:'공부', cooking:'요리', fandom:'덕질' },
+    en:{ study:'Study', cooking:'Cooking', fandom:'Fandom' },
+    ja:{ study:'勉強', cooking:'料理', fandom:'推し活' },
+    zh:{ study:'学习', cooking:'料理', fandom:'追星' }
+  };
+  Object.keys(CATEGORY_LABEL_PATCH).forEach((lang) => {
+    if (I18N[lang] && I18N[lang].categories) Object.assign(I18N[lang].categories, CATEGORY_LABEL_PATCH[lang]);
+  });
+
 
   const EXTRA_I18N = {
     ko:{ navTerms:'이용약관', statusLabel:'공개 상태', statusPublic:'공개', statusPrivate:'비밀', statusDraft:'임시저장', draftBadge:'임시저장', contentKindLabel:'콘텐츠 종류', contentKindProject:'프로젝트', contentKindPost:'포스트', addPost:'포스트 추가', typePost:'포스트', formatPost:'포스트', postBodyRequired:'포스트는 본문, 설명, 이미지 중 하나가 필요합니다.', postDetailLabel:'포스트 본문', postDetailHint:'블로그 글처럼 자유롭게 내용을 적고, 필요한 이미지를 함께 올릴 수 있습니다.', projectSourceHint:'프로젝트 모드에서는 HTML/JSX/TSX/ZIP 파일 또는 코드를 넣어주세요.', exportProjects:'목록 복사', exportCopied:'프로젝트 목록을 복사했습니다.', systemStatus:'시스템 상태', fillDetailDraft:'상세 소개 초안 채우기', detailQualityGood:'상세 소개가 충분합니다.', detailQualityShort:'상세 소개가 짧습니다. 광고 심사용 상세 페이지는 조금 더 적는 편이 안전합니다.', detailChars:'글자 수', imageOptimized:'이미지를 업로드용으로 줄였습니다.', zipTooLarge:'파일이 너무 큽니다. 이미지/영상/음악을 줄이거나 파일별 업로드가 필요합니다.', zipEntryTooLarge:'ZIP 안에 50MB를 넘는 파일이 있습니다.', zipBrowserLarge:'ZIP 전체 용량이 커서 브라우저 메모리를 많이 사용할 수 있습니다. 그래도 내부 파일 기준으로 검사합니다.', zipReady:'ZIP 검사 완료: index.html을 찾았습니다.', zipUploadCheck:'ZIP 검사 중...', zipUploadExtract:'ZIP 압축 해제 중...', zipUploadFiles:'ZIP 내부 파일 업로드 중...', zipUploadManifest:'ZIP manifest 생성 중...', zipStorageNotReady:'Storage가 준비되지 않아 ZIP 저장을 진행할 수 없습니다.' },
@@ -96,6 +120,22 @@
   };
   Object.keys(V25_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V25_I18N[lang]));
 
+  const V26_I18N = {
+    ko:{ filterOrderLabel:'필터 순서', filterOrderHint:'쉼표로 순서를 적어주세요. 포스트 예: all, daily, study, cooking, game, fandom, design, other, secret', postAssetsLabel:'포스트 에셋', postAssetsHint:'누르면 본문에 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.', insertAsset:'에셋 삽입', typeStudy:'공부', typeCooking:'요리', typeFandom:'덕질' },
+    en:{ filterOrderLabel:'Filter order', filterOrderHint:'Enter keys separated by commas. Post example: all, daily, study, cooking, game, fandom, design, other, secret', postAssetsLabel:'Post assets', postAssetsHint:'Click an asset to insert image markdown into the post body.', insertAsset:'Insert asset', typeStudy:'Study', typeCooking:'Cooking', typeFandom:'Fandom' },
+    ja:{ filterOrderLabel:'フィルター順序', filterOrderHint:'カンマ区切りで順序を入力します。ポスト例: all, daily, study, cooking, game, fandom, design, other, secret', postAssetsLabel:'ポスト素材', postAssetsHint:'クリックすると本文に画像Markdownを挿入します。', insertAsset:'素材を挿入', typeStudy:'勉強', typeCooking:'料理', typeFandom:'推し活' },
+    zh:{ filterOrderLabel:'筛选顺序', filterOrderHint:'请用逗号分隔键名。帖子示例: all, daily, study, cooking, game, fandom, design, other, secret', postAssetsLabel:'帖子素材', postAssetsHint:'点击后会把图片 Markdown 插入正文。', insertAsset:'插入素材', typeStudy:'学习', typeCooking:'料理', typeFandom:'追星' }
+  };
+  Object.keys(V26_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V26_I18N[lang]));
+
+  const V28_I18N = {
+    ko:{ postAssetsHint:'누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.', postMajorCategoryLabel:'큰 분류', postSubcategoryLabel:'작은 분류', postSubcategoryPlaceholder:'예: 노래방 번호 정리', postReaderEmpty:'아직 본문이 없습니다.', postReaderChoose:'읽을 포스트를 선택해주세요.', postInlineTitle:'본문 미리보기', postOpenHint:'목록에서 글을 선택하면 이곳에 바로 표시됩니다.' },
+    en:{ postAssetsHint:'Click or drag an asset into the body to insert image markdown.', postMajorCategoryLabel:'Main category', postSubcategoryLabel:'Subcategory', postSubcategoryPlaceholder:'Example: karaoke song list', postReaderEmpty:'This post has no body yet.', postReaderChoose:'Choose a post to read.', postInlineTitle:'Post reader', postOpenHint:'Select a post from the list to read it here.' },
+    ja:{ postAssetsHint:'クリック、または本文へドラッグすると画像Markdownを挿入できます。', postMajorCategoryLabel:'大分類', postSubcategoryLabel:'小分類', postSubcategoryPlaceholder:'例：カラオケ番号整理', postReaderEmpty:'本文はまだありません。', postReaderChoose:'読む記事を選択してください。', postInlineTitle:'本文プレビュー', postOpenHint:'一覧から記事を選ぶとここに表示されます。' },
+    zh:{ postAssetsHint:'点击或拖到正文中即可插入图片 Markdown。', postMajorCategoryLabel:'大分类', postSubcategoryLabel:'小分类', postSubcategoryPlaceholder:'例如：K 歌编号整理', postReaderEmpty:'正文尚为空。', postReaderChoose:'请选择要阅读的帖子。', postInlineTitle:'正文预览', postOpenHint:'从列表中选择帖子后会在这里直接显示。' }
+  };
+  Object.keys(V28_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V28_I18N[lang]));
+
   let artifacts = [];
   let pageRows = [];
   let currentRoute = initialRoute();
@@ -104,6 +144,7 @@
   let currentLang = 'ko';
   let adminToken = safeStorage.get('session', 'erbello-admin-token') || '';
   let currentId = null;
+  let selectedPostId = null;
   let editingId = null;
   let pendingSourceFile = null;
   let pendingSourceStored = false;
@@ -165,7 +206,7 @@
   function categoryTerms(key) {
     const terms = new Set([key]);
     Object.values(I18N).forEach(dict => { if (dict.categories && dict.categories[key]) terms.add(String(dict.categories[key]).toLowerCase()); });
-    ({ secret:['secret','private','비밀','비공개','非公開','私密'], post:['post','blog','포스트','블로그','記事','投稿','帖子','文章'], tool:['tool','도구','ツール','工具'], game:['game','게임','ゲーム','游戏'], daily:['daily','일상','日常'], design:['design','디자인','デザイン','设计'], chart:['chart','차트','图表'], experiment:['experiment','실험','実験','实验'], other:['other','기타','その他','其他'] }[key] || []).forEach(v => terms.add(v.toLowerCase()));
+    ({ secret:['secret','private','비밀','비공개','非公開','私密'], post:['post','blog','포스트','블로그','記事','投稿','帖子','文章'], tool:['tool','도구','ツール','工具'], game:['game','게임','ゲーム','游戏'], daily:['daily','일상','日常'], study:['study','공부','학습','勉強','学习'], cooking:['cooking','cook','요리','料理'], fandom:['fandom','덕질','굿즈','推し活','追星'], design:['design','디자인','デザイン','设计'], chart:['chart','차트','图表'], experiment:['experiment','실험','実験','实验'], other:['other','기타','その他','其他'] }[key] || []).forEach(v => terms.add(v.toLowerCase()));
     return terms;
   }
   function matchesFilter(item, filter) {
@@ -176,10 +217,34 @@
     const allowed = categoryTerms(filter);
     return type === filter || terms.some(tag => allowed.has(tag));
   }
-  function filterKeysForRoute(route = currentRoute) {
+  function defaultFilterKeysForRoute(route = currentRoute) {
     return route === 'posts'
-      ? ['all', 'daily', 'design', 'experiment', 'other', 'secret']
+      ? ['all', 'daily', 'study', 'cooking', 'game', 'fandom', 'design', 'other', 'secret']
       : ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other', 'secret'];
+  }
+  function normalizeFilterOrder(value, route = currentRoute) {
+    const defaults = defaultFilterKeysForRoute(route);
+    const raw = Array.isArray(value) ? value : String(value || '').split(/[\s,|/]+/);
+    const seen = new Set();
+    const ordered = [];
+    for (const item of raw) {
+      const key = String(item || '').trim().toLowerCase();
+      if (!defaults.includes(key) || seen.has(key)) continue;
+      seen.add(key);
+      ordered.push(key);
+    }
+    for (const key of defaults) {
+      if (!seen.has(key)) ordered.push(key);
+    }
+    if (ordered.includes('secret')) {
+      ordered.splice(ordered.indexOf('secret'), 1);
+      ordered.push('secret');
+    }
+    return ordered;
+  }
+  function filterKeysForRoute(route = currentRoute) {
+    const page = pageContent(route, currentLang);
+    return normalizeFilterOrder(page.filterOrder, route);
   }
   function isSecretItem(item = {}) { return statusKey(item) === 'private' || Boolean(item.is_private); }
   function routeContentKind(route = currentRoute) { return route === 'posts' ? 'post' : 'project'; }
@@ -192,6 +257,18 @@
   function normalizeTagValue(value) { return String(value || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').toLowerCase(); }
   function tagMatchesCategory(tag, key) { const normalized = normalizeTagValue(tag); return normalized === key || categoryTerms(key).has(normalized); }
   function artifactTags(item) { return cleanTags(item && item.tags); }
+  function isSubcategoryTag(tag) { return normalizeTagValue(tag).startsWith(POST_SUBCATEGORY_PREFIX); }
+  function visibleArtifactTags(item) { return artifactTags(item).filter(tag => !isSubcategoryTag(tag)); }
+  function postSubcategory(item) {
+    const tag = artifactTags(item).find(isSubcategoryTag);
+    if (!tag) return '';
+    return String(tag).slice(String(tag).indexOf(':') + 1).trim();
+  }
+  function postTagPayload(tags, subcategory) {
+    const base = cleanTags(tags).filter(tag => !isSubcategoryTag(tag));
+    const sub = String(subcategory || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0, 40);
+    return sub ? [...base, `${POST_SUBCATEGORY_PREFIX}${sub}`] : base;
+  }
   function gamsungCover(seed) {
     if (!GAMSUNG_COVERS.length) return '/assets/illust/cover-abstract.webp';
     const key = String(seed || 'gamsung-default');
@@ -1101,6 +1178,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     updateAdminButton();
     if ($('artifactModalTitle')) $('artifactModalTitle').textContent = editingId ? tr('artifactModalTitleEdit') : (contentKindValue() === 'post' ? tr('addPost') : tr('artifactModalTitleAdd'));
     if (PREVIEW_MODE) artifacts = getPreviewItems();
+    renderPostAssetLibrary();
     renderFilters();
     renderQuickTags();
     renderRoute();
@@ -1176,6 +1254,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
 
   function goRoute(route, replace = false) {
     const next = ROUTES.includes(route) ? route : 'home';
+    if (next !== currentRoute || next !== 'posts') selectedPostId = null;
     currentRoute = next;
     if (!PREVIEW_MODE) {
       const url = pageUrl(next) + (ownerModeRequested ? '?admin=1' : '');
@@ -1376,7 +1455,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const routeKeys = filterKeysForRoute(route);
       node.innerHTML = routeKeys.map((key) => `<button class="filter-btn ${key === currentFilter && route === currentRoute ? 'active' : ''}" type="button" data-filter="${esc(key)}">${esc(catLabel(key))}</button>`).join('');
       node.querySelectorAll('[data-filter]').forEach((button) => {
-        button.addEventListener('click', () => { currentFilter = button.dataset.filter || 'all'; renderFilters(); renderGrid(); });
+        button.addEventListener('click', () => { currentFilter = button.dataset.filter || 'all'; if (currentRoute === 'posts') selectedPostId = null; renderFilters(); renderGrid(); });
       });
     });
   }
@@ -1393,11 +1472,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         return false;
       }
       const type = typeKey(item.type);
-      const tags = artifactTags(item);
+      const tags = visibleArtifactTags(item);
       if (!itemMatchesFilter(item, currentFilter)) return false;
       if (!q) return true;
       const kindText = isPostItem(item) ? 'post blog 포스트 블로그' : (item.is_jsx ? 'jsx react' : formatKey(item));
-      return [item.title, item.description, type, tags.join(' '), kindText].join(' ').toLowerCase().includes(q);
+      return [item.title, item.description, type, tags.join(' '), postSubcategory(item), kindText].join(' ').toLowerCase().includes(q);
     });
   }
 
@@ -1433,7 +1512,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     }
     const desc = item.description || tr('noDescription');
     const profile = visualProfile(item);
-    const extraTags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
+    const extraTags = visibleArtifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
     const tagHtml = extraTags.length ? `<div class="card-tags">${extraTags.map(tag => `<span class="card-tag-chip">${esc(tag)}</span>`).join('')}</div>` : '';
     const privateAdmin = status === 'private' ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : draftAdmin;
     return `<article class="card v21-card ${compactCard ? 'card-compact' : ''} ${post ? 'card-post' : ''} ${esc(profile.klass)}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
@@ -1448,10 +1527,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!container) return;
     container.querySelectorAll('.card, .post-list-item').forEach((card) => {
       const id = card.dataset.id;
-      card.addEventListener('click', (event) => { if (!event.target.closest('button')) openArtifact(id); });
-      card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openArtifact(id); } });
+      const inlinePost = currentRoute === 'posts' && card.classList.contains('post-list-item');
+      card.addEventListener('click', (event) => { if (!event.target.closest('button')) (inlinePost ? selectPost(id) : openArtifact(id)); });
+      card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); inlinePost ? selectPost(id) : openArtifact(id); } });
     });
-    container.querySelectorAll('[data-open]').forEach((button) => button.addEventListener('click', () => openArtifact(button.dataset.open)));
+    container.querySelectorAll('[data-open]').forEach((button) => button.addEventListener('click', () => currentRoute === 'posts' ? selectPost(button.dataset.open) : openArtifact(button.dataset.open)));
     container.querySelectorAll('[data-copy]').forEach((button) => button.addEventListener('click', () => copyText(projectUrl(button.dataset.copy))));
     container.querySelectorAll('[data-edit]').forEach((button) => button.addEventListener('click', () => requireAdmin(() => editArtifact(button.dataset.edit))));
     container.querySelectorAll('[data-remove]').forEach((button) => button.addEventListener('click', () => requireAdmin(() => deleteArtifact(button.dataset.remove))));
@@ -1461,12 +1541,14 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const grid = currentRoute === 'posts' ? $('postsGrid') : $('grid');
     if (!grid) return;
     const items = filteredArtifacts();
+    if (!items.length) { if (currentRoute === 'posts') renderPostSidebar(); grid.innerHTML = emptyMessage(false); renderPostReader([]); return; }
+    if (currentRoute === 'posts' && !items.some(item => String(item.id) === String(selectedPostId))) selectedPostId = String(items[0].id);
     if (currentRoute === 'posts') renderPostSidebar();
-    if (!items.length) { grid.innerHTML = emptyMessage(false); return; }
     grid.innerHTML = currentRoute === 'posts'
       ? items.map((item) => postListMarkup(item)).join('')
       : items.map((item) => cardMarkup(item, false)).join('');
     bindCardEvents(grid);
+    if (currentRoute === 'posts') renderPostReader(items);
   }
 
   function renderFeaturedGrid() {
@@ -1489,33 +1571,21 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function setPostFilter(filter) {
     currentRoute = 'posts';
     currentFilter = filter || 'all';
+    selectedPostId = null;
     renderFilters();
     renderGrid();
   }
 
   function renderPostSidebar(items = postSidebarItems()) {
-    const categoryNode = $('postCategoryList');
     const recentNode = $('postRecentList');
-    if (categoryNode) {
-      const keys = filterKeysForRoute('posts');
-      categoryNode.innerHTML = keys.map((key) => {
-        const count = items.filter((item) => {
-          const secret = isSecretItem(item);
-          if (key === 'all') return !secret;
-          if (key === 'secret') return secret;
-          return !secret && matchesFilter(item, key);
-        }).length;
-        return `<button class="post-category-item ${key === currentFilter ? 'active' : ''}" type="button" data-post-category="${esc(key)}"><span>${esc(catLabel(key))}</span><small>${count}</small></button>`;
-      }).join('');
-      categoryNode.querySelectorAll('[data-post-category]').forEach((button) => {
-        button.addEventListener('click', () => setPostFilter(button.dataset.postCategory || 'all'));
-      });
-    }
     if (recentNode) {
       const recent = items.filter(item => !isSecretItem(item)).slice(0, 6);
       recentNode.innerHTML = recent.length
-        ? recent.map(item => `<a class="post-recent-item" href="${esc(projectPath(item.id))}"><strong>${esc(compact(item.title || tr('untitled'), 34))}</strong><small>${esc(fmtMonth(item.updated_at || item.created_at))}</small></a>`).join('')
+        ? recent.map(item => `<button class="post-recent-item ${String(item.id) === String(selectedPostId) ? 'active' : ''}" type="button" data-select-post="${esc(item.id)}"><strong>${esc(compact(item.title || tr('untitled'), 34))}</strong><small>${esc(fmtMonth(item.updated_at || item.created_at))}</small></button>`).join('')
         : `<p class="post-recent-empty">${esc(tr('postNoRecent'))}</p>`;
+      recentNode.querySelectorAll('[data-select-post]').forEach((button) => {
+        button.addEventListener('click', () => selectPost(button.dataset.selectPost));
+      });
     }
   }
 
@@ -1524,13 +1594,73 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const title = item.title || tr('untitled');
     const status = statusKey(item);
     const locked = status === 'private' && !isAdminOn();
-    const tags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, 5);
+    const active = String(item.id) === String(selectedPostId);
+    const sub = postSubcategory(item);
+    const tags = visibleArtifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, 5);
     const date = fmtMonth(item.updated_at || item.created_at);
     if (locked) {
-      return `<article class="post-list-item post-list-locked" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(tr('privateBadge'))}</p><h3>${esc(title)}</h3><div class="locked-blind" aria-hidden="true"><span></span><span></span></div></div><span class="post-list-arrow" aria-hidden="true">♡</span></article>`;
+      return `<article class="post-list-item post-list-locked ${active ? 'active' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(tr('privateBadge'))}</p><h3>${esc(title)}</h3><div class="locked-blind" aria-hidden="true"><span></span><span></span></div></div><span class="post-list-arrow" aria-hidden="true">♡</span></article>`;
     }
     const desc = item.description || item.detail_text || tr('noDescription');
-    return `<article class="post-list-item" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(catLabel(type))}</p><h3>${esc(title)}</h3><p>${esc(compact(desc, 150))}</p>${tags.length ? `<div class="post-list-tags">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : ''}</div><div class="post-list-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div></article>`;
+    return `<article class="post-list-item ${active ? 'active' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(catLabel(type))}${sub ? ` · ${esc(sub)}` : ''}</p><h3>${esc(title)}</h3><p>${esc(compact(desc, 150))}</p>${tags.length ? `<div class="post-list-tags">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : ''}</div><div class="post-list-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div></article>`;
+  }
+
+  function selectPost(id) {
+    if (!id) return;
+    selectedPostId = String(id);
+    renderGrid();
+  }
+
+  function safePostAssetSrc(src) {
+    const value = String(src || '').trim();
+    if (/^https:\/\//i.test(value)) return value;
+    if (/^\/assets\/illust\/imagegen-assets\/web\/[^?#]+\.(png|webp|jpg|jpeg|gif)$/i.test(value)) return value;
+    if (/^\/assets\/illust\/post-assets\/[^?#]+\.(png|webp|jpg|jpeg|gif)$/i.test(value)) return value;
+    if (/^\/assets\/illust\/[^?#]+\.(png|webp|jpg|jpeg|gif)$/i.test(value)) return value;
+    return '';
+  }
+
+  function postBodyMarkup(value) {
+    const body = String(value || '').trim();
+    if (!body) return `<p class="post-reader-empty">${esc(tr('postReaderEmpty'))}</p>`;
+    return body.split(/\n{2,}/).map((chunk) => {
+      const text = chunk.trim();
+      if (!text) return '';
+      if (/^[-*_]{3,}$/.test(text)) return '<hr class="post-body-divider">';
+      const image = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+      if (image) {
+        const src = safePostAssetSrc(image[2]);
+        if (!src) return '';
+        const alt = image[1] || tr('postAssetsLabel');
+        const decorative = /\/(divider|index)-/i.test(src);
+        return `<figure class="post-body-asset ${decorative ? 'decorative' : ''}"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy">${decorative ? '' : `<figcaption>${esc(alt)}</figcaption>`}</figure>`;
+      }
+      return `<p>${esc(text).replace(/\n/g, '<br />')}</p>`;
+    }).join('');
+  }
+
+  function renderPostReader(items = filteredArtifacts()) {
+    const node = $('postReader');
+    if (!node) return;
+    const item = items.find(post => String(post.id) === String(selectedPostId)) || items[0];
+    if (!item) {
+      node.innerHTML = `<div class="post-reader-placeholder"><strong>${esc(tr('postReaderChoose'))}</strong><p>${esc(tr('postOpenHint'))}</p></div>`;
+      return;
+    }
+    const title = item.title || tr('untitled');
+    const locked = statusKey(item) === 'private' && !isAdminOn();
+    const sub = postSubcategory(item);
+    const tags = visibleArtifactTags(item).filter(tag => !tagMatchesCategory(tag, typeKey(item.type))).slice(0, 8);
+    if (locked) {
+      node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(tr('privateBadge'))}</p><h2>${esc(title)}</h2><p>${esc(tr('lockedDescription'))}</p></header><div class="locked-blind post-reader-blind" aria-hidden="true"><span></span><span></span><span></span></div>`;
+      return;
+    }
+    const parts = splitPostAttachmentText(item.detail_text || '');
+    const body = postBodyMarkup(parts.body || item.description || '');
+    const attachments = (parts.attachments || []).map(file => `<a class="detail-attachment" href="${esc(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(file.name || 'attachment')}</strong><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><span>↗</span></a>`).join('');
+    const status = statusKey(item);
+    const adminStatus = isAdminOn() && status !== 'public' ? `<span class="post-reader-status">${esc(statusLabel(status))}</span>` : '';
+    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header><div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}`;
   }
 
   function findArtifact(id) { return artifacts.find((item) => String(item.id) === String(id)); }
@@ -1546,7 +1676,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!item) return;
     currentId = id;
     const post = isPostItem(item);
-    $('viewerTag').textContent = [post ? tr('typePost') : catLabel(typeKey(item.type)), ...artifactTags(item).slice(0, 3), formatLabel(item)].filter(Boolean).join(' · ');
+    $('viewerTag').textContent = [post ? tr('typePost') : catLabel(typeKey(item.type)), ...visibleArtifactTags(item).slice(0, 3), formatLabel(item)].filter(Boolean).join(' · ');
     $('viewerTitle').textContent = item.title || tr('untitled');
     $('viewerDesc').textContent = item.description || item.detail_text || tr('ownerPreview');
     if ($('viewerViews')) $('viewerViews').textContent = `${tr('views')}: ${Number(item.view_count || 0)}`;
@@ -1661,6 +1791,34 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return `${text}\n\n${POST_ATTACH_PREFIX}${encodeURIComponent(JSON.stringify(clean))}`;
   }
 
+  function renderPostAssetLibrary() {
+    const node = $('postAssetLibrary');
+    if (!node) return;
+    node.innerHTML = POST_ASSETS.map((asset) => `<button class="post-asset-btn" type="button" draggable="true" data-post-asset="${esc(asset.file)}" title="${esc(tr('insertAsset'))}: ${esc(asset.label)}"><img src="${esc(asset.src)}" alt="" loading="lazy" /><span>${esc(asset.label)}</span></button>`).join('');
+  }
+
+  function postAssetMarkdown(asset) {
+    return asset ? `![${asset.label}](${asset.src})` : '';
+  }
+
+  function insertPostMarkdown(snippet) {
+    const node = $('detailInput');
+    if (!snippet || !node) return;
+    const block = `\n\n${snippet}\n\n`;
+    const start = node.selectionStart ?? node.value.length;
+    const end = node.selectionEnd ?? node.value.length;
+    node.value = `${node.value.slice(0, start)}${block}${node.value.slice(end)}`;
+    const caret = start + block.length;
+    node.focus();
+    node.setSelectionRange(caret, caret);
+    detailQualityText();
+  }
+
+  function insertPostAsset(file) {
+    const asset = POST_ASSETS.find(item => item.file === file);
+    insertPostMarkdown(postAssetMarkdown(asset));
+  }
+
   function renderPostFilePreviews() {
     const node = $('postFilePreview');
     if (!node) return;
@@ -1708,14 +1866,18 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       else if (formatKey($('formatInput').value) === 'post') $('formatInput').value = 'html';
     }
     if ($('formatBadge')) $('formatBadge').textContent = isPost ? tr('formatPost') : formatLabel($('formatInput')?.value || 'html');
+    if (!isPost && $('postSubcategoryInput')) $('postSubcategoryInput').value = '';
     const detailLabel = document.querySelector('label[for="detailInput"]');
     if (detailLabel) detailLabel.textContent = isPost ? tr('postDetailLabel') : tr('detailLabel');
+    const typeLabel = document.querySelector('label[for="typeInput"]');
+    if (typeLabel) typeLabel.textContent = isPost ? tr('postMajorCategoryLabel') : tr('categoryLabel');
     const detailHint = document.querySelector('[data-i18n="detailHint"]');
     if (detailHint) detailHint.textContent = isPost ? tr('postDetailHint') : tr('detailHint');
     if ($('detailInput')) $('detailInput').placeholder = isPost ? tr('postDetailHint') : tr('detailPlaceholder');
     if ($('artifactModalTitle')) {
       $('artifactModalTitle').textContent = editingId ? tr('artifactModalTitleEdit') : (isPost ? tr('addPost') : tr('artifactModalTitleAdd'));
     }
+    renderPostAssetLibrary();
     updateDetectHint();
   }
 
@@ -1814,6 +1976,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if ($('statusInput')) $('statusInput').value = 'public';
     if ($('contentKindInput')) $('contentKindInput').value = 'project';
     if ($('tagsInput')) $('tagsInput').value = '';
+    if ($('postSubcategoryInput')) $('postSubcategoryInput').value = '';
     if ($('detailInput')) $('detailInput').value = '';
     if ($('privateInput')) $('privateInput').checked = false;
     if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
@@ -1857,8 +2020,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       $('titleInput').value = item.title || '';
       $('descInput').value = item.description || '';
       { const itemType = typeKey(item.type); $('typeInput').value = $('typeInput').querySelector(`option[value="${itemType}"]`) ? itemType : 'other'; }
-      if ($('tagsInput')) $('tagsInput').value = tagsText(item.tags || []);
       const isPost = isPostItem(item);
+      if ($('tagsInput')) $('tagsInput').value = tagsText(isPost ? visibleArtifactTags(item) : (item.tags || []));
+      if ($('postSubcategoryInput')) $('postSubcategoryInput').value = isPost ? postSubcategory(item) : '';
       const postParts = isPost ? splitPostAttachmentText(item.detail_text || '') : { body:item.detail_text || '', attachments:[] };
       if ($('detailInput')) $('detailInput').value = postParts.body || '';
       if ($('statusInput')) $('statusInput').value = statusKey(item);
@@ -1895,7 +2059,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const title = $('titleInput').value.trim();
     const description = $('descInput').value.trim();
     const type = $('typeInput').value;
-    const tags = collectArtifactTags();
+    let tags = collectArtifactTags();
     let detail_text = $('detailInput') ? $('detailInput').value.trim() : '';
     const isPost = contentKindValue() === 'post';
     const manualCode = isPost ? '' : normalizeCode($('codeInput').value);
@@ -1907,6 +2071,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!title) { $('artifactError').textContent = tr('required'); return; }
     if (isPost && !hasPostBody) { $('artifactError').textContent = tr('postBodyRequired'); return; }
     if (!isPost && !manualCode && !pendingSourceFile && !pendingSourceStored) { $('artifactError').textContent = tr('required'); return; }
+    if (isPost) tags = postTagPayload(tags, $('postSubcategoryInput')?.value || '');
     try {
       const saveBtn = $('saveArtifactBtn');
       if (saveBtn) saveBtn.disabled = true;
@@ -2131,12 +2296,14 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const isAbout = slug === 'about';
     const isContact = slug === 'contact';
     const isPolicy = slug === 'privacy' || slug === 'terms';
+    const hasFilters = slug === 'projects' || slug === 'posts';
     const setHidden = (id, hidden) => { const node = $(id); if (node) node.hidden = hidden; };
     setHidden('pageScriptField', !isHome);
     setHidden('pageInfoField', !isHome);
     setHidden('pageBlocksEditor', !(isHome || isAbout || isPolicy));
     setHidden('pageEmailField', !isContact);
     setHidden('pageLinksField', !isContact);
+    setHidden('pageFilterField', !hasFilters);
   }
 
   function fillPageEditor() {
@@ -2154,6 +2321,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       $(`block${i}Text`).value = (blocks[i - 1] && blocks[i - 1].text) || '';
     }
     $('pageEmailInput').value = page.email || '';
+    if ($('pageFilterOrderInput')) $('pageFilterOrderInput').value = normalizeFilterOrder(page.filterOrder, slug).join(', ');
     renderContactLinkEditor(page.links || []);
     updatePageEditorVisibility();
     $('pageError').textContent = '';
@@ -2171,7 +2339,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const slug = $('pageSlugInput').value;
     const lang = $('pageLangInput').value;
     const blocks = [1,2,3].map((i) => ({ title:$(`block${i}Title`).value.trim(), text:$(`block${i}Text`).value.trim() })).filter(block => block.title || block.text);
-    const content = { script:$('pageScriptInput').value.trim(), eyebrow:$('pageEyebrowInput').value.trim(), infoTitle:$('pageInfoTitleInput').value.trim(), title:$('pageTitleInput').value.trim(), body:$('pageBodyInput').value.trim(), blocks, email:$('pageEmailInput').value.trim(), links: slug === 'contact' ? collectContactLinks() : [] };
+    const content = { script:$('pageScriptInput').value.trim(), eyebrow:$('pageEyebrowInput').value.trim(), infoTitle:$('pageInfoTitleInput').value.trim(), title:$('pageTitleInput').value.trim(), body:$('pageBodyInput').value.trim(), blocks, email:$('pageEmailInput').value.trim(), links: slug === 'contact' ? collectContactLinks() : [], filterOrder: (slug === 'projects' || slug === 'posts') ? normalizeFilterOrder($('pageFilterOrderInput')?.value || '', slug) : [] };
     try {
       $('pageError').textContent = '';
       const row = await api(`/api/admin/pages/${encodeURIComponent(slug)}/${encodeURIComponent(lang)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify({ content }) });
@@ -2199,7 +2367,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function exportProjectList() {
     if (!artifacts.length) { toast(tr('noStats')); return; }
     const text = artifacts.map((item, index) => {
-      const tags = artifactTags(item).join(', ');
+      const tags = visibleArtifactTags(item).join(', ');
       const post = isPostItem(item);
       return [`#${index + 1}`,
         `제목: ${item.title || ''}`,
@@ -2257,7 +2425,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     document.addEventListener('click', (event) => { if (!event.target.closest('#themePicker')) closeThemeMenu(); });
     $('langSelect')?.addEventListener('change', (event) => applyLanguage(event.target.value));
     document.querySelectorAll('[data-route]').forEach((link) => link.addEventListener('click', (event) => { event.preventDefault(); goRoute(link.dataset.route || 'home'); }));
-    window.addEventListener('popstate', () => { currentRoute = initialRoute(); renderRoute(); });
+    window.addEventListener('popstate', () => { currentRoute = initialRoute(); if (currentRoute !== 'posts') selectedPostId = null; renderRoute(); });
     const syncSearch = (value) => {
       searchQuery = value;
       if ($('searchInput') && $('searchInput').value !== value) $('searchInput').value = value;
@@ -2327,6 +2495,26 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       pendingPostFiles = [...pendingPostFiles, ...list].slice(0, 12);
       event.target.value = '';
       renderPostFilePreviews();
+    });
+    $('postAssetLibrary')?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-post-asset]');
+      if (btn) insertPostAsset(btn.dataset.postAsset || '');
+    });
+    $('postAssetLibrary')?.addEventListener('dragstart', (event) => {
+      const btn = event.target.closest('[data-post-asset]');
+      if (!btn || !event.dataTransfer) return;
+      const asset = POST_ASSETS.find(item => item.file === btn.dataset.postAsset);
+      const markdown = postAssetMarkdown(asset);
+      event.dataTransfer.setData('text/plain', markdown);
+      event.dataTransfer.setData('application/x-erbello-post-asset', markdown);
+    });
+    $('detailInput')?.addEventListener('dragover', (event) => {
+      if (event.dataTransfer && Array.from(event.dataTransfer.types || []).includes('application/x-erbello-post-asset')) event.preventDefault();
+    });
+    $('detailInput')?.addEventListener('drop', (event) => {
+      if (!event.dataTransfer || !Array.from(event.dataTransfer.types || []).includes('application/x-erbello-post-asset')) return;
+      event.preventDefault();
+      insertPostMarkdown(event.dataTransfer.getData('application/x-erbello-post-asset') || event.dataTransfer.getData('text/plain'));
     });
     $('clearCoverBtn')?.addEventListener('click', () => { pendingCoverImage = ''; pendingCoverFile = null; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); });
     $('randomCoverBtn')?.addEventListener('click', () => { pendingCoverImage = RANDOM_GAMSUNG_COVER; pendingCoverFile = null; if ($('coverInput')) $('coverInput').value = ''; renderImagePreviews(); toast(tr('randomCoverActive')); });

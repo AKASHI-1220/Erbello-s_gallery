@@ -48,6 +48,32 @@ function plainText(value, max = 1000) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+function safePostInlineAssetUrl(value) {
+  const text = String(value || '').trim();
+  if (/^\/assets\/illust\/post-assets\/[-\w.]+\.png$/i.test(text)) return text;
+  if (/^\/assets\/illust\/imagegen-assets\/web\/[-\w.]+\.png$/i.test(text)) return text;
+  if (/^\/assets\/illust\/[-\w.]+\.(?:png|webp|jpe?g|gif)$/i.test(text)) return text;
+  if (/^https:\/\/[^\s"'<>]+$/i.test(text) && text.length <= 1200) return text;
+  return '';
+}
+
+function renderPostBodyHtml(value) {
+  const blocks = String(value || '').replace(/\r\n/g, '\n').split(/\n{2,}/).map(part => part.trim()).filter(Boolean).slice(0, 80);
+  if (!blocks.length) return '<p>아직 본문이 없습니다.</p>';
+  return blocks.map((block) => {
+    if (/^(?:---|\*\*\*)$/.test(block)) return '<hr class="post-body-divider">';
+    const imageMatch = block.match(/^!\[([^\]\n]{0,120})\]\(([^)\s]+)\)$/);
+    if (imageMatch) {
+      const src = safePostInlineAssetUrl(imageMatch[2]);
+      if (!src) return '';
+      const alt = imageMatch[1] || '';
+      const caption = alt ? `<figcaption>${escHtml(alt)}</figcaption>` : '';
+      return `<figure class="post-body-asset"><img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy">${caption}</figure>`;
+    }
+    return `<p>${escHtml(block).replace(/\n/g, '<br>')}</p>`;
+  }).filter(Boolean).join('');
+}
+
 function splitPostAttachments(value) {
   const text = String(value || '').replace(/\r\n/g, '\n');
   const index = text.lastIndexOf(POST_ATTACH_PREFIX);
@@ -698,10 +724,11 @@ function renderProjectDetailPage(req, artifact) {
   const primaryAction = isPost ? '' : `<a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a>`;
   const listUrl = isPost ? '/posts' : '/projects';
   const listLabel = isPost ? '포스트 목록' : '목록으로';
+  const bodyHtml = isPost ? renderPostBodyHtml(summary) : summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('');
   const guide = isPost
     ? `<section class="detail-panel detail-guide"><p class="section-kicker">POST NOTE</p><h2>포스트 안내</h2><ul><li>이 글은 코드 실행 화면이 없는 이미지, 글, 파일 중심의 포스트입니다.</li><li>첨부 이미지가 있는 경우 글 아래 이미지 자료 영역에서 확인할 수 있습니다.</li><li>첨부 파일이 있는 경우 별도 링크로 열 수 있습니다.</li></ul></section>`
     : `<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section>`;
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">${isPost ? 'POST DETAIL' : 'PROJECT DETAIL'}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions">${primaryAction}<a class="btn" href="${escAttr(listUrl)}">${escHtml(listLabel)}</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(isPost ? 'POST' : category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">${isPost ? 'POST BODY' : 'ABOUT THIS PROJECT'}</p><h2>${isPost ? '포스트 본문' : '프로젝트 소개'}</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}${attachmentHtml}${guide}<footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">${isPost ? 'POST DETAIL' : 'PROJECT DETAIL'}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions">${primaryAction}<a class="btn" href="${escAttr(listUrl)}">${escHtml(listLabel)}</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(isPost ? 'POST' : category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">${isPost ? 'POST BODY' : 'ABOUT THIS PROJECT'}</p><h2>${isPost ? '포스트 본문' : '프로젝트 소개'}</h2><div class="detail-text ${isPost ? 'post-rich-body' : ''}">${bodyHtml}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}${attachmentHtml}${guide}<footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
 }
 
 function renderPrivateProjectDetailPage(req, artifact) {
@@ -761,7 +788,7 @@ function cleanText(value, max = 500) {
 }
 
 function cleanType(value) {
-  const allowed = new Set(['react', 'html', 'chart', 'game', 'tool', 'daily', 'design', 'experiment', 'other']);
+  const allowed = new Set(['react', 'html', 'chart', 'game', 'tool', 'daily', 'study', 'cooking', 'fandom', 'design', 'experiment', 'other']);
   const t = String(value || 'other').trim().toLowerCase();
   return allowed.has(t) ? t : 'other';
 }
@@ -805,6 +832,11 @@ function cleanPageContent(value) {
   const cleanString = (v, max = 1000) => String(v || '').trim().slice(0, max);
   const cleanBlocks = Array.isArray(src.blocks) ? src.blocks.slice(0, 4).map((block) => ({ title: cleanString(block && block.title, 120), text: cleanString(block && block.text, 500) })) : [];
   const cleanLinks = Array.isArray(src.links) ? src.links.slice(0, 12).map((link) => ({ label: cleanString(link && link.label, 80), url: cleanString(link && link.url, 300) })) : [];
+  const allowedFilters = new Set(['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret']);
+  const cleanFilterOrder = (Array.isArray(src.filterOrder) ? src.filterOrder : String(src.filterOrder || '').split(/[\s,|/]+/))
+    .map(item => String(item || '').trim().toLowerCase())
+    .filter((item, index, arr) => allowedFilters.has(item) && arr.indexOf(item) === index)
+    .slice(0, 12);
   return {
     eyebrow: cleanString(src.eyebrow, 120),
     script: cleanString(src.script, 120),
@@ -813,7 +845,8 @@ function cleanPageContent(value) {
     infoTitle: cleanString(src.infoTitle, 120),
     email: cleanString(src.email, 200),
     blocks: cleanBlocks,
-    links: cleanLinks
+    links: cleanLinks,
+    filterOrder: cleanFilterOrder
   };
 }
 

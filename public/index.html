@@ -15,7 +15,7 @@
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/app.css" />
+  <link rel="stylesheet" href="/app.css?v=29" />
 </head>
 <body data-scheme="white" data-color="pixel" data-theme="white-pixel">
   <div class="site-bg" aria-hidden="true">
@@ -184,10 +184,6 @@
                 <p data-i18n="postSidebarBody">글, 이미지, 파일 기록을 카테고리별로 모아둡니다.</p>
               </div>
               <div class="post-side-block">
-                <h2 data-i18n="postCategoryTitle">category</h2>
-                <div id="postCategoryList" class="post-category-list"></div>
-              </div>
-              <div class="post-side-block">
                 <h2 data-i18n="postRecentTitle">recent posts</h2>
                 <div id="postRecentList" class="post-recent-list"></div>
               </div>
@@ -202,6 +198,7 @@
                 <button id="postAddBtnToolbar" class="btn primary admin-only" type="button" data-i18n="addPost">포스트 추가</button>
               </div>
 
+              <article id="postReader" class="post-reader" aria-live="polite"></article>
               <section id="postsGrid" class="post-list posts-grid" aria-live="polite"></section>
             </div>
           </div>
@@ -382,6 +379,11 @@
           <div id="contactLinkEditor" class="contact-link-editor" aria-live="polite"></div>
           <p class="hint" data-i18n="contactLinkHint">연락처 페이지에는 링크 주소가 있는 항목만 표시됩니다. 이름은 비워도 주소를 보고 자동으로 채워집니다.</p>
         </div>
+        <div id="pageFilterField" class="field">
+          <label for="pageFilterOrderInput" data-i18n="filterOrderLabel">필터 순서</label>
+          <input id="pageFilterOrderInput" class="input" type="text" maxlength="240" placeholder="all, tool, game, daily, design, chart, experiment, other, secret" />
+          <p class="hint" data-i18n="filterOrderHint">쉼표로 순서를 적어주세요. 예: all, tool, game, daily, design, chart, experiment, other, secret</p>
+        </div>
         <p class="hint" data-i18n="pageEditHint">현재 선택한 언어의 페이지 문구만 저장됩니다.</p>
         <div id="pageError" class="error"></div>
       </div>
@@ -410,11 +412,18 @@
               <option value="game" data-i18n="typeGame">게임</option>
               <option value="tool" data-i18n="typeTool">도구</option>
               <option value="daily" data-i18n="typeDaily">일상</option>
+              <option value="study" data-i18n="typeStudy">공부</option>
+              <option value="cooking" data-i18n="typeCooking">요리</option>
+              <option value="fandom" data-i18n="typeFandom">덕질</option>
               <option value="design" data-i18n="typeDesign">디자인</option>
               <option value="chart" data-i18n="typeChart">차트</option>
               <option value="experiment" data-i18n="typeExperiment">실험</option>
               <option value="other" data-i18n="typeOther">기타</option>
             </select>
+          </div>
+          <div class="field post-only-field">
+            <label for="postSubcategoryInput" data-i18n="postSubcategoryLabel">작은 분류</label>
+            <input id="postSubcategoryInput" class="input" type="text" maxlength="40" data-i18n-placeholder="postSubcategoryPlaceholder" placeholder="예: 노래방 번호 정리" />
           </div>
           <div class="field">
             <label for="statusInput" data-i18n="statusLabel">공개 상태</label>
@@ -465,6 +474,11 @@
           <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
           <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
           <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
+        </div>
+        <div class="field post-only-field post-asset-tools">
+          <label data-i18n="postAssetsLabel">포스트 에셋</label>
+          <div id="postAssetLibrary" class="post-asset-library" aria-live="polite"></div>
+          <p class="hint" data-i18n="postAssetsHint">누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.</p>
         </div>
         <div class="media-fields">
           <div class="field">
@@ -524,6 +538,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js" defer></script>
+  <script src="/app.js?v=29" defer></script>
 </body>
 </html>
