@@ -13,6 +13,7 @@ const ZIP_BUNDLE_PREFIX = 'ERBELLO_BUNDLE_V1\n';
 const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
 const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
 const POST_SOURCE_CODE = '__ERBELLO_POST__';
+const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
 const STORAGE_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -47,6 +48,27 @@ function plainText(value, max = 1000) {
   return String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
 }
 
+function splitPostAttachments(value) {
+  const text = String(value || '').replace(/\r\n/g, '\n');
+  const index = text.lastIndexOf(POST_ATTACH_PREFIX);
+  if (index < 0) return { body:text.trim(), attachments:[] };
+  const body = text.slice(0, index).trim();
+  const raw = text.slice(index + POST_ATTACH_PREFIX.length).split(/\n/, 1)[0].trim();
+  let attachments = [];
+  try {
+    const parsed = JSON.parse(decodeURIComponent(raw));
+    attachments = (Array.isArray(parsed) ? parsed : []).map((item) => ({
+      name: cleanFilename(item && item.name || 'attachment'),
+      url: String(item && item.url || '').trim().slice(0, 1200),
+      mime: cleanMime(item && item.mime || ''),
+      size: Number(item && item.size || 0)
+    })).filter(item => /^https:\/\//i.test(item.url)).slice(0, 12);
+  } catch (_) {
+    attachments = [];
+  }
+  return { body, attachments };
+}
+
 function fmtMonthKo(value) {
   const d = new Date(value || Date.now());
   if (Number.isNaN(d.getTime())) return '';
@@ -57,6 +79,19 @@ function fmtIsoDate(value) {
   const d = new Date(value || '');
   if (Number.isNaN(d.getTime())) return '';
   return d.toISOString();
+}
+
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (!Number.isFinite(bytes) || bytes <= 0) return '';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let size = bytes;
+  let index = 0;
+  while (size >= 1024 && index < units.length - 1) {
+    size /= 1024;
+    index += 1;
+  }
+  return `${size.toFixed(size >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
 function siteOrigin(req) {
@@ -73,7 +108,7 @@ function absoluteSiteUrl(value, origin = DEFAULT_SITE_ORIGIN) {
 }
 
 function artifactSummaryText(artifact) {
-  const detail = plainText(artifact.detail_text, 4000);
+  const detail = plainText(splitPostAttachments(artifact.detail_text).body, 4000);
   if (detail) return detail;
   const desc = plainText(artifact.description, 500);
   if (desc) return desc;
@@ -83,7 +118,7 @@ function artifactSummaryText(artifact) {
 }
 
 function artifactDetailBody(artifact) {
-  const detail = String(artifact && artifact.detail_text || '').replace(/\r\n/g, '\n').trim().slice(0, 8000);
+  const detail = splitPostAttachments(artifact && artifact.detail_text || '').body.slice(0, 8000);
   if (detail) return detail;
   const desc = String(artifact && artifact.description || '').trim();
   if (desc) return desc;
@@ -132,12 +167,13 @@ function themeBootstrap() {
 
 function indexRouteSeo(req) {
   const pathName = String(req.path || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-  const route = ['projects', 'about', 'contact', 'privacy', 'terms'].includes(pathName) ? pathName : 'home';
+  const route = ['projects', 'posts', 'about', 'contact', 'privacy', 'terms'].includes(pathName) ? pathName : 'home';
   const origin = siteOrigin(req);
   const pathPart = route === 'home' ? '/' : `/${route}`;
   const map = {
     home: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO라는 활동명으로 만든 개인 프로젝트 갤러리입니다.'],
     projects: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO라는 활동명으로 만든 HTML, JSX, ZIP 기반 프로젝트를 둘러볼 수 있는 목록입니다.'],
+    posts: ['포스트 아카이브 · ERBELLO', 'ERBELLO가 작성한 작업 기록, 이미지, 파일 메모를 모아둔 포스트 목록입니다.'],
     about: ['소개 · ERBELLO', 'ERBELLO라는 활동명으로 만든 작업물과 프로젝트 갤러리 운영 방식을 안내합니다.'],
     contact: ['연락처 · ERBELLO', 'ERBELLO 프로젝트 문의와 외부 연락처 링크를 확인할 수 있습니다.'],
     privacy: ['개인정보처리방침 · ERBELLO', 'ERBELLO가 사용하는 정보와 광고, 쿠키에 관한 안내입니다.'],
@@ -613,7 +649,8 @@ function publicArtifactSummary(artifact) {
     id: safe.id,
     title: safe.title || 'Untitled project',
     status: 'private',
-    is_private: true
+    is_private: true,
+    source_kind: isPostArtifact(safe) ? 'post' : cleanSourceKind(safe.source_kind, safe.is_jsx)
   };
 }
 
@@ -628,6 +665,7 @@ function renderProjectDetailPage(req, artifact) {
   const title = artifact.title || 'Untitled project';
   const isPost = isPostArtifact(artifact);
   const desc = artifact.description || (isPost ? 'ERBELLO가 작성한 포스트입니다.' : 'ERBELLO에 보관된 프로젝트입니다.');
+  const postAttachmentData = isPost ? splitPostAttachments(artifact.detail_text).attachments : [];
   const summary = artifactDetailBody(artifact);
   const summaryPlain = plainText(summary || desc, 5000);
   const tags = tagList(artifact);
@@ -651,20 +689,29 @@ function renderProjectDetailPage(req, artifact) {
   };
   const tagHtml = tags.map(tag => `<span>${escHtml(tag)}</span>`).join('');
   const galleryHtml = gallery.length ? `<div class="detail-gallery">${gallery.map(src => `<img src="${escAttr(src)}" alt="" loading="lazy">`).join('')}</div>` : '';
+  const attachmentHtml = postAttachmentData.length
+    ? `<section class="detail-panel detail-attachments-panel"><p class="section-kicker">FILES</p><h2>첨부 파일</h2><div class="detail-attachments">${postAttachmentData.map(file => `<a class="detail-attachment" href="${escAttr(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${escHtml(file.name || 'attachment')}</strong><small>${escHtml(file.mime || 'file')}${file.size ? ` · ${escHtml(formatBytes(file.size))}` : ''}</small><span aria-hidden="true">↗</span></a>`).join('')}</div></section>`
+    : '';
   const detailLength = summaryPlain.length;
   const allowDetailAds = detailLength >= 500;
   const metaHtml = `<dl class="detail-meta"><div><dt>대표 분류</dt><dd>${escHtml(category)}</dd></div><div><dt>형식</dt><dd>${escHtml(format)}</dd></div>${updated ? `<div><dt>년월</dt><dd>${escHtml(updated)}</dd></div>` : ''}</dl>`;
   const primaryAction = isPost ? '' : `<a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a>`;
+  const listUrl = isPost ? '/posts' : '/projects';
+  const listLabel = isPost ? '포스트 목록' : '목록으로';
   const guide = isPost
-    ? `<section class="detail-panel detail-guide"><p class="section-kicker">POST NOTE</p><h2>포스트 안내</h2><ul><li>이 글은 코드 실행 화면이 없는 이미지와 글 중심의 포스트입니다.</li><li>첨부 이미지가 있는 경우 글 아래 이미지 자료 영역에서 확인할 수 있습니다.</li><li>관리자는 같은 목록에서 프로젝트와 포스트를 함께 관리할 수 있습니다.</li></ul></section>`
+    ? `<section class="detail-panel detail-guide"><p class="section-kicker">POST NOTE</p><h2>포스트 안내</h2><ul><li>이 글은 코드 실행 화면이 없는 이미지, 글, 파일 중심의 포스트입니다.</li><li>첨부 이미지가 있는 경우 글 아래 이미지 자료 영역에서 확인할 수 있습니다.</li><li>첨부 파일이 있는 경우 별도 링크로 열 수 있습니다.</li></ul></section>`
     : `<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section>`;
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">${isPost ? 'POST DETAIL' : 'PROJECT DETAIL'}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions">${primaryAction}<a class="btn" href="/projects">목록으로</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(isPost ? 'POST' : category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">${isPost ? 'POST BODY' : 'ABOUT THIS PROJECT'}</p><h2>${isPost ? '포스트 본문' : '프로젝트 소개'}</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}${guide}<footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">${isPost ? 'POST DETAIL' : 'PROJECT DETAIL'}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions">${primaryAction}<a class="btn" href="${escAttr(listUrl)}">${escHtml(listLabel)}</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(isPost ? 'POST' : category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">${isPost ? 'POST BODY' : 'ABOUT THIS PROJECT'}</p><h2>${isPost ? '포스트 본문' : '프로젝트 소개'}</h2><div class="detail-text">${summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('')}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}${attachmentHtml}${guide}<footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
 }
 
 function renderPrivateProjectDetailPage(req, artifact) {
   const title = artifact && artifact.title || 'Untitled project';
+  const isPost = isPostArtifact(artifact);
   const runUrl = `/run/${encodeURIComponent(String(artifact.id))}`;
-  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · Locked`, description:'비밀번호가 필요한 ERBELLO 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel locked-detail"><p class="detail-kicker">ERBELLO / LOCKED</p><h1>${escHtml(title)}</h1><div class="locked-blind" aria-hidden="true"><span></span><span></span><span></span></div><p>이 프로젝트는 비밀번호 확인 전까지 제목 외 내용이 보호됩니다.</p><div class="detail-actions"><a class="btn primary" href="${escAttr(runUrl)}">비밀번호 입력 후 실행</a><a class="btn" href="/projects">프로젝트 목록</a></div></section></main></body></html>`;
+  const listUrl = isPost ? '/posts' : '/projects';
+  const listLabel = isPost ? '포스트 목록' : '프로젝트 목록';
+  const action = isPost ? '' : `<a class="btn primary" href="${escAttr(runUrl)}">비밀번호 입력 후 실행</a>`;
+  return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · Locked`, description:`비밀번호가 필요한 ERBELLO ${isPost ? '포스트' : '프로젝트'}입니다.`, ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel locked-detail"><p class="detail-kicker">ERBELLO / LOCKED</p><h1>${escHtml(title)}</h1><div class="locked-blind" aria-hidden="true"><span></span><span></span><span></span></div><p>이 ${isPost ? '포스트' : '프로젝트'}는 비밀번호 확인 전까지 제목 외 내용이 보호됩니다.</p><div class="detail-actions">${action}<a class="btn" href="${escAttr(listUrl)}">${escHtml(listLabel)}</a></div></section></main></body></html>`;
 }
 
 async function renderPolicyPage(req, kind = 'privacy') {
@@ -742,7 +789,7 @@ function cleanSourceKind(value, detectedJsx = false) {
 }
 
 function cleanSlug(value) {
-  const allowed = new Set(['home', 'projects', 'about', 'contact', 'privacy', 'terms']);
+  const allowed = new Set(['home', 'projects', 'posts', 'about', 'contact', 'privacy', 'terms']);
   const slug = String(value || '').trim().toLowerCase();
   return allowed.has(slug) ? slug : null;
 }
@@ -849,7 +896,7 @@ function payloadFromBody(body, existing = null) {
   let code = normalizeCode(body.code);
   const cover_image = cleanCoverImage(body.cover_image);
   const gallery_images = cleanGalleryImages(body.gallery_images);
-  const detail_text = cleanText(body.detail_text, 8000);
+  const detail_text = cleanText(body.detail_text, 20000);
   const detectedJsxFromBody = isJSX(code);
   const source_kind = cleanSourceKind(body.source_kind || body.format || existing && existing.source_kind, detectedJsxFromBody || /jsx|tsx/i.test(body.source_filename || existing && existing.source_filename || ''));
   const incomingStoragePath = cleanStoragePath(body.code_storage_path);
@@ -870,11 +917,13 @@ function payloadFromBody(body, existing = null) {
 }
 
 function hasPostContent(payload) {
+  const postParts = splitPostAttachments(payload && payload.detail_text || '');
   return Boolean(payload && (
-    plainText(payload.detail_text, 20)
+    plainText(postParts.body, 20)
     || plainText(payload.description, 20)
     || payload.cover_image
     || (Array.isArray(payload.gallery_images) && payload.gallery_images.length)
+    || postParts.attachments.length
   ));
 }
 
@@ -924,13 +973,31 @@ function uploadKindMeta(kind) {
   if (k === 'source') return { bucket: store.ARTIFACT_BUCKET, prefix: 'sources', isPublic: false };
   if (k === 'cover') return { bucket: store.MEDIA_BUCKET, prefix: 'covers', isPublic: true };
   if (k === 'gallery') return { bucket: store.MEDIA_BUCKET, prefix: 'gallery', isPublic: true };
+  if (k === 'post-file') return { bucket: store.MEDIA_BUCKET, prefix: 'post-files', isPublic: true };
   const err = new Error('Invalid upload kind.');
   err.statusCode = 400;
   throw err;
 }
 
 function extensionFromMime(mime) {
-  const map = { 'text/html':'html', 'text/javascript':'js', 'application/javascript':'js', 'text/css':'css', 'application/zip':'zip', 'image/png':'png', 'image/jpeg':'jpg', 'image/webp':'webp', 'image/gif':'gif', 'image/svg+xml':'svg' };
+  const map = {
+    'text/html':'html',
+    'text/javascript':'js',
+    'application/javascript':'js',
+    'text/css':'css',
+    'text/plain':'txt',
+    'application/json':'json',
+    'application/pdf':'pdf',
+    'application/zip':'zip',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document':'docx',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':'xlsx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation':'pptx',
+    'image/png':'png',
+    'image/jpeg':'jpg',
+    'image/webp':'webp',
+    'image/gif':'gif',
+    'image/svg+xml':'svg'
+  };
   return map[String(mime || '').toLowerCase()] || '';
 }
 
@@ -1137,7 +1204,7 @@ app.get('/sitemap.xml', async (req, res) => {
     const origin = siteOrigin(req);
     const rows = await store.listArtifacts({ includePrivateDetails:false });
     const publicRows = (rows || []).filter(item => !item.is_private && item.status !== 'draft');
-    const staticUrls = ['/', '/projects', '/about', '/contact', '/privacy', '/terms'].map(url => ({ url }));
+    const staticUrls = ['/', '/projects', '/posts', '/about', '/contact', '/privacy', '/terms'].map(url => ({ url }));
     const projectUrls = publicRows.map(item => ({ url:`/project/${encodeURIComponent(String(item.id))}`, lastmod:fmtIsoDate(item.updated_at || item.created_at) }));
     const urls = [...staticUrls, ...projectUrls];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(item => `  <url><loc>${origin}${item.url}</loc>${item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>`;
