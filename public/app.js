@@ -1,14 +1,14 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v24 posts split';
+  const VERSION = 'ERBELLO Gallery v25 blog posts';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
   const COLORS = ['crimson','sky','lavender','yellowblue','cream','rose','ocean','aurora','mint','pixel'];
   const LANGS = ['ko','en','ja','zh'];
   const ROUTES = ['home','projects','posts','about','contact','privacy','terms'];
-  const CATEGORIES = ['all', 'secret', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other'];
+  const CATEGORIES = ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other', 'secret'];
   const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
   const GAMSUNG_COVERS = ['1','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(n => `/assets/illust/gamsung-${n}.webp`);
   const SITE_ORIGIN = 'https://erbello.vercel.app';
@@ -87,6 +87,14 @@
     zh:{ navPosts:'帖子', postsEyebrow:'POSTS', postsTitle:'帖子归档', postsBody:'可以像博客文章一样整理制作记录、图片和文件备忘。', postSectionKicker:'帖子', postsGalleryTitle:'帖子归档', postSearchPlaceholder:'搜索帖子...', viewAllPosts:'查看全部帖子', filterSecret:'私密', emptyPostTitle:'还没有公开帖子。', emptyPostText:'把文字、图片或文件备忘添加为帖子后会显示在这里。', emptySecretTitle:'没有私密项目。', emptySecretText:'私密项目和帖子只会出现在这个筛选中。', postFilesLabel:'附件', postFilesHint:'可以添加要随帖子显示的文件。' }
   };
   Object.keys(V24_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V24_I18N[lang]));
+
+  const V25_I18N = {
+    ko:{ postSidebarTitle:'ERBELLO NOTE', postSidebarBody:'글, 이미지, 파일 기록을 카테고리별로 모아둡니다.', postCategoryTitle:'category', postRecentTitle:'recent posts', postCount:'개의 글', postNoRecent:'아직 글이 없습니다.', postNotice:'공지', postListLabel:'글 제목', postDateLabel:'작성일' },
+    en:{ postSidebarTitle:'ERBELLO NOTE', postSidebarBody:'Writing, images, and file notes are grouped by category.', postCategoryTitle:'category', postRecentTitle:'recent posts', postCount:'posts', postNoRecent:'No posts yet.', postNotice:'Notice', postListLabel:'Post title', postDateLabel:'Date' },
+    ja:{ postSidebarTitle:'ERBELLO NOTE', postSidebarBody:'文章、画像、ファイル記録をカテゴリー別にまとめます。', postCategoryTitle:'category', postRecentTitle:'recent posts', postCount:'件の記事', postNoRecent:'記事はまだありません。', postNotice:'お知らせ', postListLabel:'記事タイトル', postDateLabel:'作成日' },
+    zh:{ postSidebarTitle:'ERBELLO NOTE', postSidebarBody:'按分类整理文字、图片和文件记录。', postCategoryTitle:'category', postRecentTitle:'recent posts', postCount:'篇文章', postNoRecent:'还没有文章。', postNotice:'公告', postListLabel:'文章标题', postDateLabel:'日期' }
+  };
+  Object.keys(V25_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V25_I18N[lang]));
 
   let artifacts = [];
   let pageRows = [];
@@ -170,8 +178,8 @@
   }
   function filterKeysForRoute(route = currentRoute) {
     return route === 'posts'
-      ? ['all', 'secret', 'daily', 'design', 'experiment', 'other']
-      : ['all', 'secret', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other'];
+      ? ['all', 'daily', 'design', 'experiment', 'other', 'secret']
+      : ['all', 'tool', 'game', 'daily', 'design', 'chart', 'experiment', 'other', 'secret'];
   }
   function isSecretItem(item = {}) { return statusKey(item) === 'private' || Boolean(item.is_private); }
   function routeContentKind(route = currentRoute) { return route === 'posts' ? 'post' : 'project'; }
@@ -1438,7 +1446,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
 
   function bindCardEvents(container) {
     if (!container) return;
-    container.querySelectorAll('.card').forEach((card) => {
+    container.querySelectorAll('.card, .post-list-item').forEach((card) => {
       const id = card.dataset.id;
       card.addEventListener('click', (event) => { if (!event.target.closest('button')) openArtifact(id); });
       card.addEventListener('keydown', (event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openArtifact(id); } });
@@ -1453,8 +1461,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const grid = currentRoute === 'posts' ? $('postsGrid') : $('grid');
     if (!grid) return;
     const items = filteredArtifacts();
+    if (currentRoute === 'posts') renderPostSidebar();
     if (!items.length) { grid.innerHTML = emptyMessage(false); return; }
-    grid.innerHTML = items.map((item) => cardMarkup(item, false)).join('');
+    grid.innerHTML = currentRoute === 'posts'
+      ? items.map((item) => postListMarkup(item)).join('')
+      : items.map((item) => cardMarkup(item, false)).join('');
     bindCardEvents(grid);
   }
 
@@ -1465,6 +1476,61 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!items.length) { grid.innerHTML = emptyMessage(true); return; }
     grid.innerHTML = items.map((item) => cardMarkup(item, true)).join('');
     bindCardEvents(grid);
+  }
+
+  function postSidebarItems() {
+    return artifacts.filter((item) => {
+      if (!isPostItem(item)) return false;
+      if (!isAdminOn() && statusKey(item) === 'draft') return false;
+      return true;
+    });
+  }
+
+  function setPostFilter(filter) {
+    currentRoute = 'posts';
+    currentFilter = filter || 'all';
+    renderFilters();
+    renderGrid();
+  }
+
+  function renderPostSidebar(items = postSidebarItems()) {
+    const categoryNode = $('postCategoryList');
+    const recentNode = $('postRecentList');
+    if (categoryNode) {
+      const keys = filterKeysForRoute('posts');
+      categoryNode.innerHTML = keys.map((key) => {
+        const count = items.filter((item) => {
+          const secret = isSecretItem(item);
+          if (key === 'all') return !secret;
+          if (key === 'secret') return secret;
+          return !secret && matchesFilter(item, key);
+        }).length;
+        return `<button class="post-category-item ${key === currentFilter ? 'active' : ''}" type="button" data-post-category="${esc(key)}"><span>${esc(catLabel(key))}</span><small>${count}</small></button>`;
+      }).join('');
+      categoryNode.querySelectorAll('[data-post-category]').forEach((button) => {
+        button.addEventListener('click', () => setPostFilter(button.dataset.postCategory || 'all'));
+      });
+    }
+    if (recentNode) {
+      const recent = items.filter(item => !isSecretItem(item)).slice(0, 6);
+      recentNode.innerHTML = recent.length
+        ? recent.map(item => `<a class="post-recent-item" href="${esc(projectPath(item.id))}"><strong>${esc(compact(item.title || tr('untitled'), 34))}</strong><small>${esc(fmtMonth(item.updated_at || item.created_at))}</small></a>`).join('')
+        : `<p class="post-recent-empty">${esc(tr('postNoRecent'))}</p>`;
+    }
+  }
+
+  function postListMarkup(item) {
+    const type = typeKey(item.type);
+    const title = item.title || tr('untitled');
+    const status = statusKey(item);
+    const locked = status === 'private' && !isAdminOn();
+    const tags = artifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, 5);
+    const date = fmtMonth(item.updated_at || item.created_at);
+    if (locked) {
+      return `<article class="post-list-item post-list-locked" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(tr('privateBadge'))}</p><h3>${esc(title)}</h3><div class="locked-blind" aria-hidden="true"><span></span><span></span></div></div><span class="post-list-arrow" aria-hidden="true">♡</span></article>`;
+    }
+    const desc = item.description || item.detail_text || tr('noDescription');
+    return `<article class="post-list-item" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(catLabel(type))}</p><h3>${esc(title)}</h3><p>${esc(compact(desc, 150))}</p>${tags.length ? `<div class="post-list-tags">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : ''}</div><div class="post-list-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div></article>`;
   }
 
   function findArtifact(id) { return artifacts.find((item) => String(item.id) === String(id)); }

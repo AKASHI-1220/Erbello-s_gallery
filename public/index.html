@@ -176,15 +176,35 @@
             <button id="postAddBtn" class="round-tool admin-only" type="button" data-i18n-aria-label="addPost">＋</button>
           </div>
 
-          <div class="compact-head">
-            <div class="section-head">
-              <p class="section-kicker" data-i18n="postSectionKicker">포스트</p>
-              <h2 data-i18n="postsGalleryTitle">포스트 아카이브</h2>
-            </div>
-            <button id="postAddBtnToolbar" class="btn primary admin-only" type="button" data-i18n="addPost">포스트 추가</button>
-          </div>
+          <div class="post-blog-layout">
+            <aside class="post-sidebar" aria-label="post categories">
+              <div class="post-profile">
+                <span class="post-profile-icon" aria-hidden="true">✎</span>
+                <strong data-i18n="postSidebarTitle">ERBELLO NOTE</strong>
+                <p data-i18n="postSidebarBody">글, 이미지, 파일 기록을 카테고리별로 모아둡니다.</p>
+              </div>
+              <div class="post-side-block">
+                <h2 data-i18n="postCategoryTitle">category</h2>
+                <div id="postCategoryList" class="post-category-list"></div>
+              </div>
+              <div class="post-side-block">
+                <h2 data-i18n="postRecentTitle">recent posts</h2>
+                <div id="postRecentList" class="post-recent-list"></div>
+              </div>
+            </aside>
 
-          <section id="postsGrid" class="grid posts-grid" aria-live="polite"></section>
+            <div class="post-main">
+              <div class="compact-head">
+                <div class="section-head">
+                  <p class="section-kicker" data-i18n="postSectionKicker">포스트</p>
+                  <h2 data-i18n="postsGalleryTitle">포스트 아카이브</h2>
+                </div>
+                <button id="postAddBtnToolbar" class="btn primary admin-only" type="button" data-i18n="addPost">포스트 추가</button>
+              </div>
+
+              <section id="postsGrid" class="post-list posts-grid" aria-live="polite"></section>
+            </div>
+          </div>
         </section>
       </section>
 
