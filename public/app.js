@@ -129,17 +129,17 @@
   Object.keys(V26_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V26_I18N[lang]));
 
   const V28_I18N = {
-    ko:{ postAssetsHint:'누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.', postMajorCategoryLabel:'큰 분류', postSubcategoryLabel:'작은 분류', postSubcategoryPlaceholder:'예: 노래방 번호 정리', postReaderEmpty:'아직 본문이 없습니다.', postReaderChoose:'읽을 포스트를 선택해주세요.', postInlineTitle:'본문 미리보기', postOpenHint:'목록에서 글을 선택하면 이곳에 바로 표시됩니다.' },
-    en:{ postAssetsHint:'Click or drag an asset into the body to insert image markdown.', postMajorCategoryLabel:'Main category', postSubcategoryLabel:'Subcategory', postSubcategoryPlaceholder:'Example: karaoke song list', postReaderEmpty:'This post has no body yet.', postReaderChoose:'Choose a post to read.', postInlineTitle:'Post reader', postOpenHint:'Select a post from the list to read it here.' },
-    ja:{ postAssetsHint:'クリック、または本文へドラッグすると画像Markdownを挿入できます。', postMajorCategoryLabel:'大分類', postSubcategoryLabel:'小分類', postSubcategoryPlaceholder:'例：カラオケ番号整理', postReaderEmpty:'本文はまだありません。', postReaderChoose:'読む記事を選択してください。', postInlineTitle:'本文プレビュー', postOpenHint:'一覧から記事を選ぶとここに表示されます。' },
-    zh:{ postAssetsHint:'点击或拖到正文中即可插入图片 Markdown。', postMajorCategoryLabel:'大分类', postSubcategoryLabel:'小分类', postSubcategoryPlaceholder:'例如：K 歌编号整理', postReaderEmpty:'正文尚为空。', postReaderChoose:'请选择要阅读的帖子。', postInlineTitle:'正文预览', postOpenHint:'从列表中选择帖子后会在这里直接显示。' }
+    ko:{ postAssetsHint:'누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.', postMajorCategoryLabel:'큰 분류', postSubcategoryLabel:'작은 분류', postSubcategoryPlaceholder:'세부 주제를 입력하세요', postReaderEmpty:'아직 본문이 없습니다.', postReaderChoose:'읽을 포스트를 선택해주세요.', postInlineTitle:'본문 미리보기', postOpenHint:'목록에서 글을 선택하면 이곳에 바로 표시됩니다.' },
+    en:{ postAssetsHint:'Click or drag an asset into the body to insert image markdown.', postMajorCategoryLabel:'Main category', postSubcategoryLabel:'Subcategory', postSubcategoryPlaceholder:'Enter a subtopic', postReaderEmpty:'This post has no body yet.', postReaderChoose:'Choose a post to read.', postInlineTitle:'Post reader', postOpenHint:'Select a post from the list to read it here.' },
+    ja:{ postAssetsHint:'クリック、または本文へドラッグすると画像Markdownを挿入できます。', postMajorCategoryLabel:'大分類', postSubcategoryLabel:'小分類', postSubcategoryPlaceholder:'小分類を入力してください', postReaderEmpty:'本文はまだありません。', postReaderChoose:'読む記事を選択してください。', postInlineTitle:'本文プレビュー', postOpenHint:'一覧から記事を選ぶとここに表示されます。' },
+    zh:{ postAssetsHint:'点击或拖到正文中即可插入图片 Markdown。', postMajorCategoryLabel:'大分类', postSubcategoryLabel:'小分类', postSubcategoryPlaceholder:'请输入子分类', postReaderEmpty:'正文尚为空。', postReaderChoose:'请选择要阅读的帖子。', postInlineTitle:'正文预览', postOpenHint:'从列表中选择帖子后会在这里直接显示。' }
   };
   Object.keys(V28_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V28_I18N[lang]));
 
   const V30_I18N = {
     ko:{
       postCategoriesLabel:'포스트 카테고리',
-      postCategoriesPlaceholder:'분류명 | key | 하위주제A, 하위주제B | divider-pink-beads.png',
+      postCategoriesPlaceholder:'분류명 | key | 세부주제, 세부주제 | divider-pink-beads.png',
       postCategoriesHint:'한 줄에 하나씩 적으면 포스트 필터와 작성 화면에 반영됩니다. key는 영어 소문자, 숫자, - 조합을 추천합니다.',
       postDividerLabel:'포스트 기본 구분선',
       postEditorToolbar:'포스트 작성 도구',
@@ -153,7 +153,7 @@
     },
     en:{
       postCategoriesLabel:'Post categories',
-      postCategoriesPlaceholder:'Label | key | topic A, topic B | divider-pink-beads.png',
+      postCategoriesPlaceholder:'Label | key | subtopic, subtopic | divider-pink-beads.png',
       postCategoriesHint:'One category per line. These categories appear in post filters and in the post editor.',
       postDividerLabel:'Default post divider',
       postEditorToolbar:'Post writing tools',
@@ -167,7 +167,7 @@
     },
     ja:{
       postCategoriesLabel:'ポストカテゴリー',
-      postCategoriesPlaceholder:'表示名 | key | 小テーマA, 小テーマB | divider-pink-beads.png',
+      postCategoriesPlaceholder:'表示名 | key | 小分類, 小分類 | divider-pink-beads.png',
       postCategoriesHint:'1行に1カテゴリーを書きます。ポストのフィルターと編集画面に反映されます。',
       postDividerLabel:'ポスト基本区切り線',
       postEditorToolbar:'ポスト作成ツール',
@@ -181,7 +181,7 @@
     },
     zh:{
       postCategoriesLabel:'帖子分类',
-      postCategoriesPlaceholder:'名称 | key | 子主题A, 子主题B | divider-pink-beads.png',
+      postCategoriesPlaceholder:'名称 | key | 子分类, 子分类 | divider-pink-beads.png',
       postCategoriesHint:'每行一个分类。会显示在帖子筛选和编辑界面中。',
       postDividerLabel:'帖子默认分隔线',
       postEditorToolbar:'帖子写作工具',
