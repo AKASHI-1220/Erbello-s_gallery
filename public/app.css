@@ -1861,12 +1861,23 @@ body[data-scheme=black] .post-rich-editor{background:rgba(255,255,255,.035)}
 body[data-scheme=black] .post-sidebar-note-img{
   opacity:.34;
 }
-body:not(.admin-on) img,
-body:not(.admin-on) video,
-body:not(.admin-on) canvas,
-body:not(.admin-on) [data-protected-media="1"]{
+img,
+video,
+canvas,
+[data-protected-media="1"]{
   -webkit-user-drag:none;
+  -webkit-touch-callout:none;
   user-select:none;
+}
+.posts-section .gallery-tools{
+  grid-template-columns:minmax(240px,420px) auto!important;
+  justify-content:space-between;
+}
+.posts-section .gallery-tools .search-wrap{
+  max-width:420px;
+}
+.posts-section #postAddBtn{
+  justify-self:end;
 }
 @media(max-width:980px){
   .post-sidebar{
@@ -1875,6 +1886,15 @@ body:not(.admin-on) [data-protected-media="1"]{
   }
 }
 @media(max-width:720px){
+  .posts-section .gallery-tools{
+    grid-template-columns:1fr!important;
+  }
+  .posts-section .gallery-tools .search-wrap{
+    max-width:none;
+  }
+  .posts-section #postAddBtn{
+    justify-self:end;
+  }
   .post-sidebar{
     padding:14px!important;
   }

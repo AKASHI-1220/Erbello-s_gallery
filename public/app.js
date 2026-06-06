@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v34 sidebar category tree and post sidebar polish';
+  const VERSION = 'ERBELLO Gallery v35 sidebar-only post categories and stronger media protection';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -1806,37 +1806,37 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   function applyMediaProtection(root = document) {
-    if (isAdminOn()) return;
     root.querySelectorAll?.('img, video, canvas').forEach((node) => {
       node.setAttribute('draggable', 'false');
       node.setAttribute('data-protected-media', '1');
     });
   }
 
+  function allowProtectedDrag(target) {
+    return target && target.closest && target.closest('#postAssetLibrary [data-post-asset], #postSidebarCategoryTree [data-sidebar-row]');
+  }
+
   function installContentProtection() {
     applyMediaProtection();
     const observer = new MutationObserver((mutations) => {
-      if (isAdminOn()) return;
       mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
         if (node && node.nodeType === 1) applyMediaProtection(node);
       }));
     });
     observer.observe(document.documentElement, { childList:true, subtree:true });
     document.addEventListener('contextmenu', (event) => {
-      if (isAdminOn()) return;
       if (protectedMediaTarget(event.target)) {
         event.preventDefault();
         return;
       }
       if (event.target.closest('input, textarea, select, button, a, [contenteditable="true"], .overlay, .theme-menu')) return;
-      event.preventDefault();
+      if (!isAdminOn()) event.preventDefault();
     });
     document.addEventListener('dragstart', (event) => {
-      if (isAdminOn()) return;
+      if (allowProtectedDrag(event.target)) return;
       if (protectedMediaTarget(event.target)) event.preventDefault();
     });
     document.addEventListener('mousedown', (event) => {
-      if (isAdminOn()) return;
       if (event.button === 2 && protectedMediaTarget(event.target)) event.preventDefault();
     });
   }
@@ -2093,8 +2093,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       currentPostSubcategory = '';
     }
     const targets = [
-      { node:$('filters'), route:'projects' },
-      { node:$('postFilters'), route:'posts' }
+      { node:$('filters'), route:'projects' }
     ];
     targets.forEach(({ node, route }) => {
       if (!node) return;
