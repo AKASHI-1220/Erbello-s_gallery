@@ -15,7 +15,7 @@
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/app.css?v=37" />
+  <link rel="stylesheet" href="/app.css?v=38" />
 </head>
 <body data-scheme="white" data-color="pixel" data-theme="white-pixel">
   <div class="site-bg" aria-hidden="true">
@@ -573,7 +573,7 @@
               <button id="editorPhotoToolBtn" class="btn small" type="button" data-i18n="postInsertImage">사진</button>
               <button id="editorTableToolBtn" class="btn small" type="button" data-i18n="editorInsertTable">표</button>
               <button id="editorDividerToolBtn" class="btn small" type="button" data-i18n="postInsertDivider">구분선</button>
-              <button id="editorAssetToolBtn" class="btn small post-only-field" type="button" data-i18n="postAssetsLabel">포스트 에셋</button>
+              <button id="editorAssetToolBtn" class="btn small post-only-field" type="button" data-i18n="postAssetsLabel" aria-controls="postAssetTools" aria-expanded="false">포스트 에셋</button>
               <button id="editorFileToolBtn" class="btn small post-only-field" type="button" data-i18n="postFilesLabel">첨부 파일</button>
               <button id="editorSourceToolBtn" class="btn small project-only-field" type="button" data-i18n="codeLabel">코드</button>
             </div>
@@ -591,8 +591,14 @@
                 <div class="post-editor-toolbar" role="toolbar" data-i18n-aria-label="postEditorToolbar">
                   <button id="postParagraphBtn" class="btn small" type="button" data-i18n="postInsertParagraph">문단</button>
                   <button id="postDividerBtn" class="btn small" type="button" data-i18n="postInsertDivider">구분선</button>
+                  <button id="postAssetToggleBtn" class="btn small" type="button" data-i18n="postAssetsLabel" aria-controls="postAssetTools" aria-expanded="false">포스트 에셋</button>
                   <button id="postInlineImageBtn" class="btn small" type="button" data-i18n="postInsertImage">사진</button>
                   <button id="postSyncBtn" class="btn small" type="button" data-i18n="postSyncMarkdown">본문 정리</button>
+                </div>
+                <div id="postAssetTools" class="post-asset-tools post-only-field" aria-hidden="true">
+                  <label data-i18n="postAssetsLabel">포스트 에셋</label>
+                  <div id="postAssetLibrary" class="post-asset-library" aria-live="polite"></div>
+                  <p class="hint" data-i18n="postAssetsHint">누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.</p>
                 </div>
                 <div id="postRichEditor" class="post-rich-editor" contenteditable="true" data-i18n-data-placeholder="postEditorPlaceholder" data-placeholder="본문을 이곳에 작성하고, 에셋이나 사진을 중간에 넣을 수 있습니다."></div>
                 <input id="postInlineImageInput" type="file" accept="image/*" multiple hidden />
@@ -601,11 +607,6 @@
               <p class="hint" data-i18n="detailHint">상세 소개는 카드 설명보다 긴 프로젝트 설명으로 사용할 수 있습니다.</p>
               <div id="detailQuality" class="detail-quality" aria-live="polite"></div>
               <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
-            </div>
-            <div class="field post-only-field post-asset-tools">
-              <label data-i18n="postAssetsLabel">포스트 에셋</label>
-              <div id="postAssetLibrary" class="post-asset-library" aria-live="polite"></div>
-              <p class="hint" data-i18n="postAssetsHint">누르거나 본문으로 끌어오면 이미지 마크다운이 삽입됩니다. 구분선, 인덱스, 일상/공부/요리/게임/덕질 스티커를 바로 쓸 수 있어요.</p>
             </div>
             <div class="field post-only-field post-file-tools">
               <label for="postFileInput" data-i18n="postFilesLabel">첨부 파일</label>
@@ -682,6 +683,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=37" defer></script>
+  <script src="/app.js?v=38" defer></script>
 </body>
 </html>

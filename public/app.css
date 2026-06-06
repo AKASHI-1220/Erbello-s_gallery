@@ -1196,6 +1196,12 @@ body:not(.admin-on) #artifactModal.editor-page{display:none!important}
 #artifactModal.post-mode.files-open .post-file-tools.post-only-field{
   display:grid!important;
 }
+#artifactModal.post-mode .editor-tool-strip .post-only-field{
+  display:inline-flex!important;
+}
+#artifactModal:not(.post-mode) .editor-tool-strip .post-only-field{
+  display:none!important;
+}
 #artifactModal .private-panel{
   margin:0;
 }
@@ -1272,6 +1278,12 @@ body:not(.admin-on) #artifactModal.editor-page{display:none!important}
   padding-bottom:8px;
   border-bottom:1px dashed var(--line);
 }
+.post-editor-toolbar .btn.active,
+.editor-tool-strip .btn.active{
+  border-color:var(--accent);
+  color:var(--accent);
+  background:color-mix(in srgb,var(--accent) 12%,var(--panel2));
+}
 .post-rich-editor{
   min-height:360px;
   max-height:52vh;
@@ -1341,23 +1353,35 @@ body[data-scheme=black] .post-rich-editor{background:rgba(255,255,255,.035)}
 }
 .post-asset-tools{
   background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 5%,transparent),color-mix(in srgb,var(--accent2) 4%,transparent));
+  gap:9px;
+  border-radius:8px;
 }
 .post-asset-library{
-  grid-template-columns:repeat(auto-fill,minmax(48px,1fr));
-  max-height:220px;
-  gap:7px;
+  grid-template-columns:repeat(auto-fill,minmax(76px,1fr));
+  max-height:260px;
+  gap:8px;
 }
 .post-asset-btn{
-  min-height:52px;
-  grid-template-rows:1fr;
-  padding:5px;
+  min-height:78px;
+  grid-template-rows:42px auto;
+  padding:7px 6px;
   border-radius:8px;
 }
 .post-asset-btn img{
-  max-width:42px;
-  max-height:38px;
+  max-width:54px;
+  max-height:40px;
 }
-.post-asset-btn span{display:none!important}
+.post-asset-btn span{
+  display:block!important;
+  width:100%;
+  overflow:hidden;
+  color:var(--muted);
+  font-size:10px;
+  line-height:1.2;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.post-asset-btn:hover span{color:var(--accent)}
 .post-reader-divider-img{
   display:block;
   width:min(100%,520px);
@@ -1394,9 +1418,10 @@ body[data-scheme=black] .post-rich-editor{background:rgba(255,255,255,.035)}
   .post-editor-shell{padding:10px}
   .post-rich-editor{min-height:300px;max-height:46vh;padding:16px;font-size:14px}
   .post-editor-toolbar .btn.small{min-height:34px;padding:0 10px;font-size:12px}
-  .post-asset-library{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));max-height:180px}
-  .post-asset-btn{min-height:48px}
-  .post-asset-btn img{max-width:38px;max-height:34px}
+  .post-asset-library{grid-template-columns:repeat(auto-fill,minmax(64px,1fr));max-height:210px}
+  .post-asset-btn{min-height:68px}
+  .post-asset-btn img{max-width:42px;max-height:34px}
+  .post-asset-btn span{font-size:9px}
   .post-reader-divider-img{max-height:40px}
 }
 

@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v37 Akashi asset pack';
+  const VERSION = 'ERBELLO Gallery v38 editor asset drawer';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -2797,7 +2797,24 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function renderPostAssetLibrary() {
     const node = $('postAssetLibrary');
     if (!node) return;
-    node.innerHTML = POST_ASSETS.map((asset) => `<button class="post-asset-btn" type="button" draggable="true" data-post-asset="${esc(asset.file)}" title="${esc(tr('insertAsset'))}: ${esc(asset.label)}" aria-label="${esc(tr('insertAsset'))}: ${esc(asset.label)}"><img src="${esc(asset.src)}" alt="" loading="lazy" /></button>`).join('');
+    node.innerHTML = POST_ASSETS.map((asset) => `<button class="post-asset-btn" type="button" draggable="true" data-post-asset="${esc(asset.file)}" title="${esc(tr('insertAsset'))}: ${esc(asset.label)}" aria-label="${esc(tr('insertAsset'))}: ${esc(asset.label)}"><img src="${esc(asset.src)}" alt="" loading="lazy" /><span>${esc(asset.label)}</span></button>`).join('');
+  }
+
+  function setPostAssetDrawer(open) {
+    const modal = $('artifactModal');
+    const panel = $('postAssetTools');
+    if (!modal) return;
+    const next = typeof open === 'boolean' ? open : !modal.classList.contains('assets-open');
+    modal.classList.toggle('assets-open', next);
+    if (next) modal.classList.remove('files-open');
+    if (panel) panel.setAttribute('aria-hidden', next ? 'false' : 'true');
+    ['editorAssetToolBtn', 'postAssetToggleBtn'].forEach((id) => {
+      const button = $(id);
+      if (!button) return;
+      button.classList.toggle('active', next);
+      button.setAttribute('aria-expanded', next ? 'true' : 'false');
+    });
+    if (next) setTimeout(() => panel?.scrollIntoView({ behavior:'smooth', block:'nearest' }), 40);
   }
 
   function postAssetMarkdown(asset) {
@@ -3040,6 +3057,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const modal = $('artifactModal');
     if (modal) modal.classList.toggle('post-mode', isPost);
     if (modal && !isPost) modal.classList.remove('assets-open', 'files-open');
+    if (!isPost && $('postAssetTools')) $('postAssetTools').setAttribute('aria-hidden', 'true');
     renderTypeOptions();
     if ($('formatInput')) {
       if (isPost) $('formatInput').value = 'post';
@@ -3963,7 +3981,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     });
     $('editorTableToolBtn')?.addEventListener('click', insertEditorTable);
     $('editorDividerToolBtn')?.addEventListener('click', () => insertPostMarkdown('---'));
-    $('editorAssetToolBtn')?.addEventListener('click', () => $('artifactModal')?.classList.toggle('assets-open'));
+    $('editorAssetToolBtn')?.addEventListener('click', () => setPostAssetDrawer());
+    $('postAssetToggleBtn')?.addEventListener('click', () => setPostAssetDrawer());
     $('editorFileToolBtn')?.addEventListener('click', () => {
       $('artifactModal')?.classList.toggle('files-open', true);
       $('postFileInput')?.click();
