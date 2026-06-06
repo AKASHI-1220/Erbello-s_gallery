@@ -15,7 +15,7 @@
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/app.css?v=33" />
+  <link rel="stylesheet" href="/app.css?v=34" />
 </head>
 <body data-scheme="white" data-color="pixel" data-theme="white-pixel">
   <div class="site-bg" aria-hidden="true">
@@ -183,10 +183,28 @@
                 <strong data-i18n="postSidebarTitle">ERBELLO NOTE</strong>
                 <p data-i18n="postSidebarBody">글, 이미지, 파일 기록을 카테고리별로 모아둡니다.</p>
               </div>
+              <div class="post-side-category-panel">
+                <div class="post-side-title-row">
+                  <h2 data-i18n="postSidebarCategoryTitle">category</h2>
+                  <label class="post-count-toggle admin-only">
+                    <input id="postCountToggle" type="checkbox" checked />
+                    <span data-i18n="postShowCountsLabel">글 개수</span>
+                  </label>
+                </div>
+                <div class="post-sidebar-tools admin-only" aria-label="post category controls">
+                  <button id="postSidebarAddCategoryBtn" class="mini-admin-btn" type="button" data-i18n="postSidebarAddCategory">+ 카테고리 추가</button>
+                  <button id="postSidebarAddDividerBtn" class="mini-admin-btn" type="button" data-i18n="postSidebarAddDivider">+ 구분선 추가</button>
+                  <button id="postSidebarDeleteBtn" class="mini-admin-btn danger" type="button" data-i18n="postSidebarDelete">삭제</button>
+                  <button id="postSidebarSaveBtn" class="mini-admin-btn primary" type="button" data-i18n="postSidebarSave">저장</button>
+                </div>
+                <p class="post-sidebar-edit-hint admin-only" data-i18n="postSidebarEditHint">드래그로 순서를 바꾸고 세부주제는 쉼표로 적어주세요.</p>
+                <div id="postSidebarCategoryTree" class="post-category-tree" aria-live="polite"></div>
+              </div>
               <div class="post-side-block">
                 <h2 data-i18n="postRecentTitle">recent posts</h2>
                 <div id="postRecentList" class="post-recent-list"></div>
               </div>
+              <img class="post-sidebar-note-img" src="/assets/illust/imagegen-assets/web/memo-card.png" alt="" aria-hidden="true" loading="lazy" />
             </aside>
 
             <div class="post-main">
@@ -438,6 +456,13 @@
                 <option value="closed" data-i18n="categoryFoldClosed">접기</option>
               </select>
             </div>
+            <div class="field">
+              <label for="pageShowPostCountsInput" data-i18n="postShowCountsLabel">글 개수 표시</label>
+              <select id="pageShowPostCountsInput" class="select">
+                <option value="yes" data-i18n="postShowCountsYes">표시</option>
+                <option value="no" data-i18n="postShowCountsNo">숨김</option>
+              </select>
+            </div>
           </div>
         </div>
         <p class="hint" data-i18n="pageEditHint">현재 선택한 언어의 페이지 문구만 저장됩니다.</p>
@@ -658,6 +683,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=33" defer></script>
+  <script src="/app.js?v=34" defer></script>
 </body>
 </html>

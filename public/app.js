@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v33 editor polish, category manager and one-vote polls';
+  const VERSION = 'ERBELLO Gallery v34 sidebar category tree and post sidebar polish';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -401,10 +401,87 @@
   };
   Object.keys(V33_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V33_I18N[lang]));
 
+  const V34_I18N = {
+    ko:{
+      postSidebarCategoryTitle:'category',
+      postSidebarAll:'전체보기',
+      postSidebarSecret:'비밀',
+      postSidebarAddCategory:'+ 카테고리 추가',
+      postSidebarAddDivider:'+ 구분선 추가',
+      postSidebarDelete:'삭제',
+      postSidebarSave:'저장',
+      postSidebarEditHint:'드래그로 순서를 바꾸고 세부주제는 쉼표로 적어주세요.',
+      postSidebarSaved:'사이드 카테고리를 저장했습니다.',
+      postSidebarDivider:'구분선',
+      postSidebarName:'분류명',
+      postSidebarKey:'key',
+      postSidebarSubtopics:'하위 주제',
+      postShowCountsLabel:'글 개수 표시',
+      postShowCountsYes:'표시',
+      postShowCountsNo:'숨김'
+    },
+    en:{
+      postSidebarCategoryTitle:'category',
+      postSidebarAll:'All posts',
+      postSidebarSecret:'Secret',
+      postSidebarAddCategory:'+ Add category',
+      postSidebarAddDivider:'+ Add divider',
+      postSidebarDelete:'Delete',
+      postSidebarSave:'Save',
+      postSidebarEditHint:'Drag to reorder. Write subtopics separated by commas.',
+      postSidebarSaved:'Sidebar categories saved.',
+      postSidebarDivider:'Divider',
+      postSidebarName:'Name',
+      postSidebarKey:'key',
+      postSidebarSubtopics:'Subtopics',
+      postShowCountsLabel:'Show counts',
+      postShowCountsYes:'Show',
+      postShowCountsNo:'Hide'
+    },
+    ja:{
+      postSidebarCategoryTitle:'category',
+      postSidebarAll:'すべて表示',
+      postSidebarSecret:'秘密',
+      postSidebarAddCategory:'+ カテゴリー追加',
+      postSidebarAddDivider:'+ 区切り線追加',
+      postSidebarDelete:'削除',
+      postSidebarSave:'保存',
+      postSidebarEditHint:'ドラッグで順番を変え、小分類はカンマで入力してください。',
+      postSidebarSaved:'サイドカテゴリーを保存しました。',
+      postSidebarDivider:'区切り線',
+      postSidebarName:'分類名',
+      postSidebarKey:'key',
+      postSidebarSubtopics:'小分類',
+      postShowCountsLabel:'件数表示',
+      postShowCountsYes:'表示',
+      postShowCountsNo:'非表示'
+    },
+    zh:{
+      postSidebarCategoryTitle:'category',
+      postSidebarAll:'查看全部',
+      postSidebarSecret:'私密',
+      postSidebarAddCategory:'+ 添加分类',
+      postSidebarAddDivider:'+ 添加分隔线',
+      postSidebarDelete:'删除',
+      postSidebarSave:'保存',
+      postSidebarEditHint:'可拖动调整顺序，子分类请用逗号分隔。',
+      postSidebarSaved:'侧栏分类已保存。',
+      postSidebarDivider:'分隔线',
+      postSidebarName:'分类名',
+      postSidebarKey:'key',
+      postSidebarSubtopics:'子分类',
+      postShowCountsLabel:'显示数量',
+      postShowCountsYes:'显示',
+      postShowCountsNo:'隐藏'
+    }
+  };
+  Object.keys(V34_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V34_I18N[lang]));
+
   let artifacts = [];
   let pageRows = [];
   let currentRoute = initialRoute();
   let currentFilter = 'all';
+  let currentPostSubcategory = '';
   let currentPostPage = 1;
   let searchQuery = '';
   let currentLang = 'ko';
@@ -426,6 +503,7 @@
   let pendingInlineImages = [];
   let systemStatusCache = null;
   let toastTimer = null;
+  let postSidebarDragIndex = null;
 
   function dict() { return I18N[currentLang] || I18N.ko; }
   function tr(key) { return (EXTRA_I18N[currentLang] && EXTRA_I18N[currentLang][key]) ?? dict()[key] ?? (EXTRA_I18N.ko && EXTRA_I18N.ko[key]) ?? I18N.ko[key] ?? key; }
@@ -556,6 +634,13 @@
     if (!tag) return '';
     return String(tag).slice(String(tag).indexOf(':') + 1).trim();
   }
+  function postSubtopicMatches(item, subtopic) {
+    const target = normalizeTagValue(subtopic);
+    if (!target) return true;
+    const primary = normalizeTagValue(postSubcategory(item));
+    if (primary && primary === target) return true;
+    return visibleArtifactTags(item).some(tag => normalizeTagValue(tag) === target);
+  }
   function postTagPayload(tags, subcategory) {
     const base = cleanTags(tags).filter(tag => !isSubcategoryTag(tag));
     const sub = String(subcategory || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0, 40);
@@ -581,30 +666,43 @@
   }
   function defaultPostCategoryConfigs(lang = currentLang) {
     return ['daily','study','cooking','game','fandom','design','other'].map((key) => ({
+      kind:'category',
       key,
       label:builtinPostCategoryLabel(key, lang),
       subtopics:[],
       divider:''
     }));
   }
+  function isPostDividerRow(value) {
+    return value && value.kind === 'divider';
+  }
   function normalizePostCategoryConfig(value, index = 0, lang = currentLang) {
     if (!value) return null;
     if (typeof value === 'string') {
       const parts = value.split('|').map(part => part.trim());
+      const marker = String(parts[0] || '').toLowerCase();
+      if (marker === '---' || marker === 'divider' || marker === '구분선') {
+        const divider = safePostDividerFile(parts[1] || parts[2] || '') || 'divider-pink-beads.png';
+        return { kind:'divider', key:`divider-${index + 1}`, label:parts[2] || '', subtopics:[], divider };
+      }
       const label = parts[0] || '';
       if (!label) return null;
       const key = sanitizePostCategoryKey(parts[1] || label, index);
       const subtopics = cleanTags(parts[2] || '');
       const divider = safePostDividerFile(parts[3] || '');
-      return { key, label, subtopics, divider };
+      return { kind:'category', key, label, subtopics, divider };
     }
     if (typeof value === 'object') {
+      if (value.kind === 'divider') {
+        const divider = safePostDividerFile(value.divider || value.dividerAsset || value.file || '') || 'divider-pink-beads.png';
+        return { kind:'divider', key:`divider-${index + 1}`, label:String(value.label || '').trim().slice(0, 40), subtopics:[], divider };
+      }
       const label = String(value.label || value.name || '').trim();
       if (!label) return null;
       const key = sanitizePostCategoryKey(value.key || label, index);
       const subtopics = Array.isArray(value.subtopics) ? cleanTags(value.subtopics) : cleanTags(value.subtopics || value.children || '');
       const divider = safePostDividerFile(value.divider || value.dividerAsset || '');
-      return { key, label, subtopics, divider };
+      return { kind:'category', key, label, subtopics, divider };
     }
     return null;
   }
@@ -616,7 +714,12 @@
     const result = [];
     raw.forEach((item, index) => {
       const config = normalizePostCategoryConfig(item, index, lang);
-      if (!config || seen.has(config.key)) return;
+      if (!config) return;
+      if (isPostDividerRow(config)) {
+        result.push(config);
+        return;
+      }
+      if (seen.has(config.key)) return;
       seen.add(config.key);
       result.push(config);
     });
@@ -626,13 +729,17 @@
     return (Array.isArray(categories) ? categories : []).map((item) => {
       const config = normalizePostCategoryConfig(item);
       if (!config) return '';
+      if (isPostDividerRow(config)) return ['---', config.divider || 'divider-pink-beads.png'].join(' | ');
       return [config.label, config.key, (config.subtopics || []).join(', '), config.divider || ''].join(' | ').replace(/\s+\|$/, ' |');
     }).filter(Boolean).join('\n');
   }
-  function postCategoryConfigs(lang = currentLang) {
+  function postCategoryRows(lang = currentLang) {
     const page = pageContent('posts', lang);
     const parsed = parsePostCategoryConfig(page.postCategories, lang);
     return parsed.length ? parsed : defaultPostCategoryConfigs(lang);
+  }
+  function postCategoryConfigs(lang = currentLang) {
+    return postCategoryRows(lang).filter(item => !isPostDividerRow(item));
   }
   function postCategoryByKey(key, lang = currentLang) {
     const normalized = String(key || '').toLowerCase();
@@ -655,7 +762,8 @@
     const sidebarMode = ['recent','profile','hidden'].includes(String(page.sidebarMode || '')) ? page.sidebarMode : 'recent';
     const recentLimit = [3,5,10].includes(Number(page.recentLimit)) ? Number(page.recentLimit) : 5;
     const categoryFold = String(page.categoryFold || 'open') === 'closed' ? 'closed' : 'open';
-    return { perPage, sidebarMode, recentLimit, categoryFold };
+    const showPostCounts = page.showPostCounts !== false;
+    return { perPage, sidebarMode, recentLimit, categoryFold, showPostCounts };
   }
   function postDividerForItem(item, lang = currentLang) {
     const config = postCategoryForItem(item, lang);
@@ -1693,15 +1801,43 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function openModal(id) { $(id)?.classList.add('open'); }
   function closeModal(id) { $(id)?.classList.remove('open'); }
 
+  function protectedMediaTarget(target) {
+    return target && target.closest && target.closest('img, picture, video, canvas, svg, .card-sticker, .post-body-asset, .post-sidebar-note-img, .detail-cover, .detail-gallery, .viewer-media, .image-preview, .gallery-thumb');
+  }
+
+  function applyMediaProtection(root = document) {
+    if (isAdminOn()) return;
+    root.querySelectorAll?.('img, video, canvas').forEach((node) => {
+      node.setAttribute('draggable', 'false');
+      node.setAttribute('data-protected-media', '1');
+    });
+  }
+
   function installContentProtection() {
+    applyMediaProtection();
+    const observer = new MutationObserver((mutations) => {
+      if (isAdminOn()) return;
+      mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
+        if (node && node.nodeType === 1) applyMediaProtection(node);
+      }));
+    });
+    observer.observe(document.documentElement, { childList:true, subtree:true });
     document.addEventListener('contextmenu', (event) => {
       if (isAdminOn()) return;
+      if (protectedMediaTarget(event.target)) {
+        event.preventDefault();
+        return;
+      }
       if (event.target.closest('input, textarea, select, button, a, [contenteditable="true"], .overlay, .theme-menu')) return;
       event.preventDefault();
     });
     document.addEventListener('dragstart', (event) => {
       if (isAdminOn()) return;
-      if (event.target && event.target.matches('img')) event.preventDefault();
+      if (protectedMediaTarget(event.target)) event.preventDefault();
+    });
+    document.addEventListener('mousedown', (event) => {
+      if (isAdminOn()) return;
+      if (event.button === 2 && protectedMediaTarget(event.target)) event.preventDefault();
     });
   }
 
@@ -1758,6 +1894,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function goRoute(route, replace = false) {
     const next = ROUTES.includes(route) ? route : 'home';
     if (next !== currentRoute || next !== 'posts') selectedPostId = null;
+    if (next !== 'posts') currentPostSubcategory = '';
     if (next !== currentRoute) currentPostPage = 1;
     if (currentRoute === 'editor' && next !== 'editor') editingId = null;
     currentRoute = next;
@@ -1951,7 +2088,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
 
   function renderFilters() {
     const keys = filterKeysForRoute(currentRoute);
-    if (!keys.includes(currentFilter)) currentFilter = 'all';
+    if (!keys.includes(currentFilter)) {
+      currentFilter = 'all';
+      currentPostSubcategory = '';
+    }
     const targets = [
       { node:$('filters'), route:'projects' },
       { node:$('postFilters'), route:'posts' }
@@ -1962,7 +2102,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if (route === 'posts') node.classList.toggle('filters-folded', postBlogSettings().categoryFold === 'closed');
       node.innerHTML = routeKeys.map((key) => `<button class="filter-btn ${key === currentFilter && route === currentRoute ? 'active' : ''}" type="button" data-filter="${esc(key)}">${esc(catLabel(key))}</button>`).join('');
       node.querySelectorAll('[data-filter]').forEach((button) => {
-        button.addEventListener('click', () => { currentFilter = button.dataset.filter || 'all'; if (currentRoute === 'posts') { selectedPostId = null; currentPostPage = 1; } renderFilters(); renderGrid(); });
+        button.addEventListener('click', () => { currentFilter = button.dataset.filter || 'all'; currentPostSubcategory = ''; if (currentRoute === 'posts') { selectedPostId = null; currentPostPage = 1; } renderFilters(); renderGrid(); });
       });
     });
   }
@@ -1981,6 +2121,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const type = typeKey(item.type);
       const tags = visibleArtifactTags(item);
       if (!itemMatchesFilter(item, currentFilter)) return false;
+      if (currentRoute === 'posts' && currentPostSubcategory && !postSubtopicMatches(item, currentPostSubcategory)) return false;
       if (!q) return true;
       const kindText = isPostItem(item) ? 'post blog 포스트 블로그' : (item.is_jsx ? 'jsx react' : formatKey(item));
       return [item.title, item.description, type, tags.join(' '), postSubcategory(item), kindText].join(' ').toLowerCase().includes(q);
@@ -2094,10 +2235,86 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function setPostFilter(filter) {
     currentRoute = 'posts';
     currentFilter = filter || 'all';
+    currentPostSubcategory = '';
     selectedPostId = null;
     currentPostPage = 1;
     renderFilters();
     renderGrid();
+  }
+
+  function postSidebarCount(items, filter, subtopic = '') {
+    return items.filter((item) => {
+      if (!isAdminOn() && statusKey(item) === 'draft') return false;
+      if (filter === 'all') return !isSecretItem(item);
+      if (filter === 'secret') return isSecretItem(item);
+      if (isSecretItem(item)) return false;
+      if (!matchesFilter(item, filter)) return false;
+      return !subtopic || postSubtopicMatches(item, subtopic);
+    }).length;
+  }
+
+  function postCountMarkup(count, showCounts) {
+    return showCounts ? `<span class="post-tree-count">${Number(count || 0).toLocaleString(LOCALE[currentLang] || 'ko-KR')}</span>` : '';
+  }
+
+  function sidebarDividerOptions(selected = '') {
+    const current = safePostDividerFile(selected) || 'divider-pink-beads.png';
+    return postDividerAssets().map(asset => `<option value="${esc(asset.file)}" ${asset.file === current ? 'selected' : ''}>${esc(asset.label)}</option>`).join('');
+  }
+
+  function postSidebarRowMarkup(config, index, items, showCounts) {
+    const item = normalizePostCategoryConfig(config, index) || null;
+    if (!item) return '';
+    if (isPostDividerRow(item)) {
+      const src = `${POST_ASSET_BASE}${item.divider || 'divider-pink-beads.png'}`;
+      return `<div class="post-tree-row post-tree-divider-row" data-sidebar-row data-row-kind="divider" data-index="${index}" draggable="${isAdminOn() ? 'true' : 'false'}">
+        <label class="post-tree-select admin-only"><input type="radio" name="postSidebarSelected" ${index === 0 ? 'checked' : ''} /><span>⋮</span></label>
+        <div class="post-tree-divider"><img src="${esc(src)}" alt="" aria-hidden="true" loading="lazy" /></div>
+        <label class="post-tree-edit post-tree-divider-edit admin-only"><span>${esc(tr('postSidebarDivider'))}</span><select class="select" data-sidebar-divider>${sidebarDividerOptions(item.divider)}</select></label>
+      </div>`;
+    }
+    const count = postSidebarCount(items, item.key);
+    const active = currentFilter === item.key && !currentPostSubcategory;
+    const subtopics = (item.subtopics || []).filter(Boolean);
+    return `<div class="post-tree-row post-tree-node ${active ? 'active' : ''}" data-sidebar-row data-row-kind="category" data-index="${index}" draggable="${isAdminOn() ? 'true' : 'false'}">
+      <label class="post-tree-select admin-only"><input type="radio" name="postSidebarSelected" ${index === 0 ? 'checked' : ''} /><span>⋮</span></label>
+      <button class="post-tree-category ${active ? 'active' : ''}" type="button" data-post-tree-filter="${esc(item.key)}">
+        <span class="post-tree-doc" aria-hidden="true">▧</span><span class="post-tree-label">${esc(item.label)}</span>${postCountMarkup(count, showCounts)}
+      </button>
+      ${subtopics.length ? `<div class="post-tree-children">${subtopics.map((sub) => {
+        const subActive = currentFilter === item.key && normalizeTagValue(currentPostSubcategory) === normalizeTagValue(sub);
+        const subCount = postSidebarCount(items, item.key, sub);
+        return `<button class="post-tree-child ${subActive ? 'active' : ''}" type="button" data-post-tree-filter="${esc(item.key)}" data-post-tree-subtopic="${esc(sub)}"><span aria-hidden="true">└</span><span>${esc(sub)}</span>${postCountMarkup(subCount, showCounts)}</button>`;
+      }).join('')}</div>` : ''}
+      <div class="post-tree-edit admin-only">
+        <label><span>${esc(tr('postSidebarName'))}</span><input class="input" data-sidebar-label maxlength="40" value="${esc(item.label)}" /></label>
+        <label><span>${esc(tr('postSidebarKey'))}</span><input class="input" data-sidebar-key maxlength="42" value="${esc(item.key)}" /></label>
+        <label><span>${esc(tr('postSidebarSubtopics'))}</span><input class="input" data-sidebar-subtopics maxlength="300" value="${esc(subtopics.join(', '))}" /></label>
+        <label><span>${esc(tr('postSidebarDivider'))}</span><select class="select" data-sidebar-divider>${postDividerOptionMarkup(item.divider)}</select></label>
+      </div>
+    </div>`;
+  }
+
+  function renderPostSidebarCategoryTree(items = postSidebarItems(), rows = postCategoryRows(), preserveInputs = false) {
+    const node = $('postSidebarCategoryTree');
+    if (!node) return;
+    const settings = postBlogSettings();
+    const countToggle = $('postCountToggle');
+    if (countToggle && countToggle.dataset.dirty !== '1') countToggle.checked = settings.showPostCounts;
+    const showCounts = countToggle && isAdminOn() ? countToggle.checked : settings.showPostCounts;
+    const allActive = currentFilter === 'all' && !currentPostSubcategory;
+    const secretActive = currentFilter === 'secret';
+    const effectiveRows = Array.isArray(rows) && rows.length ? rows : postCategoryRows();
+    const rowMarkup = effectiveRows.map((row, index) => postSidebarRowMarkup(row, index, items, showCounts)).join('');
+    const allCount = postSidebarCount(items, 'all');
+    const secretCount = postSidebarCount(items, 'secret');
+    node.innerHTML = `<button class="post-tree-root ${allActive ? 'active' : ''}" type="button" data-post-tree-filter="all"><span aria-hidden="true">▣</span><span>${esc(tr('postSidebarAll'))}</span>${postCountMarkup(allCount, showCounts)}</button>
+      ${rowMarkup}
+      <button class="post-tree-root post-tree-secret ${secretActive ? 'active' : ''}" type="button" data-post-tree-filter="secret"><span aria-hidden="true">▥</span><span>${esc(tr('postSidebarSecret'))}</span>${postCountMarkup(secretCount, showCounts)}</button>`;
+    if (!preserveInputs) {
+      const first = node.querySelector('input[name="postSidebarSelected"]');
+      if (first) first.checked = true;
+    }
   }
 
   function renderPostSidebar(items = postSidebarItems()) {
@@ -2108,6 +2325,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (sidebar) sidebar.hidden = settings.sidebarMode === 'hidden';
     if (profile) profile.hidden = settings.sidebarMode === 'hidden';
     if (block) block.hidden = settings.sidebarMode !== 'recent';
+    renderPostSidebarCategoryTree(items);
     const recentNode = $('postRecentList');
     if (recentNode) {
       const recent = items.filter(item => !isSecretItem(item)).slice(0, settings.recentLimit);
@@ -2117,6 +2335,109 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       recentNode.querySelectorAll('[data-select-post]').forEach((button) => {
         button.addEventListener('click', () => selectPost(button.dataset.selectPost));
       });
+    }
+  }
+
+  function collectPostSidebarRows() {
+    const rows = Array.from(document.querySelectorAll('#postSidebarCategoryTree [data-sidebar-row]'));
+    const used = new Set();
+    return rows.map((row, index) => {
+      if (row.dataset.rowKind === 'divider') {
+        return normalizePostCategoryConfig({ kind:'divider', divider:row.querySelector('[data-sidebar-divider]')?.value || 'divider-pink-beads.png' }, index);
+      }
+      const label = row.querySelector('[data-sidebar-label]')?.value || row.querySelector('.post-tree-label')?.textContent || '';
+      const keyInput = row.querySelector('[data-sidebar-key]')?.value || label || `post-${index + 1}`;
+      let key = sanitizePostCategoryKey(keyInput, index);
+      while (used.has(key)) key = sanitizePostCategoryKey(`${keyInput}-${index + 1}`, index);
+      used.add(key);
+      return normalizePostCategoryConfig({
+        kind:'category',
+        label:label || builtinPostCategoryLabel(key),
+        key,
+        subtopics:row.querySelector('[data-sidebar-subtopics]')?.value || '',
+        divider:row.querySelector('[data-sidebar-divider]')?.value || ''
+      }, index);
+    }).filter(Boolean);
+  }
+
+  function selectedPostSidebarRow() {
+    const rows = Array.from(document.querySelectorAll('#postSidebarCategoryTree [data-sidebar-row]'));
+    return rows.find(row => row.querySelector('input[name="postSidebarSelected"]')?.checked) || rows[0] || null;
+  }
+
+  function addPostSidebarCategory() {
+    const rows = collectPostSidebarRows();
+    rows.push({ kind:'category', label:tr('typeOther'), key:`custom-${rows.length + 1}`, subtopics:[], divider:'' });
+    renderPostSidebarCategoryTree(postSidebarItems(), rows, true);
+    const allRows = document.querySelectorAll('#postSidebarCategoryTree [data-sidebar-row]');
+    const row = allRows[allRows.length - 1];
+    if (row) {
+      const radio = row.querySelector('input[name="postSidebarSelected"]');
+      if (radio) radio.checked = true;
+      row.querySelector('[data-sidebar-label]')?.focus();
+    }
+  }
+
+  function addPostSidebarDivider() {
+    const rows = collectPostSidebarRows();
+    rows.push({ kind:'divider', divider:defaultPostDividerFile() });
+    renderPostSidebarCategoryTree(postSidebarItems(), rows, true);
+    const allRows = document.querySelectorAll('#postSidebarCategoryTree [data-sidebar-row]');
+    const row = allRows[allRows.length - 1];
+    if (row) {
+      const radio = row.querySelector('input[name="postSidebarSelected"]');
+      if (radio) radio.checked = true;
+      row.querySelector('[data-sidebar-divider]')?.focus();
+    }
+  }
+
+  function removeSelectedPostSidebarRow() {
+    const selected = selectedPostSidebarRow();
+    if (!selected) return;
+    selected.remove();
+    const rows = collectPostSidebarRows();
+    renderPostSidebarCategoryTree(postSidebarItems(), rows.length ? rows : defaultPostCategoryConfigs(), true);
+  }
+
+  function reorderPostSidebarRows(fromIndex, toIndex) {
+    const rows = collectPostSidebarRows();
+    if (fromIndex < 0 || toIndex < 0 || fromIndex >= rows.length || toIndex >= rows.length || fromIndex === toIndex) return;
+    const [moved] = rows.splice(fromIndex, 1);
+    rows.splice(toIndex, 0, moved);
+    renderPostSidebarCategoryTree(postSidebarItems(), rows, true);
+  }
+
+  async function savePostSidebarCategories() {
+    if (PREVIEW_MODE) { toast(tr('previewNoSave')); return; }
+    if (!isAdminOn() || !adminToken) { requireAdmin(savePostSidebarCategories); return; }
+    const rows = collectPostSidebarRows();
+    const categories = rows.filter(row => !isPostDividerRow(row));
+    const page = pageContent('posts', currentLang);
+    const content = {
+      ...page,
+      postCategories:formatPostCategoryConfig(rows),
+      postDivider:safePostDividerFile(page.postDivider) || defaultPostDividerFile(currentLang),
+      filterOrder:normalizePostFilterOrder(page.filterOrder, categories.length ? categories : defaultPostCategoryConfigs(currentLang)),
+      postsPerPage:postBlogSettings(currentLang).perPage,
+      sidebarMode:postBlogSettings(currentLang).sidebarMode,
+      recentLimit:postBlogSettings(currentLang).recentLimit,
+      categoryFold:postBlogSettings(currentLang).categoryFold,
+      showPostCounts:Boolean($('postCountToggle') ? $('postCountToggle').checked : postBlogSettings(currentLang).showPostCounts)
+    };
+    try {
+      const row = await api(`/api/admin/pages/posts/${encodeURIComponent(currentLang)}`, { method:'PUT', headers:{ 'x-admin-token':adminToken }, body:JSON.stringify({ content }) });
+      const index = pageRows.findIndex(item => item.slug === 'posts' && item.lang === currentLang);
+      if (index === -1) pageRows.push(row);
+      else pageRows[index] = row;
+      if ($('postCountToggle')) $('postCountToggle').dataset.dirty = '';
+      currentPostSubcategory = '';
+      toast(tr('postSidebarSaved'));
+      renderPageContent();
+      renderFilters();
+      renderGrid();
+    } catch (error) {
+      console.error(error);
+      toast(error.message || tr('pageSaveError'));
     }
   }
 
@@ -3186,6 +3507,24 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
 
   function postCategoryRowMarkup(config, index) {
     const item = normalizePostCategoryConfig(config, index) || defaultPostCategoryConfigs()[0];
+    if (isPostDividerRow(item)) {
+      return `<article class="post-category-config-row post-category-divider-config-row" data-category-row data-row-kind="divider">
+        <label class="post-category-select">
+          <input type="radio" name="postCategorySelected" ${index === 0 ? 'checked' : ''} />
+          <span>${index + 1}</span>
+        </label>
+        <div class="post-category-config-grid post-category-divider-config-grid">
+          <div class="field compact-field">
+            <label>${esc(tr('postCategoryDividerLabel'))}</label>
+            <select class="select" data-category-divider>${sidebarDividerOptions(item.divider)}</select>
+          </div>
+        </div>
+        <div class="post-category-row-actions">
+          <button class="btn small" type="button" data-post-category-move="up" aria-label="${esc(tr('postCategoryMoveUp'))}">↑</button>
+          <button class="btn small" type="button" data-post-category-move="down" aria-label="${esc(tr('postCategoryMoveDown'))}">↓</button>
+        </div>
+      </article>`;
+    }
     const subtopics = (item.subtopics || []).join(', ');
     return `<article class="post-category-config-row" data-category-row>
       <label class="post-category-select">
@@ -3231,6 +3570,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const rows = Array.from(document.querySelectorAll('#postCategoryEditor [data-category-row]'));
     const used = new Set();
     return rows.map((row, index) => {
+      if (row.dataset.rowKind === 'divider') {
+        return normalizePostCategoryConfig({ kind:'divider', divider:row.querySelector('[data-category-divider]')?.value || 'divider-pink-beads.png' }, index);
+      }
       const label = row.querySelector('[data-category-label]')?.value || '';
       const keyInput = row.querySelector('[data-category-key]')?.value || label || `post-${index + 1}`;
       let key = sanitizePostCategoryKey(keyInput, index);
@@ -3312,13 +3654,14 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     }
     $('pageEmailInput').value = page.email || '';
     if ($('pageFilterOrderInput')) $('pageFilterOrderInput').value = normalizeFilterOrder(page.filterOrder, slug).join(', ');
-    if ($('pagePostCategoriesInput')) $('pagePostCategoriesInput').value = formatPostCategoryConfig(postCategoryConfigs(lang));
-    renderPostCategoryEditor(postCategoryConfigs(lang));
+    if ($('pagePostCategoriesInput')) $('pagePostCategoriesInput').value = formatPostCategoryConfig(postCategoryRows(lang));
+    renderPostCategoryEditor(postCategoryRows(lang));
     const blog = postBlogSettings(lang);
     if ($('pagePostsPerPageInput')) $('pagePostsPerPageInput').value = String(blog.perPage);
     if ($('pageSidebarModeInput')) $('pageSidebarModeInput').value = blog.sidebarMode;
     if ($('pageRecentLimitInput')) $('pageRecentLimitInput').value = String(blog.recentLimit);
     if ($('pageCategoryFoldInput')) $('pageCategoryFoldInput').value = blog.categoryFold;
+    if ($('pageShowPostCountsInput')) $('pageShowPostCountsInput').value = blog.showPostCounts ? 'yes' : 'no';
     renderPagePostDividerSelect(page);
     renderContactLinkEditor(page.links || []);
     updatePageEditorVisibility();
@@ -3339,15 +3682,17 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const blocks = [1,2,3].map((i) => ({ title:$(`block${i}Title`).value.trim(), text:$(`block${i}Text`).value.trim() })).filter(block => block.title || block.text);
     if (slug === 'posts') syncPostCategoryTextareaFromEditor();
     const postCategories = slug === 'posts' ? parsePostCategoryConfig($('pagePostCategoriesInput')?.value || '', lang) : [];
+    const postFilterCategories = postCategories.filter(item => !isPostDividerRow(item));
     const content = { script:$('pageScriptInput').value.trim(), eyebrow:$('pageEyebrowInput').value.trim(), infoTitle:$('pageInfoTitleInput').value.trim(), title:$('pageTitleInput').value.trim(), body:$('pageBodyInput').value.trim(), blocks, email:$('pageEmailInput').value.trim(), links: slug === 'contact' ? collectContactLinks() : [], filterOrder: (slug === 'projects' || slug === 'posts') ? normalizeFilterOrder($('pageFilterOrderInput')?.value || '', slug) : [] };
     if (slug === 'posts') {
       content.postCategories = formatPostCategoryConfig(postCategories);
       content.postDivider = safePostDividerFile($('pagePostDividerInput')?.value || '') || defaultPostDividerFile(lang);
-      content.filterOrder = normalizePostFilterOrder($('pageFilterOrderInput')?.value || '', postCategories.length ? postCategories : defaultPostCategoryConfigs(lang));
+      content.filterOrder = normalizePostFilterOrder($('pageFilterOrderInput')?.value || '', postFilterCategories.length ? postFilterCategories : defaultPostCategoryConfigs(lang));
       content.postsPerPage = Number($('pagePostsPerPageInput')?.value || 5);
       content.sidebarMode = ['recent','profile','hidden'].includes($('pageSidebarModeInput')?.value) ? $('pageSidebarModeInput').value : 'recent';
       content.recentLimit = Number($('pageRecentLimitInput')?.value || 5);
       content.categoryFold = $('pageCategoryFoldInput')?.value === 'closed' ? 'closed' : 'open';
+      content.showPostCounts = $('pageShowPostCountsInput')?.value !== 'no';
     }
     try {
       $('pageError').textContent = '';
@@ -3468,6 +3813,60 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const btn = event.target.closest('[data-post-category-move]');
       if (!btn) return;
       movePostCategoryRow(btn.closest('[data-category-row]'), btn.dataset.postCategoryMove);
+    });
+    $('postSidebarAddCategoryBtn')?.addEventListener('click', addPostSidebarCategory);
+    $('postSidebarAddDividerBtn')?.addEventListener('click', addPostSidebarDivider);
+    $('postSidebarDeleteBtn')?.addEventListener('click', removeSelectedPostSidebarRow);
+    $('postSidebarSaveBtn')?.addEventListener('click', savePostSidebarCategories);
+    $('postCountToggle')?.addEventListener('change', (event) => {
+      event.target.dataset.dirty = '1';
+      renderPostSidebarCategoryTree(postSidebarItems(), collectPostSidebarRows(), true);
+    });
+    $('postSidebarCategoryTree')?.addEventListener('input', () => {
+      const toggle = $('postCountToggle');
+      if (toggle) toggle.dataset.dirty = '1';
+    });
+    $('postSidebarCategoryTree')?.addEventListener('change', () => {
+      const toggle = $('postCountToggle');
+      if (toggle) toggle.dataset.dirty = '1';
+    });
+    $('postSidebarCategoryTree')?.addEventListener('click', (event) => {
+      if (event.target.closest('input,select,label')) return;
+      const subButton = event.target.closest('[data-post-tree-subtopic]');
+      if (subButton) {
+        currentRoute = 'posts';
+        currentFilter = subButton.dataset.postTreeFilter || 'all';
+        currentPostSubcategory = subButton.dataset.postTreeSubtopic || '';
+        selectedPostId = null;
+        currentPostPage = 1;
+        renderFilters();
+        renderGrid();
+        return;
+      }
+      const button = event.target.closest('[data-post-tree-filter]');
+      if (button) setPostFilter(button.dataset.postTreeFilter || 'all');
+    });
+    $('postSidebarCategoryTree')?.addEventListener('dragstart', (event) => {
+      const row = event.target.closest('[data-sidebar-row]');
+      if (!row || !isAdminOn()) return;
+      postSidebarDragIndex = Number(row.dataset.index || -1);
+      row.classList.add('dragging');
+      if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';
+    });
+    $('postSidebarCategoryTree')?.addEventListener('dragover', (event) => {
+      if (postSidebarDragIndex === null || !isAdminOn()) return;
+      if (event.target.closest('[data-sidebar-row]')) event.preventDefault();
+    });
+    $('postSidebarCategoryTree')?.addEventListener('drop', (event) => {
+      const row = event.target.closest('[data-sidebar-row]');
+      if (postSidebarDragIndex === null || !row || !isAdminOn()) return;
+      event.preventDefault();
+      reorderPostSidebarRows(postSidebarDragIndex, Number(row.dataset.index || -1));
+      postSidebarDragIndex = null;
+    });
+    $('postSidebarCategoryTree')?.addEventListener('dragend', () => {
+      postSidebarDragIndex = null;
+      document.querySelectorAll('#postSidebarCategoryTree .dragging').forEach(row => row.classList.remove('dragging'));
     });
     $('savePageBtn')?.addEventListener('click', savePage);
     $('addBtn')?.addEventListener('click', () => requireAdmin(() => openAddModal('project')));

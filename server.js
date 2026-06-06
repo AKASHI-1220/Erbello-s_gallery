@@ -929,22 +929,27 @@ function cleanPageContent(value) {
   const cleanBlocks = Array.isArray(src.blocks) ? src.blocks.slice(0, 10).map((block) => ({ title: cleanString(block && block.title, 120), text: cleanString(block && block.text, 1600) })) : [];
   const cleanLinks = Array.isArray(src.links) ? src.links.slice(0, 12).map((link) => ({ label: cleanString(link && link.label, 80), url: cleanString(link && link.url, 300) })) : [];
   const cleanPostCategories = Array.isArray(src.postCategories)
-    ? src.postCategories.slice(0, 24).map((item) => [
-      cleanString(item && (item.label || item.name), 40),
-      cleanString(item && item.key, 42),
-      Array.isArray(item && item.subtopics) ? item.subtopics.map(sub => cleanString(sub, 40)).filter(Boolean).join(', ') : cleanString(item && item.subtopics, 300),
-      cleanString(item && (item.divider || item.dividerAsset), 160)
-    ].join(' | ')).filter(line => line.trim()).join('\n')
+    ? src.postCategories.slice(0, 24).map((item) => {
+      if (item && item.kind === 'divider') return ['---', cleanString(item.divider || item.dividerAsset || item.file, 160)].join(' | ');
+      return [
+        cleanString(item && (item.label || item.name), 40),
+        cleanString(item && item.key, 42),
+        Array.isArray(item && item.subtopics) ? item.subtopics.map(sub => cleanString(sub, 40)).filter(Boolean).join(', ') : cleanString(item && item.subtopics, 300),
+        cleanString(item && (item.divider || item.dividerAsset), 160)
+      ].join(' | ');
+    }).filter(line => line.trim()).join('\n')
     : cleanString(src.postCategories, 3000);
   const allowedFilters = new Set(['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret']);
+  const safeFilterKey = (item) => allowedFilters.has(item) || /^[a-z0-9_-]{1,42}$/.test(item);
   const cleanFilterOrder = (Array.isArray(src.filterOrder) ? src.filterOrder : String(src.filterOrder || '').split(/[\s,|/]+/))
     .map(item => String(item || '').trim().toLowerCase())
-    .filter((item, index, arr) => allowedFilters.has(item) && arr.indexOf(item) === index)
-    .slice(0, 12);
+    .filter((item, index, arr) => safeFilterKey(item) && arr.indexOf(item) === index)
+    .slice(0, 30);
   const postsPerPage = [1, 3, 5, 10].includes(Number(src.postsPerPage)) ? Number(src.postsPerPage) : undefined;
   const sidebarMode = ['recent', 'profile', 'hidden'].includes(String(src.sidebarMode || '')) ? src.sidebarMode : undefined;
   const recentLimit = [3, 5, 10].includes(Number(src.recentLimit)) ? Number(src.recentLimit) : undefined;
   const categoryFold = String(src.categoryFold || '') === 'closed' ? 'closed' : (String(src.categoryFold || '') === 'open' ? 'open' : undefined);
+  const showPostCounts = typeof src.showPostCounts === 'boolean' ? src.showPostCounts : undefined;
   return {
     eyebrow: cleanString(src.eyebrow, 120),
     script: cleanString(src.script, 120),
@@ -960,7 +965,8 @@ function cleanPageContent(value) {
     ...(postsPerPage ? { postsPerPage } : {}),
     ...(sidebarMode ? { sidebarMode } : {}),
     ...(recentLimit ? { recentLimit } : {}),
-    ...(categoryFold ? { categoryFold } : {})
+    ...(categoryFold ? { categoryFold } : {}),
+    ...(showPostCounts !== undefined ? { showPostCounts } : {})
   };
 }
 
