@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v32 blog settings and post interactions';
+  const VERSION = 'ERBELLO Gallery v33 editor polish, category manager and one-vote polls';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -336,6 +336,70 @@
     }
   };
   Object.keys(V32_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V32_I18N[lang]));
+
+  const V33_I18N = {
+    ko:{
+      postCategoryManagerLabel:'포스트 카테고리 관리',
+      postCategoryAdd:'카테고리 추가',
+      postCategoryDividerApply:'선택에 구분선',
+      postCategoryRemove:'선택 삭제',
+      postCategoryNameLabel:'이름',
+      postCategoryKeyLabel:'key',
+      postCategorySubtopicsLabel:'세부주제',
+      postCategoryDividerLabel:'구분선',
+      postCategoryNoDivider:'기본 구분선',
+      postCategoryMoveUp:'위로',
+      postCategoryMoveDown:'아래로',
+      postCategoryEmpty:'카테고리를 추가해주세요.',
+      postAlreadyVoted:'이미 투표했습니다.'
+    },
+    en:{
+      postCategoryManagerLabel:'Post category manager',
+      postCategoryAdd:'Add category',
+      postCategoryDividerApply:'Use selected divider',
+      postCategoryRemove:'Remove selected',
+      postCategoryNameLabel:'Name',
+      postCategoryKeyLabel:'key',
+      postCategorySubtopicsLabel:'Subtopics',
+      postCategoryDividerLabel:'Divider',
+      postCategoryNoDivider:'Default divider',
+      postCategoryMoveUp:'Up',
+      postCategoryMoveDown:'Down',
+      postCategoryEmpty:'Add a category.',
+      postAlreadyVoted:'You already voted.'
+    },
+    ja:{
+      postCategoryManagerLabel:'ポストカテゴリー管理',
+      postCategoryAdd:'カテゴリー追加',
+      postCategoryDividerApply:'選択に区切り線',
+      postCategoryRemove:'選択削除',
+      postCategoryNameLabel:'名前',
+      postCategoryKeyLabel:'key',
+      postCategorySubtopicsLabel:'小分類',
+      postCategoryDividerLabel:'区切り線',
+      postCategoryNoDivider:'基本区切り線',
+      postCategoryMoveUp:'上へ',
+      postCategoryMoveDown:'下へ',
+      postCategoryEmpty:'カテゴリーを追加してください。',
+      postAlreadyVoted:'すでに投票しています。'
+    },
+    zh:{
+      postCategoryManagerLabel:'帖子分类管理',
+      postCategoryAdd:'添加分类',
+      postCategoryDividerApply:'使用所选分隔线',
+      postCategoryRemove:'删除所选',
+      postCategoryNameLabel:'名称',
+      postCategoryKeyLabel:'key',
+      postCategorySubtopicsLabel:'子分类',
+      postCategoryDividerLabel:'分隔线',
+      postCategoryNoDivider:'默认分隔线',
+      postCategoryMoveUp:'上移',
+      postCategoryMoveDown:'下移',
+      postCategoryEmpty:'请添加分类。',
+      postAlreadyVoted:'你已经投过票了。'
+    }
+  };
+  Object.keys(V33_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V33_I18N[lang]));
 
   let artifacts = [];
   let pageRows = [];
@@ -2121,6 +2185,16 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return isAdminOn() && adminToken ? { 'x-admin-token':adminToken } : {};
   }
 
+  function postVoterId() {
+    const key = 'erbello-post-voter-v1';
+    let value = safeStorage.get('local', key);
+    if (!value) {
+      value = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+      safeStorage.set('local', key, value);
+    }
+    return value;
+  }
+
   function renderPostInteractionData(postId, data) {
     const root = document.querySelector(`[data-post-interactions="${CSS.escape(String(postId))}"]`);
     if (!root || !data) return;
@@ -2171,9 +2245,14 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   async function submitPostVote(postId, form) {
     const option = form && form.elements.option ? form.elements.option.value : '';
     if (!option) return;
-    const data = await api(`/api/posts/${encodeURIComponent(postId)}/votes`, { method:'POST', headers:postInteractionHeaders(), body:JSON.stringify({ option }) });
+    const data = await api(`/api/posts/${encodeURIComponent(postId)}/votes`, { method:'POST', headers:postInteractionHeaders(), body:JSON.stringify({ option, voter_id:postVoterId() }) });
     renderPostInteractionData(postId, data);
-    toast(tr('postInteractionSaved'));
+    if (form) {
+      form.classList.add('voted');
+      const button = form.querySelector('button[type="submit"]');
+      if (button) button.disabled = true;
+    }
+    toast(data && data.alreadyVoted ? tr('postAlreadyVoted') : tr('postInteractionSaved'));
   }
 
   function bindPostInteractions(postId) {
@@ -3098,6 +3177,125 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     node.value = postDividerAssets().some(asset => asset.file === current) ? current : 'divider-pink-beads.png';
   }
 
+  function postDividerOptionMarkup(selected = '') {
+    const current = safePostDividerFile(selected);
+    return [`<option value="">${esc(tr('postCategoryNoDivider'))}</option>`]
+      .concat(postDividerAssets().map(asset => `<option value="${esc(asset.file)}" ${asset.file === current ? 'selected' : ''}>${esc(asset.label)}</option>`))
+      .join('');
+  }
+
+  function postCategoryRowMarkup(config, index) {
+    const item = normalizePostCategoryConfig(config, index) || defaultPostCategoryConfigs()[0];
+    const subtopics = (item.subtopics || []).join(', ');
+    return `<article class="post-category-config-row" data-category-row>
+      <label class="post-category-select">
+        <input type="radio" name="postCategorySelected" ${index === 0 ? 'checked' : ''} />
+        <span>${index + 1}</span>
+      </label>
+      <div class="post-category-config-grid">
+        <div class="field compact-field">
+          <label>${esc(tr('postCategoryNameLabel'))}</label>
+          <input class="input" data-category-label maxlength="40" value="${esc(item.label)}" />
+        </div>
+        <div class="field compact-field">
+          <label>${esc(tr('postCategoryKeyLabel'))}</label>
+          <input class="input" data-category-key maxlength="42" value="${esc(item.key)}" />
+        </div>
+        <div class="field compact-field">
+          <label>${esc(tr('postCategorySubtopicsLabel'))}</label>
+          <input class="input" data-category-subtopics maxlength="300" value="${esc(subtopics)}" />
+        </div>
+        <div class="field compact-field">
+          <label>${esc(tr('postCategoryDividerLabel'))}</label>
+          <select class="select" data-category-divider>${postDividerOptionMarkup(item.divider)}</select>
+        </div>
+      </div>
+      <div class="post-category-row-actions">
+        <button class="btn small" type="button" data-post-category-move="up" aria-label="${esc(tr('postCategoryMoveUp'))}">↑</button>
+        <button class="btn small" type="button" data-post-category-move="down" aria-label="${esc(tr('postCategoryMoveDown'))}">↓</button>
+      </div>
+    </article>`;
+  }
+
+  function renderPostCategoryEditor(categories = []) {
+    const node = $('postCategoryEditor');
+    if (!node) return;
+    const configs = parsePostCategoryConfig(categories && categories.length ? categories : defaultPostCategoryConfigs());
+    node.innerHTML = configs.length
+      ? configs.map((config, index) => postCategoryRowMarkup(config, index)).join('')
+      : `<p class="post-category-empty">${esc(tr('postCategoryEmpty'))}</p>`;
+    syncPostCategoryTextareaFromEditor();
+  }
+
+  function collectPostCategoryEditorConfigs() {
+    const rows = Array.from(document.querySelectorAll('#postCategoryEditor [data-category-row]'));
+    const used = new Set();
+    return rows.map((row, index) => {
+      const label = row.querySelector('[data-category-label]')?.value || '';
+      const keyInput = row.querySelector('[data-category-key]')?.value || label || `post-${index + 1}`;
+      let key = sanitizePostCategoryKey(keyInput, index);
+      while (used.has(key)) key = sanitizePostCategoryKey(`${keyInput}-${index + 1}`, index);
+      used.add(key);
+      const subtopics = row.querySelector('[data-category-subtopics]')?.value || '';
+      const divider = row.querySelector('[data-category-divider]')?.value || '';
+      return normalizePostCategoryConfig({ label:label || builtinPostCategoryLabel(key), key, subtopics, divider }, index);
+    }).filter(Boolean);
+  }
+
+  function syncPostCategoryTextareaFromEditor() {
+    const input = $('pagePostCategoriesInput');
+    if (!input || !$('postCategoryEditor')) return;
+    input.value = formatPostCategoryConfig(collectPostCategoryEditorConfigs());
+  }
+
+  function selectedPostCategoryRow() {
+    const rows = Array.from(document.querySelectorAll('#postCategoryEditor [data-category-row]'));
+    return rows.find(row => row.querySelector('input[name="postCategorySelected"]')?.checked) || rows[0] || null;
+  }
+
+  function addPostCategoryRow() {
+    const configs = collectPostCategoryEditorConfigs();
+    configs.push({ label:tr('typeOther'), key:`custom-${configs.length + 1}`, subtopics:[], divider:'' });
+    renderPostCategoryEditor(configs);
+    const rows = document.querySelectorAll('#postCategoryEditor [data-category-row]');
+    const row = rows[rows.length - 1];
+    if (row) {
+      const radio = row.querySelector('input[name="postCategorySelected"]');
+      if (radio) radio.checked = true;
+      row.querySelector('[data-category-label]')?.focus();
+    }
+  }
+
+  function applyPostDividerToSelected() {
+    const selected = selectedPostCategoryRow();
+    const divider = safePostDividerFile($('pagePostDividerInput')?.value || '');
+    if (!selected || !divider) return;
+    const select = selected.querySelector('[data-category-divider]');
+    if (select) select.value = divider;
+    syncPostCategoryTextareaFromEditor();
+  }
+
+  function removeSelectedPostCategory() {
+    const selected = selectedPostCategoryRow();
+    if (!selected) return;
+    selected.remove();
+    const first = document.querySelector('#postCategoryEditor [data-category-row] input[name="postCategorySelected"]');
+    if (first) first.checked = true;
+    if (!document.querySelector('#postCategoryEditor [data-category-row]')) renderPostCategoryEditor(defaultPostCategoryConfigs());
+    else syncPostCategoryTextareaFromEditor();
+  }
+
+  function movePostCategoryRow(row, direction) {
+    if (!row) return;
+    if (direction === 'up' && row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+    if (direction === 'down' && row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+    Array.from(document.querySelectorAll('#postCategoryEditor [data-category-row]')).forEach((item, index) => {
+      const label = item.querySelector('.post-category-select span');
+      if (label) label.textContent = String(index + 1);
+    });
+    syncPostCategoryTextareaFromEditor();
+  }
+
   function fillPageEditor() {
     const slug = $('pageSlugInput').value || currentRoute;
     const lang = $('pageLangInput').value || currentLang;
@@ -3115,6 +3313,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('pageEmailInput').value = page.email || '';
     if ($('pageFilterOrderInput')) $('pageFilterOrderInput').value = normalizeFilterOrder(page.filterOrder, slug).join(', ');
     if ($('pagePostCategoriesInput')) $('pagePostCategoriesInput').value = formatPostCategoryConfig(postCategoryConfigs(lang));
+    renderPostCategoryEditor(postCategoryConfigs(lang));
     const blog = postBlogSettings(lang);
     if ($('pagePostsPerPageInput')) $('pagePostsPerPageInput').value = String(blog.perPage);
     if ($('pageSidebarModeInput')) $('pageSidebarModeInput').value = blog.sidebarMode;
@@ -3138,10 +3337,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const slug = $('pageSlugInput').value;
     const lang = $('pageLangInput').value;
     const blocks = [1,2,3].map((i) => ({ title:$(`block${i}Title`).value.trim(), text:$(`block${i}Text`).value.trim() })).filter(block => block.title || block.text);
+    if (slug === 'posts') syncPostCategoryTextareaFromEditor();
     const postCategories = slug === 'posts' ? parsePostCategoryConfig($('pagePostCategoriesInput')?.value || '', lang) : [];
     const content = { script:$('pageScriptInput').value.trim(), eyebrow:$('pageEyebrowInput').value.trim(), infoTitle:$('pageInfoTitleInput').value.trim(), title:$('pageTitleInput').value.trim(), body:$('pageBodyInput').value.trim(), blocks, email:$('pageEmailInput').value.trim(), links: slug === 'contact' ? collectContactLinks() : [], filterOrder: (slug === 'projects' || slug === 'posts') ? normalizeFilterOrder($('pageFilterOrderInput')?.value || '', slug) : [] };
     if (slug === 'posts') {
-      content.postCategories = postCategories;
+      content.postCategories = formatPostCategoryConfig(postCategories);
       content.postDivider = safePostDividerFile($('pagePostDividerInput')?.value || '') || defaultPostDividerFile(lang);
       content.filterOrder = normalizePostFilterOrder($('pageFilterOrderInput')?.value || '', postCategories.length ? postCategories : defaultPostCategoryConfigs(lang));
       content.postsPerPage = Number($('pagePostsPerPageInput')?.value || 5);
@@ -3207,6 +3407,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       row('Artifacts table', Boolean(data.artifactsOk), `projects ${data.artifactCount ?? '-'}`),
       row('Site pages table', Boolean(data.pagesOk), `rows ${data.pageCount ?? '-'}`),
       row('Post interactions table', Boolean(data.postInteractionsOk) || data.mode === 'local-json', `rows ${data.postInteractionCount ?? 0}${data.postInteractionsError ? ` · ${data.postInteractionsError}` : ''}`),
+      row('Post vote key column', Boolean(data.postVoteKeyOk) || data.mode === 'local-json', data.postVoteKeyOk ? 'one vote per visitor ready' : (data.postVoteKeyError || 'migration required')),
       row('Media bucket', Boolean(data.mediaBucketOk) || data.mode === 'local-json', data.mediaBucket || ''),
       row('Artifact bucket', Boolean(data.artifactBucketOk) || data.mode === 'local-json', data.artifactBucket || ''),
       row('Storage upload', Boolean(data.storageUploadOk) || data.mode === 'local-json', data.storageUploadOk ? 'signed upload ready' : (data.storageUploadError || 'check required')),
@@ -3258,6 +3459,16 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('contactManageBtn')?.addEventListener('click', () => requireAdmin(() => { $('pageSlugInput').value = 'contact'; $('pageLangInput').value = currentLang; fillPageEditor(); openModal('pageModal'); }));
     $('contactLinkEditor')?.addEventListener('click', (event) => { const btn = event.target.closest('[data-remove-contact-link]'); if (!btn) return; const row = btn.closest('.contact-link-row'); if (row) row.remove(); if (!$('contactLinkEditor').querySelector('.contact-link-row')) renderContactLinkEditor([]); });
     $('contactLinkEditor')?.addEventListener('input', (event) => { if (!event.target.classList.contains('contact-url-input')) return; const row = event.target.closest('.contact-link-row'); const labelInput = row && row.querySelector('.contact-label-input'); if (labelInput && !labelInput.value.trim()) labelInput.value = inferContactLabel(normalizeContactUrl(event.target.value)); });
+    $('addPostCategoryBtn')?.addEventListener('click', addPostCategoryRow);
+    $('applyPostDividerBtn')?.addEventListener('click', applyPostDividerToSelected);
+    $('removePostCategoryBtn')?.addEventListener('click', removeSelectedPostCategory);
+    $('postCategoryEditor')?.addEventListener('input', syncPostCategoryTextareaFromEditor);
+    $('postCategoryEditor')?.addEventListener('change', syncPostCategoryTextareaFromEditor);
+    $('postCategoryEditor')?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-post-category-move]');
+      if (!btn) return;
+      movePostCategoryRow(btn.closest('[data-category-row]'), btn.dataset.postCategoryMove);
+    });
     $('savePageBtn')?.addEventListener('click', savePage);
     $('addBtn')?.addEventListener('click', () => requireAdmin(() => openAddModal('project')));
     $('addBtnToolbar')?.addEventListener('click', () => requireAdmin(() => openAddModal('project')));

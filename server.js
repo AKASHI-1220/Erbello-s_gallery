@@ -9,6 +9,7 @@ const store = require('./lib/store');
 const { isJSX, wrapJSX, normalizeCode } = require('./lib/jsx');
 
 const app = express();
+app.set('trust proxy', 1);
 const ZIP_BUNDLE_PREFIX = 'ERBELLO_BUNDLE_V1\n';
 const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
 const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
@@ -177,6 +178,16 @@ function pollResults(interactions, options) {
     if (counts.has(vote.option_key)) counts.set(vote.option_key, counts.get(vote.option_key) + 1);
   });
   return (options || []).map(option => ({ ...option, count:counts.get(option.key) || 0 }));
+}
+
+function voteFingerprint(req, postId) {
+  const clientId = cleanText(req.body && req.body.voter_id, 160);
+  const forwarded = cleanText(req.headers && req.headers['x-forwarded-for'], 240).split(',')[0].trim();
+  const ip = forwarded || cleanText(req.ip || req.socket && req.socket.remoteAddress, 120);
+  const ua = cleanText(req.headers && req.headers['user-agent'], 240);
+  const basis = clientId || `${ip}|${ua}`;
+  const secret = process.env.PRIVATE_TOKEN_SECRET || getAdminHash() || process.env.ADMIN_PASSWORD || DEFAULT_SITE_ORIGIN;
+  return crypto.createHash('sha256').update(`${postId}|${basis}|${secret}`).digest('hex');
 }
 
 function fmtMonthKo(value) {
@@ -917,6 +928,14 @@ function cleanPageContent(value) {
   const cleanString = (v, max = 1000) => String(v || '').trim().slice(0, max);
   const cleanBlocks = Array.isArray(src.blocks) ? src.blocks.slice(0, 10).map((block) => ({ title: cleanString(block && block.title, 120), text: cleanString(block && block.text, 1600) })) : [];
   const cleanLinks = Array.isArray(src.links) ? src.links.slice(0, 12).map((link) => ({ label: cleanString(link && link.label, 80), url: cleanString(link && link.url, 300) })) : [];
+  const cleanPostCategories = Array.isArray(src.postCategories)
+    ? src.postCategories.slice(0, 24).map((item) => [
+      cleanString(item && (item.label || item.name), 40),
+      cleanString(item && item.key, 42),
+      Array.isArray(item && item.subtopics) ? item.subtopics.map(sub => cleanString(sub, 40)).filter(Boolean).join(', ') : cleanString(item && item.subtopics, 300),
+      cleanString(item && (item.divider || item.dividerAsset), 160)
+    ].join(' | ')).filter(line => line.trim()).join('\n')
+    : cleanString(src.postCategories, 3000);
   const allowedFilters = new Set(['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret']);
   const cleanFilterOrder = (Array.isArray(src.filterOrder) ? src.filterOrder : String(src.filterOrder || '').split(/[\s,|/]+/))
     .map(item => String(item || '').trim().toLowerCase())
@@ -936,7 +955,7 @@ function cleanPageContent(value) {
     blocks: cleanBlocks,
     links: cleanLinks,
     filterOrder: cleanFilterOrder,
-    postCategories: cleanString(src.postCategories, 3000),
+    postCategories: cleanPostCategories,
     postDivider: cleanString(src.postDivider, 160),
     ...(postsPerPage ? { postsPerPage } : {}),
     ...(sidebarMode ? { sidebarMode } : {}),
@@ -1154,14 +1173,21 @@ app.post('/api/posts/:id/votes', interactionLimit, async (req, res) => {
     if (!config.poll.enabled) return res.status(403).json({ error:'Poll is not enabled.' });
     const option = String(req.body && req.body.option || '').trim();
     if (!config.poll.options.some(item => item.key === option)) return res.status(400).json({ error:'Invalid poll option.' });
+    const vote_key = voteFingerprint(req, req.params.id);
+    const before = await store.listPostInteractions(req.params.id, { includePrivate:true });
+    const existingVote = before.find(item => item.kind === 'vote' && item.vote_key === vote_key);
+    if (existingVote) {
+      return res.json({ ...interactionSummary(config, before, isAdminRequest(req)), alreadyVoted:true });
+    }
     await store.createPostInteraction({
       post_id:req.params.id,
       kind:'vote',
       visibility:config.poll.visibility,
-      option_key:option
+      option_key:option,
+      vote_key
     });
     const interactions = await store.listPostInteractions(req.params.id, { includePrivate:isAdminRequest(req) });
-    res.json(interactionSummary(config, interactions, isAdminRequest(req)));
+    res.json({ ...interactionSummary(config, interactions, isAdminRequest(req)), alreadyVoted:false });
   } catch (error) {
     res.status(500).json({ error:error.message || 'Could not save vote.' });
   }
