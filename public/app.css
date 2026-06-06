@@ -1912,3 +1912,312 @@ canvas,
     margin-top:10px;
   }
 }
+
+/* v36: /Akashi special home mode */
+body.akashi-mode{
+  --bg:#fffaf4;
+  --bg2:#f8eee4;
+  --panel:rgba(255,250,244,.84);
+  --panel2:rgba(255,255,250,.96);
+  --panel3:rgba(255,246,236,.78);
+  --text:#22151b;
+  --muted:#765f61;
+  --faint:#aa8d88;
+  --border:rgba(113,35,42,.18);
+  --line:rgba(113,35,42,.11);
+  --grid:rgba(198,139,82,.13);
+  --accent:#d8203f;
+  --accent2:#d6a23c;
+  --accent3:#1b1822;
+  --shadow:0 26px 90px rgba(100,34,27,.18);
+  --softShadow:0 18px 46px rgba(100,34,27,.11);
+  background:
+    linear-gradient(90deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,
+    linear-gradient(0deg,var(--grid) 1px,transparent 1px) 0 0/34px 34px,
+    linear-gradient(180deg,#fffaf4,#fff7ef 42%,#fffdf9);
+}
+body.akashi-mode::before{
+  opacity:.18;
+  mix-blend-mode:multiply;
+}
+body.akashi-mode .site-bg::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image:
+    url('/assets/illust/akashi-mode/akashi-gold-crown.png'),
+    url('/assets/illust/akashi-mode/akashi-red-basketball.png'),
+    url('/assets/illust/akashi-mode/akashi-chess-king.png'),
+    url('/assets/illust/akashi-mode/akashi-red-rose.png'),
+    url('/assets/illust/akashi-mode/akashi-court-badge.png');
+  background-repeat:no-repeat;
+  background-size:90px auto,72px auto,84px auto,92px auto,96px auto;
+  background-position:7% 178px,88% 164px,10% 760px,84% 680px,48% 840px;
+  opacity:.18;
+}
+body.akashi-mode .site-bg::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background-image:
+    url('/assets/illust/akashi-mode/akashi-ruby-heart.png'),
+    url('/assets/illust/akashi-mode/akashi-black-red-bow.png'),
+    url('/assets/illust/akashi-mode/akashi-victory-flag.png'),
+    url('/assets/illust/akashi-mode/akashi-emperor-eye.png');
+  background-repeat:no-repeat;
+  background-size:58px auto,74px auto,78px auto,84px auto;
+  background-position:44% 186px,72% 352px,18% 520px,58% 612px;
+  opacity:.2;
+}
+body.akashi-mode .shell{
+  border-color:rgba(201,41,57,.24);
+  background:linear-gradient(180deg,rgba(255,255,255,.5),rgba(255,250,244,.32) 28rem,transparent);
+  box-shadow:0 24px 80px rgba(101,39,31,.16);
+}
+body.akashi-mode .topbar{
+  background:linear-gradient(180deg,rgba(255,255,252,.96),rgba(255,248,239,.9));
+  border-bottom-color:rgba(116,32,39,.13);
+}
+body.akashi-mode .brand-logo{
+  filter:drop-shadow(0 8px 18px rgba(216,32,63,.18));
+}
+body.akashi-mode .nav-tabs,
+body.akashi-mode .control-pill,
+body.akashi-mode .theme-menu{
+  background:rgba(255,255,252,.82);
+  border-color:rgba(116,32,39,.15);
+}
+body.akashi-mode .nav-link:hover,
+body.akashi-mode .nav-link.active{
+  color:var(--accent);
+  background:linear-gradient(180deg,rgba(216,32,63,.09),rgba(214,162,60,.08));
+  box-shadow:inset 0 -2px 0 var(--accent2);
+  text-shadow:none;
+}
+body.akashi-mode #homePage .hero{
+  grid-template-columns:minmax(300px,1fr) minmax(380px,560px);
+  grid-template-rows:auto auto;
+  align-content:center;
+  gap:16px 34px;
+  min-height:570px;
+  padding:48px 56px;
+  border-bottom-color:rgba(116,32,39,.12);
+  background:
+    linear-gradient(90deg,rgba(255,250,244,.05) 0 44%,rgba(255,250,244,.72) 58%,rgba(255,255,252,.96) 100%),
+    url('/assets/illust/akashi-mode/akashi-hero-banner.webp') left center/cover no-repeat;
+}
+body.akashi-mode #homePage .hero::before{
+  display:none;
+}
+body.akashi-mode #homePage .hero::after{
+  left:auto;
+  right:30px;
+  top:22px;
+  width:110px;
+  height:110px;
+  background:url('/assets/illust/akashi-mode/akashi-gold-crown.png') center/contain no-repeat;
+  opacity:.78;
+  mask:none;
+}
+body.akashi-mode #homePage .hero-copy-block{
+  grid-column:2;
+  justify-self:end;
+  width:min(100%,560px);
+  padding:28px 30px 30px!important;
+  border:1px solid rgba(216,32,63,.24);
+  border-radius:8px;
+  background:linear-gradient(180deg,rgba(255,255,253,.88),rgba(255,247,238,.78));
+  box-shadow:0 24px 54px rgba(106,45,35,.14);
+  backdrop-filter:blur(10px);
+}
+body.akashi-mode #homePage .hero-copy-block::before{
+  content:"";
+  position:absolute;
+  right:22px;
+  bottom:-34px;
+  width:74px;
+  height:74px;
+  background:url('/assets/illust/akashi-mode/akashi-red-scissors.png') center/contain no-repeat;
+  pointer-events:none;
+}
+body.akashi-mode .hero-script{
+  border-color:rgba(216,32,63,.45);
+  color:var(--accent);
+  background:rgba(255,255,255,.74);
+  border-radius:999px;
+  font-size:14px;
+  letter-spacing:.16em;
+  text-shadow:none;
+}
+body.akashi-mode .eyebrow{
+  color:var(--accent2);
+  letter-spacing:.22em;
+}
+body.akashi-mode .hero-title-main{
+  background:linear-gradient(90deg,#d8203f 0%,#6b1823 48%,#1b1822 100%);
+  -webkit-background-clip:text;
+  background-clip:text;
+  color:transparent;
+  text-shadow:none;
+}
+body.akashi-mode .hero-title-sub{
+  color:#201720;
+  -webkit-text-stroke:0;
+  text-shadow:0 2px 0 rgba(214,162,60,.28);
+  letter-spacing:.03em;
+}
+body.akashi-mode .hero-copy{
+  color:#604c50;
+  font-weight:760;
+}
+body.akashi-mode .hero-line{
+  width:128px;
+  height:4px;
+  background:linear-gradient(90deg,#d8203f,#d6a23c,#1b1822);
+  box-shadow:none;
+}
+body.akashi-mode #homePage .info-panel{
+  grid-column:2;
+  justify-self:end;
+  width:min(100%,560px);
+  overflow:visible;
+  border-color:rgba(214,162,60,.42);
+  border-radius:8px;
+  background:
+    url('/assets/illust/akashi-mode/akashi-chess-king.png') calc(100% - 18px) calc(100% - 18px)/52px auto no-repeat,
+    linear-gradient(180deg,rgba(255,255,253,.9),rgba(255,247,238,.82));
+  box-shadow:0 20px 48px rgba(106,45,35,.12);
+}
+body.akashi-mode #homePage .info-panel::before{
+  content:"";
+  position:absolute;
+  left:-28px;
+  bottom:-22px;
+  width:78px;
+  height:78px;
+  background:url('/assets/illust/akashi-mode/akashi-red-basketball.png') center/contain no-repeat;
+  pointer-events:none;
+}
+body.akashi-mode .info-icon{
+  border-color:rgba(214,162,60,.3);
+  background:linear-gradient(180deg,rgba(216,32,63,.06),rgba(214,162,60,.08));
+  color:var(--accent);
+}
+body.akashi-mode .info-row:nth-child(2) .info-icon{
+  color:var(--accent2);
+}
+body.akashi-mode .home-projects{
+  position:relative;
+  padding-top:30px;
+}
+body.akashi-mode .home-projects::before{
+  content:"";
+  position:absolute;
+  right:52px;
+  top:20px;
+  width:110px;
+  height:92px;
+  background:url('/assets/illust/akashi-mode/akashi-red-rose.png') center/contain no-repeat;
+  opacity:.64;
+  pointer-events:none;
+}
+body.akashi-mode .btn.primary{
+  border-color:#d8203f;
+  color:#fff;
+  background:linear-gradient(135deg,#d8203f,#8b1e2d 62%,#d6a23c);
+}
+body.akashi-mode .card{
+  border-radius:8px;
+  border-color:rgba(216,32,63,.26);
+  background:linear-gradient(180deg,rgba(255,255,253,.92),rgba(255,247,238,.84));
+  box-shadow:0 16px 38px rgba(106,45,35,.1);
+}
+body.akashi-mode .card:hover{
+  border-color:#d8203f;
+  box-shadow:0 20px 48px rgba(106,45,35,.15);
+}
+body.akashi-mode .card .tag{
+  color:#fff;
+  background:linear-gradient(135deg,#d8203f,#9b1f2c);
+  border-color:rgba(214,162,60,.7);
+}
+body.akashi-mode .v21-card .tag::before{
+  background:url('/assets/illust/akashi-mode/akashi-gold-crown.png') center/contain no-repeat!important;
+}
+body.akashi-mode .card-sticker{
+  width:48px;
+  height:48px;
+  opacity:.86;
+  filter:drop-shadow(0 5px 8px rgba(107,24,35,.16));
+}
+body.akashi-mode .grid .card:nth-child(6n+1) .card-sticker{background-image:url('/assets/illust/akashi-mode/akashi-red-basketball.png')}
+body.akashi-mode .grid .card:nth-child(6n+2) .card-sticker{background-image:url('/assets/illust/akashi-mode/akashi-gold-crown.png')}
+body.akashi-mode .grid .card:nth-child(6n+3) .card-sticker{background-image:url('/assets/illust/akashi-mode/akashi-chess-king.png')}
+body.akashi-mode .grid .card:nth-child(6n+4) .card-sticker{background-image:url('/assets/illust/akashi-mode/akashi-ruby-heart.png')}
+body.akashi-mode .grid .card:nth-child(6n+5) .card-sticker{background-image:url('/assets/illust/akashi-mode/akashi-court-badge.png')}
+body.akashi-mode .grid .card:nth-child(6n+6) .card-sticker{background-image:url('/assets/illust/akashi-mode/akashi-victory-flag.png')}
+body.akashi-mode .footer{
+  border-top-color:rgba(116,32,39,.12);
+  background:rgba(255,250,244,.62);
+}
+
+@media(max-width:980px){
+  body.akashi-mode #homePage .hero{
+    grid-template-columns:1fr;
+    grid-template-rows:auto auto;
+    padding:330px 24px 28px;
+    min-height:0;
+    background:
+      linear-gradient(180deg,rgba(255,250,244,.02) 0 42%,rgba(255,250,244,.9) 58%,rgba(255,255,252,.98) 100%),
+      url('/assets/illust/akashi-mode/akashi-hero-banner.webp') left top/auto 380px no-repeat;
+  }
+  body.akashi-mode #homePage .hero-copy-block,
+  body.akashi-mode #homePage .info-panel{
+    grid-column:1;
+    justify-self:stretch;
+    width:100%;
+  }
+}
+
+@media(max-width:720px){
+  body.akashi-mode .site-bg::before,
+  body.akashi-mode .site-bg::after{
+    opacity:.1;
+  }
+  body.akashi-mode #homePage .hero{
+    padding:260px 16px 24px;
+    background:
+      linear-gradient(180deg,rgba(255,250,244,.02) 0 40%,rgba(255,250,244,.94) 58%,rgba(255,255,252,.99) 100%),
+      url('/assets/illust/akashi-mode/akashi-hero-banner.webp') left top/auto 300px no-repeat;
+  }
+  body.akashi-mode #homePage .hero::after{
+    width:72px;
+    height:72px;
+    right:14px;
+    top:180px;
+  }
+  body.akashi-mode #homePage .hero-copy-block{
+    margin-top:230px!important;
+    padding:22px 20px 24px!important;
+  }
+  body.akashi-mode .hero-script{
+    font-size:12px;
+  }
+  body.akashi-mode .hero-title-main,
+  body.akashi-mode .hero-title-sub{
+    font-size:clamp(42px,14vw,58px)!important;
+  }
+  body.akashi-mode #homePage .info-panel::before{
+    left:auto;
+    right:10px;
+    bottom:-34px;
+    width:62px;
+    height:62px;
+  }
+  body.akashi-mode .home-projects::before{
+    width:78px;
+    right:20px;
+    top:44px;
+    opacity:.38;
+  }
+}

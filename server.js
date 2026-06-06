@@ -288,11 +288,12 @@ function themeBootstrap() {
 
 function indexRouteSeo(req) {
   const pathName = String(req.path || '/').replace(/^\/+|\/+$/g, '').toLowerCase();
-  const route = ['projects', 'posts', 'about', 'contact', 'privacy', 'terms'].includes(pathName) ? pathName : 'home';
+  const route = pathName === 'akashi' ? 'akashi' : (['projects', 'posts', 'about', 'contact', 'privacy', 'terms'].includes(pathName) ? pathName : 'home');
   const origin = siteOrigin(req);
-  const pathPart = route === 'home' ? '/' : `/${route}`;
+  const pathPart = route === 'home' ? '/' : (route === 'akashi' ? '/Akashi' : `/${route}`);
   const map = {
     home: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO라는 활동명으로 만든 개인 프로젝트 갤러리입니다.'],
+    akashi: ['Akashi Mode · ERBELLO', '붉은 코트, 금빛 왕관, 체스 피스 무드로 꾸민 ERBELLO 특별 홈 모드입니다.'],
     projects: ['프로젝트 갤러리 · ERBELLO', 'ERBELLO라는 활동명으로 만든 HTML, JSX, ZIP 기반 프로젝트를 둘러볼 수 있는 목록입니다.'],
     posts: ['포스트 아카이브 · ERBELLO', 'ERBELLO가 작성한 작업 기록, 이미지, 파일 메모를 모아둔 포스트 목록입니다.'],
     about: ['소개 · ERBELLO', 'ERBELLO라는 활동명으로 만든 작업물과 프로젝트 갤러리 운영 방식을 안내합니다.'],
@@ -306,7 +307,7 @@ function indexRouteSeo(req) {
     description,
     robots: String(req.query && req.query.admin || '') === '1' ? 'noindex,nofollow' : 'index,follow',
     url: `${origin}${pathPart}`,
-    image: `${origin}/assets/illust/erbello-typo5.png`
+    image: route === 'akashi' ? `${origin}/assets/illust/akashi-mode/akashi-hero-banner.webp` : `${origin}/assets/illust/erbello-typo5.png`
   };
 }
 
@@ -1464,7 +1465,7 @@ app.get('/sitemap.xml', async (req, res) => {
     const origin = siteOrigin(req);
     const rows = await store.listArtifacts({ includePrivateDetails:false });
     const publicRows = (rows || []).filter(item => !item.is_private && item.status !== 'draft');
-    const staticUrls = ['/', '/projects', '/posts', '/about', '/contact', '/privacy', '/terms'].map(url => ({ url }));
+    const staticUrls = ['/', '/Akashi', '/projects', '/posts', '/about', '/contact', '/privacy', '/terms'].map(url => ({ url }));
     const projectUrls = publicRows.map(item => ({ url:`/project/${encodeURIComponent(String(item.id))}`, lastmod:fmtIsoDate(item.updated_at || item.created_at) }));
     const urls = [...staticUrls, ...projectUrls];
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(item => `  <url><loc>${origin}${item.url}</loc>${item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>`;

@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v35 sidebar-only post categories and stronger media protection';
+  const VERSION = 'ERBELLO Gallery v36 Akashi mode special route';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -25,6 +25,7 @@
   const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
   const GAMSUNG_COVERS = ['1','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(n => `/assets/illust/gamsung-${n}.webp`);
   const SITE_ORIGIN = 'https://erbello.vercel.app';
+  const AKASHI_MODE = /^\/akashi\/?$/i.test(location.pathname);
   const ZIP_MANIFEST_PREFIX = 'ERBELLO_ZIP_MANIFEST_V2\n';
   const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
   const POST_SOURCE_CODE = '__ERBELLO_POST__';
@@ -892,10 +893,11 @@
   function projectPath(id) { return `/project/${encodeURIComponent(id)}`; }
   function runUrl(id) { return PREVIEW_MODE ? `#preview-${encodeURIComponent(id)}` : `${SITE_ORIGIN}${runPath(id)}`; }
   function projectUrl(id) { return PREVIEW_MODE ? `#preview-${encodeURIComponent(id)}` : `${SITE_ORIGIN}${projectPath(id)}`; }
-  function pageUrl(route) { return route === 'home' ? '/' : `/${route}`; }
+  function pageUrl(route) { return route === 'home' ? (AKASHI_MODE ? '/Akashi' : '/') : `/${route}`; }
 
   function initialRoute() {
     const path = location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+    if (path === 'akashi') return 'home';
     if (path === 'projects' || path === 'posts' || path === 'editor' || path === 'about' || path === 'contact' || path === 'privacy' || path === 'terms') return path;
     return 'home';
   }
@@ -1417,6 +1419,14 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   function routeSeo(route = currentRoute) {
+    if (AKASHI_MODE && route === 'home') {
+      return {
+        title:'Akashi Mode · ERBELLO',
+        description:'붉은 코트, 금빛 왕관, 체스 피스 무드로 꾸민 ERBELLO 특별 홈 모드입니다.',
+        url:`${SITE_ORIGIN}/Akashi`,
+        image:`${SITE_ORIGIN}/assets/illust/akashi-mode/akashi-hero-banner.webp`
+      };
+    }
     if (route === 'editor') {
       return {
         title:`${editingId ? tr('artifactModalTitleEdit') : (contentKindValue() === 'post' ? tr('addPost') : tr('artifactModalTitleAdd'))} · ERBELLO`,
@@ -1914,6 +1924,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const editBtn = $('editPageBtn');
     if (editBtn) editBtn.textContent = tr('editPage');
     renderPageContent();
+    renderAkashiHomeContent();
     updateRouteMeta();
     renderFilters();
     renderFeaturedGrid();
@@ -1926,6 +1937,34 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!node) return;
     const icons = ['</>', '▧', '✦', '◎'];
     node.innerHTML = (blocks || []).filter(block => block && (block.title || block.text)).map((block, index) => `<div class="info-row"><span class="info-icon" aria-hidden="true">${esc(icons[index] || '✦')}</span><div><h3>${esc(block.title)}</h3><p>${esc(block.text)}</p></div></div>`).join('');
+  }
+
+  function configureAkashiModeLinks() {
+    if (!AKASHI_MODE) return;
+    document.querySelectorAll('[data-route="home"]').forEach((link) => link.setAttribute('href', '/Akashi'));
+    document.querySelectorAll('.brand').forEach((link) => link.setAttribute('href', '/Akashi'));
+  }
+
+  function renderAkashiHomeContent() {
+    if (!AKASHI_MODE || currentRoute !== 'home') return;
+    const blocks = [
+      { title:'Red Court', text:'붉은 코트 라인과 금빛 장식으로 ERBELLO 갤러리를 특별하게 보여줍니다.' },
+      { title:'King Piece', text:'체스 말, 왕관, 장미, 농구공 에셋으로 제왕감 있는 화면을 구성했습니다.' },
+      { title:'Akashi Route', text:'주소 뒤에 /Akashi를 붙이면 이 특별 홈 모드가 열립니다.' }
+    ];
+    if ($('homeScript')) $('homeScript').textContent = 'CHECKMATE!';
+    if ($('homeEyebrow')) $('homeEyebrow').textContent = 'AKASHI MODE';
+    const heroTitle = $('heroTitle');
+    if (heroTitle) {
+      heroTitle.setAttribute('aria-label', 'Akashi Mode Gallery');
+      heroTitle.classList.remove('brand-wordmark-title');
+      heroTitle.classList.add('hero-display');
+      heroTitle.innerHTML = '<span id="heroTitleMain" class="hero-title-main">AKASHI</span><span id="heroTitleSub" class="hero-title-sub">MODE</span>';
+    }
+    if ($('homeBody')) $('homeBody').textContent = '붉은 코트, 금빛 왕관, 체스 피스 무드로 꾸민 ERBELLO의 특별 홈입니다.';
+    if ($('infoTitle')) $('infoTitle').textContent = 'EMPEROR.COURT';
+    if ($('infoDate')) $('infoDate').textContent = '2026.06';
+    renderInfoBlocks('homeBlocks', blocks);
   }
 
   function renderPageCards(containerId, blocks) {
@@ -4025,10 +4064,12 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   async function init() {
     console.info(VERSION);
     if (PREVIEW_MODE) document.body.classList.add('preview-mode');
+    if (AKASHI_MODE) document.body.classList.add('akashi-mode');
     if (ownerModeRequested) document.body.classList.add('owner-requested');
     const storedScheme = safeStorage.get('local', 'erbello-scheme-v11');
     const storedColor = safeStorage.get('local', 'erbello-color-v11');
     applyTheme(SCHEMES.includes(storedScheme) ? storedScheme : 'white', COLORS.includes(storedColor) ? storedColor : 'pixel');
+    configureAkashiModeLinks();
     installContentProtection();
     bindEvents();
     const storedLang = safeStorage.get('local', 'erbello-lang');
