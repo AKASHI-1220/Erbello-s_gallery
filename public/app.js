@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v36 Akashi mode special route';
+  const VERSION = 'ERBELLO Gallery v37 Akashi asset pack';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -20,7 +20,16 @@
     ['study-book.png','공부 책'], ['study-pencil.png','공부 연필'], ['study-laptop.png','공부 노트북'],
     ['cooking-pot.png','요리 냄비'], ['cooking-cake.png','요리 케이크'], ['cooking-utensils.png','요리 도구'],
     ['game-controller.png','게임 컨트롤러'], ['game-dice.png','게임 주사위'],
-    ['fandom-plush.png','굿즈 인형'], ['fandom-acrylic-stand.png','아크릴 스탠드'], ['fandom-ticket.png','티켓'], ['fandom-keychain.png','키링'], ['fandom-trading-card.png','포카'], ['fandom-rosette.png','로제트']
+    ['fandom-plush.png','굿즈 인형'], ['fandom-acrylic-stand.png','아크릴 스탠드'], ['fandom-ticket.png','티켓'], ['fandom-keychain.png','키링'], ['fandom-trading-card.png','포카'], ['fandom-rosette.png','로제트'],
+    ['divider-akashi-crown-beads.png','아카시 왕관 비즈선'], ['divider-akashi-chess-ruby.png','아카시 체스 루비선'], ['divider-akashi-ruby-heart-chain.png','아카시 루비 하트선'], ['divider-akashi-rose-laurel.png','아카시 장미 월계선'],
+    ['divider-akashi-court-stars.png','아카시 코트 스타선'], ['divider-akashi-crown-ribbon.png','아카시 왕관 리본선'], ['divider-akashi-scissors-check.png','아카시 가위 체크선'], ['divider-akashi-rose-pearl.png','아카시 장미 진주선'],
+    ['index-akashi-crown-bookmark.png','아카시 왕관 책갈피'], ['index-akashi-chess-card.png','아카시 체스 카드'], ['index-akashi-ruby-memo.png','아카시 루비 메모'], ['index-akashi-court-label.png','아카시 코트 라벨'],
+    ['index-akashi-rose-corner.png','아카시 장미 코너'], ['index-akashi-ribbon-tab.png','아카시 리본 탭'], ['index-akashi-pearl-crown.png','아카시 진주 왕관'], ['index-akashi-king-bookmark.png','아카시 킹 책갈피'],
+    ['index-akashi-folder-stack.png','아카시 폴더 스택'], ['index-akashi-score-card.png','아카시 스코어 카드'],
+    ['akashi-daily-crown-cup.png','아카시 일상 찻잔'], ['akashi-daily-ruby-calendar.png','아카시 일상 달력'], ['akashi-study-crown-book.png','아카시 공부 책'], ['akashi-study-gem-pencil.png','아카시 공부 연필'],
+    ['akashi-cooking-crown-cake.png','아카시 요리 케이크'], ['akashi-cooking-rose-pot.png','아카시 요리 냄비'], ['akashi-game-royal-controller.png','아카시 게임 컨트롤러'], ['akashi-game-black-red-dice.png','아카시 게임 주사위'],
+    ['akashi-fandom-crown-rosette.png','아카시 덕질 로제트'], ['akashi-fandom-ruby-ticket.png','아카시 덕질 티켓'], ['akashi-design-rose-palette.png','아카시 디자인 팔레트'], ['akashi-design-rose-brush.png','아카시 디자인 붓'],
+    ['akashi-tool-chess-wrench.png','아카시 도구 렌치'], ['akashi-tool-royal-scissors.png','아카시 도구 가위'], ['akashi-other-royal-box.png','아카시 기타 보물상자'], ['akashi-other-crown-folder.png','아카시 기타 폴더']
   ].map(([file, label]) => ({ file, label, src:`${POST_ASSET_BASE}${file}` }));
   const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
   const GAMSUNG_COVERS = ['1','3','4','5','6','7','8','9','10','11','12','13','14','15'].map(n => `/assets/illust/gamsung-${n}.webp`);
