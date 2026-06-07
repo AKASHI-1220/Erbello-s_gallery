@@ -1,5 +1,9 @@
 {
   "version": 2,
   "builds": [{ "src": "server.js", "use": "@vercel/node" }],
-  "routes": [{ "src": "/(.*)", "dest": "/server.js" }]
+  "routes": [{ "src": "/(.*)", "dest": "/server.js" }],
+  "crons": [
+    { "path": "/api/cron/ai-diary", "schedule": "0 0 * * 2" },
+    { "path": "/api/cron/ai-trend", "schedule": "0 0 * * 5" }
+  ]
 }

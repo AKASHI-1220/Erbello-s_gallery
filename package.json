@@ -1,12 +1,12 @@
 {
   "name": "erbello-artifact-gallery",
-  "version": "39.0.0",
+  "version": "40.0.0",
   "private": true,
   "description": "ERBELLO project gallery with blog-style posts, custom categories, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "check": "node --check server.js && node --check lib/store.js && node --check lib/jsx.js && node --check public/app.js"
+    "check": "node --check server.js && node --check lib/store.js && node --check lib/jsx.js && node --check lib/ai-posting.js && node --check public/app.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

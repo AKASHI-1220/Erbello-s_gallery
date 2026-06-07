@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v39 rounded typo asset pack';
+  const VERSION = 'ERBELLO Gallery v40 AI auto posting';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -60,6 +60,21 @@
   const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
   const POST_WIDGET_PREFIX = 'ERBELLO_POST_WIDGETS_V1:';
   const POST_SUBCATEGORY_PREFIX = 'sub:';
+  const DEFAULT_AI_POSTING_CONFIG = {
+    enabled:true,
+    autoPublish:false,
+    model:'gemini-2.5-flash',
+    maxOutputTokens:900,
+    temperature:0.72,
+    mascot:{
+      name:'Pello',
+      visual:'A cute sky-blue pixel penguin mascot wearing a tiny gold crown.',
+      profile:'ERBELLO Gallery의 작은 안내자입니다. 조용히 작업물을 둘러보고, 오늘의 발견과 기분을 짧은 일기처럼 남깁니다.',
+      tone:'다정하고 귀엽지만 과하게 감성적이지 않게, 짧고 읽기 쉽게 씁니다.'
+    },
+    diary:{ category:'daily', tags:['마스코트','다이어리','ERBELLO','AI 자동 포스팅'], prompt:'마스코트가 ERBELLO Gallery에서 본 작은 변화, 작업 기록, 방문자에게 건네는 짧은 인사를 일기처럼 작성하세요.' },
+    trend:{ category:'study', tags:['AI','트렌드','정리','AI 자동 포스팅'], prompt:'최근 웹 제작, 개인 사이트, AI 도구 활용 흐름을 비교해 짧은 정리 글을 작성하세요. 확인되지 않은 최신 뉴스처럼 단정하지 말고, 일반적인 흐름과 관찰 중심으로 씁니다.' }
+  };
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
   const INLINE_CODE_LIMIT = 900 * 1024;
@@ -506,6 +521,110 @@
   };
   Object.keys(V34_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V34_I18N[lang]));
 
+  const V40_I18N = {
+    ko:{
+      aiPosting:'AI 포스팅',
+      aiPostingTitle:'AI 자동 포스팅',
+      aiPostingSettings:'기본 설정',
+      aiPostingEnabled:'자동 생성 사용',
+      aiAutoPublish:'생성 후 바로 공개',
+      aiMascotSettings:'마스코트 설정',
+      aiMascotName:'마스코트 이름',
+      aiMascotVisual:'마스코트 외형',
+      aiMascotProfile:'마스코트 설정',
+      aiMascotTone:'말투',
+      aiDiarySettings:'화요일 마스코트 일기',
+      aiTrendSettings:'금요일 트렌드 정리',
+      aiPromptLabel:'프롬프트',
+      aiGenerateDiary:'일기 초안 생성',
+      aiGenerateTrend:'트렌드 초안 생성',
+      aiConfigSaved:'AI 포스팅 설정을 저장했습니다.',
+      aiPostGenerated:'AI 포스트 초안을 생성했습니다.',
+      aiGenerating:'AI가 초안을 작성하는 중입니다...',
+      aiStatusReady:'Gemini: {gemini} · Cron: {cron} · 기본 저장 상태: {status}',
+      aiConfigured:'설정됨',
+      aiMissing:'필요',
+      aiDraftStatus:'초안',
+      aiPublicStatus:'자동 공개'
+    },
+    en:{
+      aiPosting:'AI Posts',
+      aiPostingTitle:'AI Auto Posting',
+      aiPostingSettings:'Basic settings',
+      aiPostingEnabled:'Enable auto generation',
+      aiAutoPublish:'Publish immediately',
+      aiMascotSettings:'Mascot settings',
+      aiMascotName:'Mascot name',
+      aiMascotVisual:'Mascot look',
+      aiMascotProfile:'Mascot profile',
+      aiMascotTone:'Tone',
+      aiDiarySettings:'Tuesday mascot diary',
+      aiTrendSettings:'Friday trend note',
+      aiPromptLabel:'Prompt',
+      aiGenerateDiary:'Generate diary draft',
+      aiGenerateTrend:'Generate trend draft',
+      aiConfigSaved:'AI posting settings saved.',
+      aiPostGenerated:'AI post draft generated.',
+      aiGenerating:'AI is drafting...',
+      aiStatusReady:'Gemini: {gemini} · Cron: {cron} · Default save: {status}',
+      aiConfigured:'configured',
+      aiMissing:'needed',
+      aiDraftStatus:'draft',
+      aiPublicStatus:'auto publish'
+    },
+    ja:{
+      aiPosting:'AI投稿',
+      aiPostingTitle:'AI自動投稿',
+      aiPostingSettings:'基本設定',
+      aiPostingEnabled:'自動生成を使う',
+      aiAutoPublish:'生成後すぐ公開',
+      aiMascotSettings:'マスコット設定',
+      aiMascotName:'マスコット名',
+      aiMascotVisual:'外見',
+      aiMascotProfile:'設定',
+      aiMascotTone:'口調',
+      aiDiarySettings:'火曜のマスコット日記',
+      aiTrendSettings:'金曜のトレンド整理',
+      aiPromptLabel:'プロンプト',
+      aiGenerateDiary:'日記下書き生成',
+      aiGenerateTrend:'トレンド下書き生成',
+      aiConfigSaved:'AI投稿設定を保存しました。',
+      aiPostGenerated:'AI投稿の下書きを生成しました。',
+      aiGenerating:'AIが下書きを作成中です...',
+      aiStatusReady:'Gemini: {gemini} · Cron: {cron} · 保存: {status}',
+      aiConfigured:'設定済み',
+      aiMissing:'必要',
+      aiDraftStatus:'下書き',
+      aiPublicStatus:'自動公開'
+    },
+    zh:{
+      aiPosting:'AI帖子',
+      aiPostingTitle:'AI自动发帖',
+      aiPostingSettings:'基础设置',
+      aiPostingEnabled:'启用自动生成',
+      aiAutoPublish:'生成后立即公开',
+      aiMascotSettings:'吉祥物设置',
+      aiMascotName:'吉祥物名称',
+      aiMascotVisual:'外观',
+      aiMascotProfile:'设定',
+      aiMascotTone:'语气',
+      aiDiarySettings:'周二吉祥物日记',
+      aiTrendSettings:'周五趋势整理',
+      aiPromptLabel:'提示词',
+      aiGenerateDiary:'生成日记草稿',
+      aiGenerateTrend:'生成趋势草稿',
+      aiConfigSaved:'AI发帖设置已保存。',
+      aiPostGenerated:'AI帖子草稿已生成。',
+      aiGenerating:'AI正在撰写草稿...',
+      aiStatusReady:'Gemini: {gemini} · Cron: {cron} · 默认保存: {status}',
+      aiConfigured:'已设置',
+      aiMissing:'需要',
+      aiDraftStatus:'草稿',
+      aiPublicStatus:'自动公开'
+    }
+  };
+  Object.keys(V40_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V40_I18N[lang]));
+
   let artifacts = [];
   let pageRows = [];
   let currentRoute = initialRoute();
@@ -531,6 +650,7 @@
   let pendingPostFiles = [];
   let pendingInlineImages = [];
   let systemStatusCache = null;
+  let aiPostingConfigCache = null;
   let toastTimer = null;
   let postSidebarDragIndex = null;
 
@@ -3825,6 +3945,166 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     copyText(text).then(() => toast(tr('exportCopied')));
   }
 
+  function cloneAiConfig(value) {
+    return JSON.parse(JSON.stringify(value || DEFAULT_AI_POSTING_CONFIG));
+  }
+
+  function normalizeAiConfigForUi(value = {}) {
+    const base = cloneAiConfig(DEFAULT_AI_POSTING_CONFIG);
+    const src = value && typeof value === 'object' ? value : {};
+    const mascot = src.mascot && typeof src.mascot === 'object' ? src.mascot : {};
+    const diary = src.diary && typeof src.diary === 'object' ? src.diary : {};
+    const trend = src.trend && typeof src.trend === 'object' ? src.trend : {};
+    return {
+      ...base,
+      ...src,
+      enabled: src.enabled !== false,
+      autoPublish: Boolean(src.autoPublish),
+      model: String(src.model || base.model),
+      maxOutputTokens: Number(src.maxOutputTokens || base.maxOutputTokens),
+      temperature: Number(src.temperature || base.temperature),
+      mascot:{ ...base.mascot, ...mascot },
+      diary:{ ...base.diary, ...diary, tags:cleanTags(diary.tags || base.diary.tags) },
+      trend:{ ...base.trend, ...trend, tags:cleanTags(trend.tags || base.trend.tags) }
+    };
+  }
+
+  function setSelectValue(select, value) {
+    if (!select) return;
+    const safe = String(value || '');
+    if (safe && !Array.from(select.options).some(option => option.value === safe)) {
+      const option = document.createElement('option');
+      option.value = safe;
+      option.textContent = safe;
+      select.appendChild(option);
+    }
+    select.value = safe;
+  }
+
+  function aiStatusText(meta = {}, config = normalizeAiConfigForUi()) {
+    return tr('aiStatusReady')
+      .replace('{gemini}', meta.geminiConfigured ? tr('aiConfigured') : tr('aiMissing'))
+      .replace('{cron}', meta.cronConfigured ? tr('aiConfigured') : tr('aiMissing'))
+      .replace('{status}', config.autoPublish ? tr('aiPublicStatus') : tr('aiDraftStatus'));
+  }
+
+  function fillAiPostingForm(config, meta = {}) {
+    const next = normalizeAiConfigForUi(config);
+    aiPostingConfigCache = next;
+    if ($('aiEnabledInput')) $('aiEnabledInput').checked = next.enabled;
+    if ($('aiAutoPublishInput')) $('aiAutoPublishInput').checked = next.autoPublish;
+    if ($('aiModelInput')) $('aiModelInput').value = next.model;
+    if ($('aiMaxTokensInput')) $('aiMaxTokensInput').value = next.maxOutputTokens;
+    if ($('aiTemperatureInput')) $('aiTemperatureInput').value = next.temperature;
+    if ($('aiMascotNameInput')) $('aiMascotNameInput').value = next.mascot.name || '';
+    if ($('aiMascotVisualInput')) $('aiMascotVisualInput').value = next.mascot.visual || '';
+    if ($('aiMascotProfileInput')) $('aiMascotProfileInput').value = next.mascot.profile || '';
+    if ($('aiMascotToneInput')) $('aiMascotToneInput').value = next.mascot.tone || '';
+    setSelectValue($('aiDiaryCategoryInput'), next.diary.category || 'daily');
+    setSelectValue($('aiTrendCategoryInput'), next.trend.category || 'study');
+    if ($('aiDiaryTagsInput')) $('aiDiaryTagsInput').value = tagsText(next.diary.tags || []);
+    if ($('aiTrendTagsInput')) $('aiTrendTagsInput').value = tagsText(next.trend.tags || []);
+    if ($('aiDiaryPromptInput')) $('aiDiaryPromptInput').value = next.diary.prompt || '';
+    if ($('aiTrendPromptInput')) $('aiTrendPromptInput').value = next.trend.prompt || '';
+    if ($('aiPostingStatus')) $('aiPostingStatus').textContent = aiStatusText(meta, next);
+  }
+
+  function collectAiPostingConfig() {
+    const base = normalizeAiConfigForUi(aiPostingConfigCache || DEFAULT_AI_POSTING_CONFIG);
+    return normalizeAiConfigForUi({
+      ...base,
+      enabled:Boolean($('aiEnabledInput')?.checked),
+      autoPublish:Boolean($('aiAutoPublishInput')?.checked),
+      model:($('aiModelInput')?.value || '').trim() || base.model,
+      maxOutputTokens:Number($('aiMaxTokensInput')?.value || base.maxOutputTokens),
+      temperature:Number($('aiTemperatureInput')?.value || base.temperature),
+      mascot:{
+        name:($('aiMascotNameInput')?.value || '').trim(),
+        visual:($('aiMascotVisualInput')?.value || '').trim(),
+        profile:($('aiMascotProfileInput')?.value || '').trim(),
+        tone:($('aiMascotToneInput')?.value || '').trim()
+      },
+      diary:{
+        category:$('aiDiaryCategoryInput')?.value || 'daily',
+        tags:cleanTags($('aiDiaryTagsInput')?.value || ''),
+        prompt:($('aiDiaryPromptInput')?.value || '').trim()
+      },
+      trend:{
+        category:$('aiTrendCategoryInput')?.value || 'study',
+        tags:cleanTags($('aiTrendTagsInput')?.value || ''),
+        prompt:($('aiTrendPromptInput')?.value || '').trim()
+      }
+    });
+  }
+
+  async function openAiPostingSettings() {
+    if (PREVIEW_MODE) { toast(tr('previewNoSave')); return; }
+    openModal('aiPostingModal');
+    if ($('aiPostingError')) $('aiPostingError').textContent = '';
+    if ($('aiPostingStatus')) $('aiPostingStatus').textContent = 'Loading...';
+    try {
+      const data = await api('/api/admin/ai-posting/config', { headers:{ 'x-admin-token':adminToken } });
+      fillAiPostingForm(data.config, data);
+    } catch (error) {
+      fillAiPostingForm(DEFAULT_AI_POSTING_CONFIG, {});
+      if ($('aiPostingError')) $('aiPostingError').textContent = error.message || 'Could not load AI posting config.';
+    }
+  }
+
+  async function saveAiPostingSettings(options = {}) {
+    if (PREVIEW_MODE) { toast(tr('previewNoSave')); return; }
+    const config = collectAiPostingConfig();
+    try {
+      if ($('aiPostingError')) $('aiPostingError').textContent = '';
+      const data = await api('/api/admin/ai-posting/config', {
+        method:'PUT',
+        headers:{ 'x-admin-token':adminToken },
+        body:JSON.stringify({ config })
+      });
+      fillAiPostingForm(data.config, data);
+      toast(tr('aiConfigSaved'));
+      return data;
+    } catch (error) {
+      if ($('aiPostingError')) $('aiPostingError').textContent = error.message || 'Could not save AI posting config.';
+      if (options.throwOnError) throw error;
+      return null;
+    }
+  }
+
+  function setAiPostingBusy(on) {
+    ['aiGenerateDiaryBtn','aiGenerateTrendBtn','aiSaveConfigBtn'].forEach((id) => {
+      const button = $(id);
+      if (button) button.disabled = Boolean(on);
+    });
+  }
+
+  async function generateAiPostingDraft(kind) {
+    if (PREVIEW_MODE) { toast(tr('previewNoSave')); return; }
+    await saveAiPostingSettings({ throwOnError:true });
+    try {
+      setAiPostingBusy(true);
+      if ($('aiPostingError')) $('aiPostingError').textContent = '';
+      if ($('aiPostingStatus')) $('aiPostingStatus').textContent = tr('aiGenerating');
+      const data = await api('/api/admin/ai-posting/generate', {
+        method:'POST',
+        headers:{ 'x-admin-token':adminToken },
+        body:JSON.stringify({ kind })
+      });
+      toast(tr('aiPostGenerated'));
+      await loadArtifacts();
+      if (data && data.artifact && data.artifact.id) {
+        currentRoute = 'posts';
+        selectedPostId = String(data.artifact.id);
+        renderRoute();
+      }
+      await openAiPostingSettings();
+    } catch (error) {
+      if ($('aiPostingError')) $('aiPostingError').textContent = error.message || 'Could not generate AI post.';
+    } finally {
+      setAiPostingBusy(false);
+    }
+  }
+
   function renderSystemStatus(data) {
     const node = $('systemStatusPanel');
     if (!node) return;
@@ -3837,6 +4117,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       row('Site pages table', Boolean(data.pagesOk), `rows ${data.pageCount ?? '-'}`),
       row('Post interactions table', Boolean(data.postInteractionsOk) || data.mode === 'local-json', `rows ${data.postInteractionCount ?? 0}${data.postInteractionsError ? ` · ${data.postInteractionsError}` : ''}`),
       row('Post vote key column', Boolean(data.postVoteKeyOk) || data.mode === 'local-json', data.postVoteKeyOk ? 'one vote per visitor ready' : (data.postVoteKeyError || 'migration required')),
+      row('Gemini API key', Boolean(data.geminiConfigured), data.geminiConfigured ? 'GEMINI_API_KEY configured' : 'GEMINI_API_KEY missing'),
+      row('AI posting cron', Boolean(data.cronConfigured), data.cronConfigured ? 'CRON_SECRET configured' : 'CRON_SECRET missing'),
+      row('AI posting', Boolean(data.aiPostingEnabled), data.aiPostingEnabled ? 'enabled' : 'disabled'),
       row('Media bucket', Boolean(data.mediaBucketOk) || data.mode === 'local-json', data.mediaBucket || ''),
       row('Artifact bucket', Boolean(data.artifactBucketOk) || data.mode === 'local-json', data.artifactBucket || ''),
       row('Storage upload', Boolean(data.storageUploadOk) || data.mode === 'local-json', data.storageUploadOk ? 'signed upload ready' : (data.storageUploadError || 'check required')),
@@ -3882,6 +4165,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       else { openModal('adminModal'); setTimeout(() => $('passwordInput').focus(), 60); }
     });
     $('editPageBtn')?.addEventListener('click', () => requireAdmin(openPageEditor));
+    $('aiPostingBtn')?.addEventListener('click', () => requireAdmin(openAiPostingSettings));
+    $('aiSaveConfigBtn')?.addEventListener('click', saveAiPostingSettings);
+    $('aiGenerateDiaryBtn')?.addEventListener('click', () => generateAiPostingDraft('diary'));
+    $('aiGenerateTrendBtn')?.addEventListener('click', () => generateAiPostingDraft('trend'));
     $('pageSlugInput')?.addEventListener('change', fillPageEditor);
     $('pageLangInput')?.addEventListener('change', fillPageEditor);
     $('addContactLinkBtn')?.addEventListener('click', () => addContactLinkRow({}));

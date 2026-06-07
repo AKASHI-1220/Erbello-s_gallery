@@ -7,6 +7,12 @@ const path = require('path');
 const JSZip = require('jszip');
 const store = require('./lib/store');
 const { isJSX, wrapJSX, normalizeCode } = require('./lib/jsx');
+const {
+  normalizeAiPostingConfig,
+  parseGeneratedPost,
+  normalizeGeneratedPost,
+  buildGeminiPrompt
+} = require('./lib/ai-posting');
 
 const app = express();
 app.set('trust proxy', 1);
@@ -20,6 +26,7 @@ const STORAGE_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_SITE_ORIGIN = 'https://erbello.vercel.app';
+const AI_POSTING_PAGE_SLUG = 'ai-posting';
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -1089,6 +1096,161 @@ function validateArtifactPayload(payload) {
   return (payload.code || payload.code_storage_path) ? '' : 'title and code are required.';
 }
 
+async function getAiPostingConfig() {
+  let stored = null;
+  try {
+    const page = await store.getPage(AI_POSTING_PAGE_SLUG, 'ko');
+    stored = page && page.content && typeof page.content === 'object'
+      ? (page.content.config && typeof page.content.config === 'object' ? page.content.config : page.content)
+      : null;
+  } catch (_) {
+    stored = null;
+  }
+  return normalizeAiPostingConfig(stored || {});
+}
+
+async function saveAiPostingConfig(value) {
+  const config = normalizeAiPostingConfig(value || {});
+  const row = await store.upsertPage(AI_POSTING_PAGE_SLUG, 'ko', config);
+  return { ...row, content: config };
+}
+
+function geminiConfigured() {
+  return Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY);
+}
+
+function cronConfigured() {
+  return Boolean(process.env.CRON_SECRET);
+}
+
+function checkCronRequest(req) {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) return process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1';
+  return String(req.headers && req.headers.authorization || '') === `Bearer ${expected}`;
+}
+
+function cleanAiPostBody(value) {
+  return String(value || '')
+    .split(POST_ATTACH_PREFIX)[0]
+    .split(POST_WIDGET_PREFIX)[0]
+    .replace(/!\[[^\]]*]\([^)]+\)/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function recentAiPromptPosts() {
+  const rows = await store.listArtifacts({ includePrivateDetails:true });
+  return (rows || [])
+    .filter(item => isPostArtifact(item))
+    .sort((a, b) => new Date(b.updated_at || b.created_at || 0).getTime() - new Date(a.updated_at || a.created_at || 0).getTime())
+    .slice(0, 10)
+    .map(item => ({
+      title: item.title || '',
+      description: item.description || '',
+      body: plainText(cleanAiPostBody(item.detail_text), 220),
+      tags: Array.isArray(item.tags) ? item.tags : [],
+      created_at: item.created_at,
+      updated_at: item.updated_at
+    }));
+}
+
+async function callGeminiText(prompt, config) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
+  if (!apiKey) {
+    const error = new Error('Gemini API key is not configured. Vercel 환경변수 GEMINI_API_KEY를 추가해주세요.');
+    error.statusCode = 503;
+    throw error;
+  }
+  const model = encodeURIComponent(process.env.GEMINI_MODEL || config.model || 'gemini-2.5-flash');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25_000);
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        contents: [{ role:'user', parts:[{ text:prompt }] }],
+        generationConfig: {
+          temperature: Number(config.temperature || 0.72),
+          maxOutputTokens: Number(config.maxOutputTokens || 900),
+          responseMimeType: 'application/json'
+        }
+      })
+    });
+    const text = await response.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = null; }
+    if (!response.ok) {
+      const message = data && data.error && data.error.message ? data.error.message : text;
+      const error = new Error(`Gemini request failed: ${message || response.status}`);
+      error.statusCode = response.status >= 500 ? 502 : response.status;
+      throw error;
+    }
+    const output = data && data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts
+      ? data.candidates[0].content.parts.map(part => part.text || '').join('\n').trim()
+      : '';
+    if (!output) {
+      const error = new Error('Gemini returned an empty response.');
+      error.statusCode = 502;
+      throw error;
+    }
+    return output;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function generateAiPost(kind = 'diary') {
+  const safeKind = kind === 'trend' ? 'trend' : 'diary';
+  const config = await getAiPostingConfig();
+  if (!config.enabled) {
+    const error = new Error('AI auto posting is disabled.');
+    error.statusCode = 403;
+    throw error;
+  }
+  const recent = await recentAiPromptPosts();
+  const prompt = buildGeminiPrompt(safeKind, config, recent);
+  const raw = await callGeminiText(prompt, config);
+  const generated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
+  const status = config.autoPublish ? 'public' : 'draft';
+  const payload = {
+    title: cleanText(generated.title, 80),
+    description: cleanText(generated.description, 240),
+    type: cleanType(generated.type),
+    tags: cleanTags(generated.tags),
+    source_kind: 'post',
+    cover_image: '',
+    gallery_images: [],
+    detail_text: cleanText(generated.body, 20000),
+    code: POST_SOURCE_CODE,
+    is_jsx: false,
+    status,
+    is_private: false,
+    private_password_hash: '',
+    private_password_salt: ''
+  };
+  const invalid = validateArtifactPayload(payload);
+  if (invalid) {
+    const error = new Error(invalid);
+    error.statusCode = 400;
+    throw error;
+  }
+  const artifact = await store.createArtifact(payload);
+  return { artifact: stripPrivateSecrets(artifact), config, kind:safeKind };
+}
+
+async function handleAiCron(req, res, kind) {
+  if (!checkCronRequest(req)) return res.status(401).json({ error:'Unauthorized cron request.' });
+  try {
+    const result = await generateAiPost(kind);
+    res.json({ ok:true, kind:result.kind, status:result.artifact.status, id:result.artifact.id, title:result.artifact.title });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error:error.message || 'AI auto posting failed.' });
+  }
+}
+
 async function interactionPostFromRequest(req, res) {
   const artifact = await store.getArtifact(req.params.id);
   if (!artifact || !isPostArtifact(artifact) || isDraftArtifact(artifact)) {
@@ -1136,6 +1298,9 @@ function interactionSummary(config, interactions, isAdmin) {
 app.get('/api/status', (_req, res) => {
   res.json({ ok: true, storage: store.mode, adminConfigured: Boolean(getAdminHash()) });
 });
+
+app.get('/api/cron/ai-diary', (req, res) => handleAiCron(req, res, 'diary'));
+app.get('/api/cron/ai-trend', (req, res) => handleAiCron(req, res, 'trend'));
 
 app.get('/api/posts/:id/interactions', async (req, res) => {
   try {
@@ -1200,11 +1365,39 @@ app.post('/api/posts/:id/votes', interactionLimit, async (req, res) => {
   }
 });
 
+app.get('/api/admin/ai-posting/config', checkAdmin, async (_req, res) => {
+  try {
+    const config = await getAiPostingConfig();
+    res.json({ ok:true, config, geminiConfigured:geminiConfigured(), cronConfigured:cronConfigured() });
+  } catch (error) {
+    res.status(500).json({ error:error.message || 'Could not load AI posting config.' });
+  }
+});
+
+app.put('/api/admin/ai-posting/config', checkAdmin, async (req, res) => {
+  try {
+    const row = await saveAiPostingConfig(req.body && (req.body.config || req.body));
+    res.json({ ok:true, config:row.content, updated_at:row.updated_at, geminiConfigured:geminiConfigured(), cronConfigured:cronConfigured() });
+  } catch (error) {
+    res.status(500).json({ error:error.message || 'Could not save AI posting config.' });
+  }
+});
+
+app.post('/api/admin/ai-posting/generate', checkAdmin, async (req, res) => {
+  try {
+    const kind = String(req.body && req.body.kind || 'diary').toLowerCase() === 'trend' ? 'trend' : 'diary';
+    const result = await generateAiPost(kind);
+    res.status(201).json({ ok:true, kind:result.kind, artifact:result.artifact, status:result.artifact.status });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ error:error.message || 'Could not generate AI post.' });
+  }
+});
+
 app.get('/api/admin/system', checkAdmin, async (req, res) => {
   try {
     const status = await store.systemStatus();
     const origin = siteOrigin(req);
-    res.json({ ok:true, adminConfigured:Boolean(getAdminHash()), siteOrigin:origin, adsTxtUrl:`${origin}/ads.txt`, adsenseClient:ADSENSE_CLIENT, ...status });
+    res.json({ ok:true, adminConfigured:Boolean(getAdminHash()), geminiConfigured:geminiConfigured(), cronConfigured:cronConfigured(), aiPostingEnabled:(await getAiPostingConfig()).enabled, siteOrigin:origin, adsTxtUrl:`${origin}/ads.txt`, adsenseClient:ADSENSE_CLIENT, ...status });
   } catch (error) {
     res.status(500).json({ error:error.message || 'System check failed' });
   }
@@ -1222,7 +1415,9 @@ app.get('/api/artifacts', async (req, res) => {
 
 app.get('/api/pages', async (_req, res) => {
   try {
-    res.json(await store.listPages());
+    const publicSlugs = new Set(['home', 'projects', 'posts', 'about', 'contact', 'privacy', 'terms']);
+    const rows = await store.listPages();
+    res.json((rows || []).filter(row => publicSlugs.has(String(row.slug || '').toLowerCase())));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
