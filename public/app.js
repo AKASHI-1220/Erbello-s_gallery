@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v38 editor asset drawer';
+  const VERSION = 'ERBELLO Gallery v39 rounded typo asset pack';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -16,6 +16,25 @@
     ['divider-solid-heart-pink.png','실선 하트'], ['divider-dotted-bow-heart.png','점선 리본하트'], ['divider-dashed-cloud-stars.png','대시 구름별'], ['divider-lace-rose-pearl.png','레이스 장미진주'], ['divider-checkered-heart-tape.png','체크 하트테이프'], ['divider-lavender-potion-gems.png','라벤더 물약선'],
     ['memo-card.png','메모 카드'], ['index-tabs.png','인덱스 탭'], ['index-tab-stack.png','인덱스 묶음'], ['index-bookmarks.png','북마크 인덱스'], ['index-memo-tab.png','메모 인덱스'],
     ['index-single-heart-pink.png','핑크 하트 인덱스'], ['index-single-star-blue.png','블루 스타 인덱스'], ['index-single-moon-lavender.png','라벤더 북마크'], ['index-single-bow-cream.png','크림 리본 인덱스'],
+    ['typo-dminus365.png','D-365'], ['typo-dminus300.png','D-300'], ['typo-dminus200.png','D-200'], ['typo-dminus100.png','D-100'], ['typo-dminus50.png','D-50'], ['typo-dminus30.png','D-30'], ['typo-dminus15.png','D-15'], ['typo-dminus10.png','D-10'],
+    ['typo-dminus7.png','D-7'], ['typo-dminus6.png','D-6'], ['typo-dminus5.png','D-5'], ['typo-dminus4.png','D-4'], ['typo-dminus3.png','D-3'], ['typo-dminus2.png','D-2'], ['typo-dminus1.png','D-1'], ['typo-dday.png','D-Day'],
+    ['typo-dplus1000.png','D+1000'], ['typo-dplus500.png','D+500'], ['typo-dplus365.png','D+365'], ['typo-dplus300.png','D+300'], ['typo-dplus200.png','D+200'], ['typo-dplus100.png','D+100'], ['typo-dplus50.png','D+50'], ['typo-dplus30.png','D+30'],
+    ['typo-dplus15.png','D+15'], ['typo-dplus10.png','D+10'], ['typo-dplus7.png','D+7'], ['typo-dplus6.png','D+6'], ['typo-dplus5.png','D+5'], ['typo-dplus4.png','D+4'], ['typo-dplus3.png','D+3'], ['typo-dplus2.png','D+2'], ['typo-dplus1.png','D+1'],
+    ['typo-menu.png','MENU'], ['typo-list.png','LIST'], ['typo-to-do.png','TO DO'], ['typo-memo.png','MEMO'], ['typo-note.png','NOTE'], ['typo-diary.png','DIARY'], ['typo-plan.png','PLAN'], ['typo-check.png','CHECK'], ['typo-done.png','DONE'],
+    ['typo-start.png','START'], ['typo-end.png','END'], ['typo-today.png','TODAY'], ['typo-tomorrow.png','TOMORROW'], ['typo-yesterday.png','YESTERDAY'], ['typo-notice.png','NOTICE'], ['typo-important.png','IMPORTANT'], ['typo-schedule.png','SCHEDULE'],
+    ['typo-wish-list.png','WISH LIST'], ['typo-shopping.png','SHOPPING'], ['typo-want.png','WANT'], ['typo-shop.png','SHOP'], ['typo-profile.png','PROFILE'], ['typo-my-page.png','MY PAGE'], ['typo-contact.png','CONTACT'], ['typo-link.png','LINK'], ['typo-password.png','PASSWORD'],
+    ['typo-who.png','WHO'], ['typo-when.png','WHEN'], ['typo-where.png','WHERE'], ['typo-what.png','WHAT'], ['typo-how.png','HOW'], ['typo-why.png','WHY'],
+    ['typo-akashi.png','AKASHI'], ['typo-kuroko.png','KUROKO'], ['typo-kagami.png','KAGAMI'], ['typo-kise.png','KISE'], ['typo-midorima.png','MIDORIMA'], ['typo-aomine.png','AOMINE'], ['typo-murasakibara.png','MURASAKIBARA'],
+    ['typo-momoi.png','MOMOI'], ['typo-riko.png','RIKO'], ['typo-hyuga.png','HYUGA'], ['typo-izuki.png','IZUKI'], ['typo-kiyoshi.png','KIYOSHI'], ['typo-takao.png','TAKAO'], ['typo-himuro.png','HIMURO'],
+    ['typo-mayuzumi.png','MAYUZUMI'], ['typo-hayama.png','HAYAMA'], ['typo-reo.png','REO'], ['typo-nebuya.png','NEBUYA'], ['typo-nijimura.png','NIJIMURA'], ['typo-haizaki.png','HAIZAKI'], ['typo-hanamiya.png','HANAMIYA'],
+    ['typo-thank-you.png','THANK YOU'], ['typo-thanks.png','THANKS'], ['typo-please.png','PLEASE'], ['typo-sorry.png','SORRY'], ['typo-hello.png','HELLO'], ['typo-welcome.png','WELCOME'], ['typo-happy.png','HAPPY'], ['typo-love.png','LOVE'], ['typo-like.png','LIKE'], ['typo-cute.png','CUTE'],
+    ['typo-good.png','GOOD'], ['typo-best.png','BEST'], ['typo-complete.png','COMPLETE'], ['typo-finish.png','FINISH'], ['typo-finished.png','FINISHED'], ['typo-cook.png','COOK'], ['typo-cooking.png','COOKING'], ['typo-goods.png','GOODS'], ['typo-recipe.png','RECIPE'], ['typo-study.png','STUDY'],
+    ['typo-review.png','REVIEW'], ['typo-summary.png','SUMMARY'], ['typo-todo-list.png','TODO LIST'], ['typo-check-list.png','CHECK LIST'], ['typo-memo-list.png','MEMO LIST'], ['typo-event.png','EVENT'], ['typo-birthday.png','BIRTHDAY'], ['typo-anniversary.png','ANNIVERSARY'],
+    ['typo-update.png','UPDATE'], ['typo-archive.png','ARCHIVE'], ['typo-gallery.png','GALLERY'], ['typo-post.png','POST'], ['typo-project.png','PROJECT'], ['typo-log.png','LOG'], ['typo-favorite.png','FAVORITE'], ['typo-idea.png','IDEA'], ['typo-notebook.png','NOTEBOOK'], ['typo-photo.png','PHOTO'], ['typo-file.png','FILE'], ['typo-download.png','DOWNLOAD'],
+    ['typo-new.png','NEW'], ['typo-hot.png','HOT'], ['typo-free.png','FREE'], ['typo-pick.png','PICK'], ['typo-open.png','OPEN'], ['typo-close.png','CLOSE'], ['typo-save.png','SAVE'], ['typo-copy.png','COPY'], ['typo-upload.png','UPLOAD'], ['typo-tag.png','TAG'], ['typo-goal.png','GOAL'],
+    ['typo-ok.png','OK'], ['typo-yes.png','YES'], ['typo-no.png','NO'], ['typo-next.png','NEXT'], ['typo-back.png','BACK'], ['typo-plus.png','PLUS'], ['typo-minus.png','MINUS'],
+    ['typo-symbol-arrow-right.png','Arrow Right'], ['typo-symbol-arrow-left.png','Arrow Left'], ['typo-symbol-check.png','Check Symbol'], ['typo-symbol-tab-arrow.png','Tab Arrow'], ['typo-symbol-forward-arrow.png','Forward Arrow'], ['typo-symbol-grid.png','Grid Symbol'],
+    ['typo-symbol-sparkle.png','Sparkle Symbol'], ['typo-symbol-heart.png','Heart Symbol'], ['typo-symbol-star.png','Star Symbol'],
     ['daily-teacup.png','일상 찻잔'], ['daily-calendar.png','일상 달력'],
     ['study-book.png','공부 책'], ['study-pencil.png','공부 연필'], ['study-laptop.png','공부 노트북'],
     ['cooking-pot.png','요리 냄비'], ['cooking-cake.png','요리 케이크'], ['cooking-utensils.png','요리 도구'],
