@@ -28,7 +28,7 @@ const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_SITE_ORIGIN = 'https://erbello.vercel.app';
 const AI_POSTING_PAGE_SLUG = 'ai-posting';
-const AI_POSTING_FALLBACK_PAGE_SLUG = 'posts';
+const AI_POSTING_FALLBACK_PAGE_SLUGS = ['posts', 'home'];
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -1122,30 +1122,40 @@ function isSitePageSlugConstraintError(error) {
 }
 
 async function getFallbackAiPostingConfig() {
-  try {
-    const page = await store.getPage(AI_POSTING_FALLBACK_PAGE_SLUG, 'ko');
-    const content = hiddenPageContent(page && page.content);
-    return content.aiPostingConfig && typeof content.aiPostingConfig === 'object'
-      ? content.aiPostingConfig
-      : null;
-  } catch (_) {
-    return null;
+  for (const slug of AI_POSTING_FALLBACK_PAGE_SLUGS) {
+    try {
+      const page = await store.getPage(slug, 'ko');
+      const content = hiddenPageContent(page && page.content);
+      if (content.aiPostingConfig && typeof content.aiPostingConfig === 'object') {
+        return content.aiPostingConfig;
+      }
+    } catch (_) {}
   }
+  return null;
 }
 
 async function saveFallbackAiPostingConfig(config) {
-  const page = await store.getPage(AI_POSTING_FALLBACK_PAGE_SLUG, 'ko').catch(() => null);
-  const content = hiddenPageContent(page && page.content);
-  const row = await store.upsertPage(AI_POSTING_FALLBACK_PAGE_SLUG, 'ko', {
-    ...content,
-    aiPostingConfig: config
-  });
-  return {
-    ...row,
-    slug: AI_POSTING_PAGE_SLUG,
-    content: config,
-    storage: 'posts-page-fallback'
-  };
+  let constraintError = null;
+  for (const slug of AI_POSTING_FALLBACK_PAGE_SLUGS) {
+    try {
+      const page = await store.getPage(slug, 'ko').catch(() => null);
+      const content = hiddenPageContent(page && page.content);
+      const row = await store.upsertPage(slug, 'ko', {
+        ...content,
+        aiPostingConfig: config
+      });
+      return {
+        ...row,
+        slug: AI_POSTING_PAGE_SLUG,
+        content: config,
+        storage: `${slug}-page-fallback`
+      };
+    } catch (error) {
+      if (!isSitePageSlugConstraintError(error)) throw error;
+      constraintError = error;
+    }
+  }
+  throw constraintError || new Error('Could not save AI posting config.');
 }
 
 async function getAiPostingConfig() {
@@ -1560,7 +1570,7 @@ app.put('/api/admin/pages/:slug/:lang', checkAdmin, async (req, res) => {
     const lang = cleanLang(req.params.lang);
     if (!slug || !lang) return res.status(400).json({ error: 'Invalid page or language.' });
     const content = cleanPageContent(req.body && req.body.content);
-    if (slug === AI_POSTING_FALLBACK_PAGE_SLUG && lang === 'ko') {
+    if (AI_POSTING_FALLBACK_PAGE_SLUGS.includes(slug) && lang === 'ko') {
       const existing = await store.getPage(slug, lang).catch(() => null);
       const hidden = hiddenPageContent(existing && existing.content).aiPostingConfig;
       if (hidden && typeof hidden === 'object') content.aiPostingConfig = hidden;

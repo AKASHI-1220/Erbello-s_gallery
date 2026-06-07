@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v44 Pello assets and AI prompt refresh';
+  const VERSION = 'ERBELLO Gallery v45 AI config legacy fallback';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];

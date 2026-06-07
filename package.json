@@ -1,6 +1,6 @@
 {
   "name": "erbello-artifact-gallery",
-  "version": "44.0.0",
+  "version": "45.0.0",
   "private": true,
   "description": "ERBELLO project gallery with blog-style posts, custom categories, manifest ZIP uploads, Storage assets, privacy controls and admin system tools.",
   "scripts": {
