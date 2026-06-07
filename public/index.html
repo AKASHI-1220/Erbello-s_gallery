@@ -15,7 +15,7 @@
   <meta name="google-adsense-account" content="ca-pub-3039189451733887" />
   <title>프로젝트 갤러리 · ERBELLO</title>
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3039189451733887" crossorigin="anonymous"></script>
-  <link rel="stylesheet" href="/app.css?v=40" />
+  <link rel="stylesheet" href="/app.css?v=41" />
 </head>
 <body data-scheme="white" data-color="pixel" data-theme="white-pixel">
   <div class="site-bg" aria-hidden="true">
@@ -725,11 +725,16 @@
               <div class="field">
                 <label for="aiDiaryCategoryInput" data-i18n="categoryLabel">대표 분류</label>
                 <select id="aiDiaryCategoryInput" class="select">
+                  <option value="other">other</option>
                   <option value="daily">daily</option>
                   <option value="study">study</option>
                   <option value="fandom">fandom</option>
-                  <option value="other">other</option>
                 </select>
+              </div>
+              <div class="field">
+                <label for="aiDiaryCategoryTagInput" data-i18n="aiCategoryTagLabel">사이드 카테고리 이름</label>
+                <input id="aiDiaryCategoryTagInput" class="input" type="text" maxlength="40" />
+                <p class="hint" data-i18n="aiCategoryTagHint">좌측 카테고리 이름과 같게 적으면 자동 글이 그 카테고리에 정리됩니다.</p>
               </div>
               <div class="field">
                 <label for="aiDiaryTagsInput" data-i18n="tagsLabel">태그</label>
@@ -748,11 +753,16 @@
               <div class="field">
                 <label for="aiTrendCategoryInput" data-i18n="categoryLabel">대표 분류</label>
                 <select id="aiTrendCategoryInput" class="select">
+                  <option value="other">other</option>
                   <option value="study">study</option>
                   <option value="daily">daily</option>
                   <option value="design">design</option>
-                  <option value="other">other</option>
                 </select>
+              </div>
+              <div class="field">
+                <label for="aiTrendCategoryTagInput" data-i18n="aiCategoryTagLabel">사이드 카테고리 이름</label>
+                <input id="aiTrendCategoryTagInput" class="input" type="text" maxlength="40" />
+                <p class="hint" data-i18n="aiCategoryTagHint">좌측 카테고리 이름과 같게 적으면 자동 글이 그 카테고리에 정리됩니다.</p>
               </div>
               <div class="field">
                 <label for="aiTrendTagsInput" data-i18n="tagsLabel">태그</label>
@@ -791,6 +801,6 @@
   </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="/app.js?v=40" defer></script>
+  <script src="/app.js?v=41" defer></script>
 </body>
 </html>

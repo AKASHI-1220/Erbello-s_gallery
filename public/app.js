@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v40 AI auto posting';
+  const VERSION = 'ERBELLO Gallery v41 AI category assets';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -72,8 +72,8 @@
       profile:'ERBELLO Gallery의 작은 안내자입니다. 조용히 작업물을 둘러보고, 오늘의 발견과 기분을 짧은 일기처럼 남깁니다.',
       tone:'다정하고 귀엽지만 과하게 감성적이지 않게, 짧고 읽기 쉽게 씁니다.'
     },
-    diary:{ category:'daily', tags:['마스코트','다이어리','ERBELLO','AI 자동 포스팅'], prompt:'마스코트가 ERBELLO Gallery에서 본 작은 변화, 작업 기록, 방문자에게 건네는 짧은 인사를 일기처럼 작성하세요.' },
-    trend:{ category:'study', tags:['AI','트렌드','정리','AI 자동 포스팅'], prompt:'최근 웹 제작, 개인 사이트, AI 도구 활용 흐름을 비교해 짧은 정리 글을 작성하세요. 확인되지 않은 최신 뉴스처럼 단정하지 말고, 일반적인 흐름과 관찰 중심으로 씁니다.' }
+    diary:{ category:'other', categoryTag:"Pello's Diary", autoAssets:true, tags:["Pello's Diary",'마스코트','다이어리','ERBELLO','AI 자동 포스팅'], prompt:'마스코트가 ERBELLO Gallery에서 본 작은 변화, 작업 기록, 방문자에게 건네는 짧은 인사를 일기처럼 작성하세요.' },
+    trend:{ category:'other', categoryTag:'AI posting', autoAssets:true, tags:['AI posting','AI','트렌드','정리','AI 자동 포스팅'], prompt:'최근 웹 제작, 개인 사이트, AI 도구 활용 흐름을 비교해 짧은 정리 글을 작성하세요. 확인되지 않은 최신 뉴스처럼 단정하지 말고, 일반적인 흐름과 관찰 중심으로 씁니다.' }
   };
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
@@ -535,6 +535,8 @@
       aiMascotTone:'말투',
       aiDiarySettings:'화요일 마스코트 일기',
       aiTrendSettings:'금요일 트렌드 정리',
+      aiCategoryTagLabel:'사이드 카테고리 이름',
+      aiCategoryTagHint:'좌측 카테고리 이름과 같게 적으면 자동 글이 그 카테고리에 정리됩니다.',
       aiPromptLabel:'프롬프트',
       aiGenerateDiary:'일기 초안 생성',
       aiGenerateTrend:'트렌드 초안 생성',
@@ -560,6 +562,8 @@
       aiMascotTone:'Tone',
       aiDiarySettings:'Tuesday mascot diary',
       aiTrendSettings:'Friday trend note',
+      aiCategoryTagLabel:'Sidebar category name',
+      aiCategoryTagHint:'Use the same name as a left sidebar category to group generated posts there.',
       aiPromptLabel:'Prompt',
       aiGenerateDiary:'Generate diary draft',
       aiGenerateTrend:'Generate trend draft',
@@ -585,6 +589,8 @@
       aiMascotTone:'口調',
       aiDiarySettings:'火曜のマスコット日記',
       aiTrendSettings:'金曜のトレンド整理',
+      aiCategoryTagLabel:'サイドカテゴリー名',
+      aiCategoryTagHint:'左サイドのカテゴリー名と同じにすると自動投稿がそこに整理されます。',
       aiPromptLabel:'プロンプト',
       aiGenerateDiary:'日記下書き生成',
       aiGenerateTrend:'トレンド下書き生成',
@@ -610,6 +616,8 @@
       aiMascotTone:'语气',
       aiDiarySettings:'周二吉祥物日记',
       aiTrendSettings:'周五趋势整理',
+      aiCategoryTagLabel:'侧栏分类名称',
+      aiCategoryTagHint:'填写与左侧分类相同的名称，自动帖子会归入该分类。',
       aiPromptLabel:'提示词',
       aiGenerateDiary:'生成日记草稿',
       aiGenerateTrend:'生成趋势草稿',
@@ -814,13 +822,19 @@
     return postDividerAssets().some(asset => asset.file === file) ? file : '';
   }
   function defaultPostCategoryConfigs(lang = currentLang) {
-    return ['daily','study','cooking','game','fandom','design','other'].map((key) => ({
+    const builtin = ['daily','study','cooking','game','fandom','design','other'].map((key) => ({
       kind:'category',
       key,
       label:builtinPostCategoryLabel(key, lang),
       subtopics:[],
       divider:''
     }));
+    return [
+      builtin[0],
+      { kind:'category', key:'pello-diary', label:"Pello's Diary", subtopics:[], divider:'divider-cloud-moon.png' },
+      { kind:'category', key:'ai-posting', label:'AI posting', subtopics:[], divider:'divider-blue-stars.png' },
+      ...builtin.slice(1)
+    ];
   }
   function isPostDividerRow(value) {
     return value && value.kind === 'divider';
@@ -4002,6 +4016,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if ($('aiMascotToneInput')) $('aiMascotToneInput').value = next.mascot.tone || '';
     setSelectValue($('aiDiaryCategoryInput'), next.diary.category || 'daily');
     setSelectValue($('aiTrendCategoryInput'), next.trend.category || 'study');
+    if ($('aiDiaryCategoryTagInput')) $('aiDiaryCategoryTagInput').value = next.diary.categoryTag || "Pello's Diary";
+    if ($('aiTrendCategoryTagInput')) $('aiTrendCategoryTagInput').value = next.trend.categoryTag || 'AI posting';
     if ($('aiDiaryTagsInput')) $('aiDiaryTagsInput').value = tagsText(next.diary.tags || []);
     if ($('aiTrendTagsInput')) $('aiTrendTagsInput').value = tagsText(next.trend.tags || []);
     if ($('aiDiaryPromptInput')) $('aiDiaryPromptInput').value = next.diary.prompt || '';
@@ -4025,12 +4041,16 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         tone:($('aiMascotToneInput')?.value || '').trim()
       },
       diary:{
-        category:$('aiDiaryCategoryInput')?.value || 'daily',
+        category:$('aiDiaryCategoryInput')?.value || base.diary.category || 'other',
+        categoryTag:($('aiDiaryCategoryTagInput')?.value || '').trim() || base.diary.categoryTag || "Pello's Diary",
+        autoAssets:true,
         tags:cleanTags($('aiDiaryTagsInput')?.value || ''),
         prompt:($('aiDiaryPromptInput')?.value || '').trim()
       },
       trend:{
-        category:$('aiTrendCategoryInput')?.value || 'study',
+        category:$('aiTrendCategoryInput')?.value || base.trend.category || 'other',
+        categoryTag:($('aiTrendCategoryTagInput')?.value || '').trim() || base.trend.categoryTag || 'AI posting',
+        autoAssets:true,
         tags:cleanTags($('aiTrendTagsInput')?.value || ''),
         prompt:($('aiTrendPromptInput')?.value || '').trim()
       }

@@ -11,6 +11,7 @@ const {
   normalizeAiPostingConfig,
   parseGeneratedPost,
   normalizeGeneratedPost,
+  decorateAiPostBody,
   buildGeminiPrompt
 } = require('./lib/ai-posting');
 
@@ -902,7 +903,7 @@ function cleanTags(value) {
   const seen = new Set();
   const tags = [];
   for (const item of raw) {
-    const tag = String(item || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0, 28).replace(/[<>"'`]/g, '');
+    const tag = String(item || '').replace(/^#+/, '').trim().replace(/\s+/g, ' ').slice(0, 28).replace(/[<>"`]/g, '');
     const key = tag.toLowerCase();
     if (!tag || seen.has(key)) continue;
     seen.add(key);
@@ -1214,6 +1215,7 @@ async function generateAiPost(kind = 'diary') {
   const prompt = buildGeminiPrompt(safeKind, config, recent);
   const raw = await callGeminiText(prompt, config);
   const generated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
+  const detailBody = decorateAiPostBody(safeKind, generated, config);
   const status = config.autoPublish ? 'public' : 'draft';
   const payload = {
     title: cleanText(generated.title, 80),
@@ -1223,7 +1225,7 @@ async function generateAiPost(kind = 'diary') {
     source_kind: 'post',
     cover_image: '',
     gallery_images: [],
-    detail_text: cleanText(generated.body, 20000),
+    detail_text: cleanText(detailBody, 20000),
     code: POST_SOURCE_CODE,
     is_jsx: false,
     status,
