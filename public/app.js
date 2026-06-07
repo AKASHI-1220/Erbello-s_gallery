@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v41 AI category assets';
+  const VERSION = 'ERBELLO Gallery v43 Pello mascot assets';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -11,7 +11,8 @@
   const CATEGORIES = ['all', 'tool', 'game', 'daily', 'study', 'cooking', 'fandom', 'design', 'chart', 'experiment', 'other', 'secret'];
   const POST_ASSET_BASE = '/assets/illust/imagegen-assets/web/';
   const POST_ASSETS = [
-    ['bunny-mascot.png','토끼 마스코트'], ['heart-gem.png','보석 하트'], ['bow-heart.png','리본 하트'], ['potion-charm.png','물약 참'], ['rose-bouquet.png','장미 꽃다발'], ['pink-candy.png','핑크 캔디'], ['gold-star.png','골드 스타'], ['cloud-soft.png','구름'],
+    ['bunny-mascot.png','토끼 마스코트'], ['pello/pello-basic.png','Pello 기본'], ['pello/pello-diary.png','Pello 일기'], ['pello/pello-cloud.png','Pello 구름'], ['pello/pello-sleepy.png','Pello 낮잠'], ['pello/pello-cheer.png','Pello 신남'],
+    ['heart-gem.png','보석 하트'], ['bow-heart.png','리본 하트'], ['potion-charm.png','물약 참'], ['rose-bouquet.png','장미 꽃다발'], ['pink-candy.png','핑크 캔디'], ['gold-star.png','골드 스타'], ['cloud-soft.png','구름'],
     ['charm-garland.png','참 가랜드'], ['divider-pink-beads.png','핑크 비즈선'], ['divider-blue-stars.png','블루 별선'], ['divider-lace-heart.png','레이스 하트선'], ['divider-cloud-moon.png','구름 달선'], ['divider-floral-rose.png','장미 꽃선'],
     ['divider-solid-heart-pink.png','실선 하트'], ['divider-dotted-bow-heart.png','점선 리본하트'], ['divider-dashed-cloud-stars.png','대시 구름별'], ['divider-lace-rose-pearl.png','레이스 장미진주'], ['divider-checkered-heart-tape.png','체크 하트테이프'], ['divider-lavender-potion-gems.png','라벤더 물약선'],
     ['memo-card.png','메모 카드'], ['index-tabs.png','인덱스 탭'], ['index-tab-stack.png','인덱스 묶음'], ['index-bookmarks.png','북마크 인덱스'], ['index-memo-tab.png','메모 인덱스'],
@@ -69,11 +70,11 @@
     mascot:{
       name:'Pello',
       visual:'A cute sky-blue pixel penguin mascot wearing a tiny gold crown.',
-      profile:'ERBELLO Gallery의 작은 안내자입니다. 조용히 작업물을 둘러보고, 오늘의 발견과 기분을 짧은 일기처럼 남깁니다.',
+      profile:'ERBELLO Gallery의 작은 관리자 및 안내자입니다. 조용히 작업물을 둘러보고, 오늘의 발견과 기분을 짧은 일기처럼 남깁니다.',
       tone:'다정하고 귀엽지만 과하게 감성적이지 않게, 짧고 읽기 쉽게 씁니다.'
     },
-    diary:{ category:'other', categoryTag:"Pello's Diary", autoAssets:true, tags:["Pello's Diary",'마스코트','다이어리','ERBELLO','AI 자동 포스팅'], prompt:'마스코트가 ERBELLO Gallery에서 본 작은 변화, 작업 기록, 방문자에게 건네는 짧은 인사를 일기처럼 작성하세요.' },
-    trend:{ category:'other', categoryTag:'AI posting', autoAssets:true, tags:['AI posting','AI','트렌드','정리','AI 자동 포스팅'], prompt:'최근 웹 제작, 개인 사이트, AI 도구 활용 흐름을 비교해 짧은 정리 글을 작성하세요. 확인되지 않은 최신 뉴스처럼 단정하지 말고, 일반적인 흐름과 관찰 중심으로 씁니다.' }
+    diary:{ category:'other', categoryTag:"Pello's Diary", autoAssets:true, tags:["Pello's Diary",'마스코트','다이어리','ERBELLO','AI 자동 포스팅'], prompt:'마스코트가 ERBELLO Gallery에서 본 작은 변화, 작업 기록, 방문자에게 건네는 짧은 인사를 일기처럼 작성하세요. 변화가 없더라도 귀여운 마스코트로서의 작은 일기를 완성하면 됩니다.' },
+    trend:{ category:'other', categoryTag:'AI posting', autoAssets:true, tags:['AI posting','AI','트렌드','정리','AI 자동 포스팅'], prompt:'최근 뉴스와 트렌드를 정리하여 짧은 블로그 글을 작성하세요. 확인되지 않은 최신 뉴스처럼 단정하지 말고, 일반적인 흐름과 관찰 중심으로 씁니다. 전문적이고 정보를 전달하는 목적으로 사실을 기반하여 신뢰성 있는 출처와 함께 글을 작성합니다.' }
   };
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;

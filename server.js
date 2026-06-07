@@ -28,6 +28,7 @@ const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_SITE_ORIGIN = 'https://erbello.vercel.app';
 const AI_POSTING_PAGE_SLUG = 'ai-posting';
+const AI_POSTING_FALLBACK_PAGE_SLUG = 'posts';
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -1097,6 +1098,56 @@ function validateArtifactPayload(payload) {
   return (payload.code || payload.code_storage_path) ? '' : 'title and code are required.';
 }
 
+function hiddenPageContent(content) {
+  return content && typeof content === 'object' && !Array.isArray(content) ? content : {};
+}
+
+function publicPageRow(row) {
+  if (!row || typeof row !== 'object') return row;
+  const content = hiddenPageContent(row.content);
+  if (!Object.prototype.hasOwnProperty.call(content, 'aiPostingConfig')) return row;
+  const nextContent = { ...content };
+  delete nextContent.aiPostingConfig;
+  return { ...row, content: nextContent };
+}
+
+function isSitePageSlugConstraintError(error) {
+  const text = [
+    error && error.code,
+    error && error.message,
+    error && error.details,
+    error && error.hint
+  ].filter(Boolean).join(' ');
+  return /23514|site_pages_slug_check|violates check constraint/i.test(text);
+}
+
+async function getFallbackAiPostingConfig() {
+  try {
+    const page = await store.getPage(AI_POSTING_FALLBACK_PAGE_SLUG, 'ko');
+    const content = hiddenPageContent(page && page.content);
+    return content.aiPostingConfig && typeof content.aiPostingConfig === 'object'
+      ? content.aiPostingConfig
+      : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+async function saveFallbackAiPostingConfig(config) {
+  const page = await store.getPage(AI_POSTING_FALLBACK_PAGE_SLUG, 'ko').catch(() => null);
+  const content = hiddenPageContent(page && page.content);
+  const row = await store.upsertPage(AI_POSTING_FALLBACK_PAGE_SLUG, 'ko', {
+    ...content,
+    aiPostingConfig: config
+  });
+  return {
+    ...row,
+    slug: AI_POSTING_PAGE_SLUG,
+    content: config,
+    storage: 'posts-page-fallback'
+  };
+}
+
 async function getAiPostingConfig() {
   let stored = null;
   try {
@@ -1107,13 +1158,19 @@ async function getAiPostingConfig() {
   } catch (_) {
     stored = null;
   }
+  if (!stored) stored = await getFallbackAiPostingConfig();
   return normalizeAiPostingConfig(stored || {});
 }
 
 async function saveAiPostingConfig(value) {
   const config = normalizeAiPostingConfig(value || {});
-  const row = await store.upsertPage(AI_POSTING_PAGE_SLUG, 'ko', config);
-  return { ...row, content: config };
+  try {
+    const row = await store.upsertPage(AI_POSTING_PAGE_SLUG, 'ko', config);
+    return { ...row, content: config, storage: 'dedicated-page' };
+  } catch (error) {
+    if (!isSitePageSlugConstraintError(error)) throw error;
+    return saveFallbackAiPostingConfig(config);
+  }
 }
 
 function geminiConfigured() {
@@ -1419,7 +1476,9 @@ app.get('/api/pages', async (_req, res) => {
   try {
     const publicSlugs = new Set(['home', 'projects', 'posts', 'about', 'contact', 'privacy', 'terms']);
     const rows = await store.listPages();
-    res.json((rows || []).filter(row => publicSlugs.has(String(row.slug || '').toLowerCase())));
+    res.json((rows || [])
+      .filter(row => publicSlugs.has(String(row.slug || '').toLowerCase()))
+      .map(publicPageRow));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1501,8 +1560,13 @@ app.put('/api/admin/pages/:slug/:lang', checkAdmin, async (req, res) => {
     const lang = cleanLang(req.params.lang);
     if (!slug || !lang) return res.status(400).json({ error: 'Invalid page or language.' });
     const content = cleanPageContent(req.body && req.body.content);
+    if (slug === AI_POSTING_FALLBACK_PAGE_SLUG && lang === 'ko') {
+      const existing = await store.getPage(slug, lang).catch(() => null);
+      const hidden = hiddenPageContent(existing && existing.content).aiPostingConfig;
+      if (hidden && typeof hidden === 'object') content.aiPostingConfig = hidden;
+    }
     const page = await store.upsertPage(slug, lang, content);
-    res.json(page);
+    res.json(publicPageRow(page));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
