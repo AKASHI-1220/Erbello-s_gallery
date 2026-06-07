@@ -1232,7 +1232,7 @@ async function callGeminiText(prompt, config) {
         contents: [{ role:'user', parts:[{ text:prompt }] }],
         generationConfig: {
           temperature: Number(config.temperature || 0.72),
-          maxOutputTokens: Number(config.maxOutputTokens || 900),
+          maxOutputTokens: Number(config.maxOutputTokens || 1400),
           responseMimeType: 'application/json'
         }
       })

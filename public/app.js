@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v43 Pello mascot assets';
+  const VERSION = 'ERBELLO Gallery v44 Pello assets and AI prompt refresh';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -12,6 +12,8 @@
   const POST_ASSET_BASE = '/assets/illust/imagegen-assets/web/';
   const POST_ASSETS = [
     ['bunny-mascot.png','토끼 마스코트'], ['pello/pello-basic.png','Pello 기본'], ['pello/pello-diary.png','Pello 일기'], ['pello/pello-cloud.png','Pello 구름'], ['pello/pello-sleepy.png','Pello 낮잠'], ['pello/pello-cheer.png','Pello 신남'],
+    ['pello/pello-wink-heart.png','Pello 윙크'], ['pello/pello-surprise.png','Pello 놀람'], ['pello/pello-curious.png','Pello 궁금'], ['pello/pello-proud.png','Pello 자랑'], ['pello/pello-rolling.png','Pello 데굴'], ['pello/pello-back-heart.png','Pello 뒷모습'],
+    ['pello/pello-trend-report.png','Pello 트렌드'], ['pello/pello-laptop.png','Pello 노트북'], ['pello/pello-mail.png','Pello 편지'], ['pello/pello-cloud-walk.png','Pello 구름 산책'],
     ['heart-gem.png','보석 하트'], ['bow-heart.png','리본 하트'], ['potion-charm.png','물약 참'], ['rose-bouquet.png','장미 꽃다발'], ['pink-candy.png','핑크 캔디'], ['gold-star.png','골드 스타'], ['cloud-soft.png','구름'],
     ['charm-garland.png','참 가랜드'], ['divider-pink-beads.png','핑크 비즈선'], ['divider-blue-stars.png','블루 별선'], ['divider-lace-heart.png','레이스 하트선'], ['divider-cloud-moon.png','구름 달선'], ['divider-floral-rose.png','장미 꽃선'],
     ['divider-solid-heart-pink.png','실선 하트'], ['divider-dotted-bow-heart.png','점선 리본하트'], ['divider-dashed-cloud-stars.png','대시 구름별'], ['divider-lace-rose-pearl.png','레이스 장미진주'], ['divider-checkered-heart-tape.png','체크 하트테이프'], ['divider-lavender-potion-gems.png','라벤더 물약선'],
@@ -65,7 +67,7 @@
     enabled:true,
     autoPublish:false,
     model:'gemini-2.5-flash',
-    maxOutputTokens:900,
+    maxOutputTokens:1400,
     temperature:0.72,
     mascot:{
       name:'Pello',
