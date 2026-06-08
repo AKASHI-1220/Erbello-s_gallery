@@ -13,7 +13,6 @@ const {
   normalizeGeneratedPost,
   decorateAiPostBody,
   buildGeminiPrompt,
-  buildGeminiRetryPrompt,
   aiPostBodyLooksShort
 } = require('./lib/ai-posting');
 
@@ -1282,26 +1281,16 @@ async function generateAiPost(kind = 'diary') {
   }
   const recent = await recentAiPromptPosts();
   const prompt = buildGeminiPrompt(safeKind, config, recent);
-  let raw = await callGeminiText(prompt, config);
-  let generated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
-  if (aiPostBodyLooksShort(safeKind, generated.body)) {
-    const retryPrompt = buildGeminiRetryPrompt(safeKind, config, recent, generated);
-    raw = await callGeminiText(retryPrompt, config);
-    const retryGenerated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
-    if (!aiPostBodyLooksShort(safeKind, retryGenerated.body)) generated = retryGenerated;
-  }
-  if (aiPostBodyLooksShort(safeKind, generated.body)) {
-    const error = new Error('AI가 충분한 본문을 만들지 못했습니다. 짧은 글은 저장하지 않았으니 다시 생성해주세요.');
-    error.statusCode = 502;
-    throw error;
-  }
+  const raw = await callGeminiText(prompt, config);
+  const generated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
+  const shortBody = aiPostBodyLooksShort(safeKind, generated.body);
   const detailBody = decorateAiPostBody(safeKind, generated, config);
-  const status = config.autoPublish ? 'public' : 'draft';
+  const status = shortBody || !config.autoPublish ? 'draft' : 'public';
   const payload = {
     title: cleanText(generated.title, 80),
     description: cleanText(generated.description, 240),
     type: cleanType(generated.type),
-    tags: cleanTags(generated.tags),
+    tags: cleanTags(shortBody ? [...generated.tags, '검토 필요'] : generated.tags),
     source_kind: 'post',
     cover_image: '',
     gallery_images: [],
@@ -1320,14 +1309,19 @@ async function generateAiPost(kind = 'diary') {
     throw error;
   }
   const artifact = await store.createArtifact(payload);
-  return { artifact: stripPrivateSecrets(artifact), config, kind:safeKind };
+  return {
+    artifact: stripPrivateSecrets(artifact),
+    config,
+    kind:safeKind,
+    warning: shortBody ? 'AI 본문이 짧아서 자동공개하지 않고 임시저장했습니다.' : ''
+  };
 }
 
 async function handleAiCron(req, res, kind) {
   if (!checkCronRequest(req)) return res.status(401).json({ error:'Unauthorized cron request.' });
   try {
     const result = await generateAiPost(kind);
-    res.json({ ok:true, kind:result.kind, status:result.artifact.status, id:result.artifact.id, title:result.artifact.title });
+    res.json({ ok:true, kind:result.kind, status:result.artifact.status, id:result.artifact.id, title:result.artifact.title, warning:result.warning || '' });
   } catch (error) {
     res.status(error.statusCode || 500).json({ error:error.message || 'AI auto posting failed.' });
   }
@@ -1469,7 +1463,7 @@ app.post('/api/admin/ai-posting/generate', checkAdmin, async (req, res) => {
   try {
     const kind = String(req.body && req.body.kind || 'diary').toLowerCase() === 'trend' ? 'trend' : 'diary';
     const result = await generateAiPost(kind);
-    res.status(201).json({ ok:true, kind:result.kind, artifact:result.artifact, status:result.artifact.status });
+    res.status(201).json({ ok:true, kind:result.kind, artifact:result.artifact, status:result.artifact.status, warning:result.warning || '' });
   } catch (error) {
     res.status(error.statusCode || 500).json({ error:error.message || 'Could not generate AI post.' });
   }
