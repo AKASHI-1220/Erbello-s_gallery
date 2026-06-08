@@ -62,6 +62,7 @@
   const POST_SOURCE_CODE = '__ERBELLO_POST__';
   const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
   const POST_WIDGET_PREFIX = 'ERBELLO_POST_WIDGETS_V1:';
+  const POST_META_PREFIX = 'ERBELLO_POST_META_V1:';
   const POST_SUBCATEGORY_PREFIX = 'sub:';
   const DEFAULT_AI_POSTING_CONFIG = {
     enabled:true,
@@ -197,6 +198,15 @@
       postInsertImage:'사진',
       editorInsertTable:'표',
       postSyncMarkdown:'본문 정리',
+      postFontBase:'기본',
+      postFontRound:'둥근',
+      postFontSerif:'명조',
+      postFontMono:'모노',
+      postTextColor:'글자색',
+      postBgColor:'배경색',
+      postScheduleLabel:'예약 공개',
+      postScheduleHint:'미래 시간을 넣으면 그 시간 전까지 일반 방문자에게 보이지 않습니다.',
+      postScheduledBadge:'예약',
       postInlineUploading:'본문 이미지를 업로드하는 중입니다...',
       postAssetsHint:'에셋을 누르거나 본문에 끌어오면 바로 삽입됩니다. 아이콘은 글 안에서 장식처럼 사용할 수 있습니다.'
     },
@@ -212,6 +222,15 @@
       postInsertImage:'Photo',
       editorInsertTable:'Table',
       postSyncMarkdown:'Tidy body',
+      postFontBase:'Base',
+      postFontRound:'Round',
+      postFontSerif:'Serif',
+      postFontMono:'Mono',
+      postTextColor:'Text',
+      postBgColor:'Bg',
+      postScheduleLabel:'Schedule',
+      postScheduleHint:'Set a future time to keep the post hidden until then.',
+      postScheduledBadge:'Scheduled',
       postInlineUploading:'Uploading inline images...',
       postAssetsHint:'Click or drag an asset into the editor. Assets are inserted as decorative post icons.'
     },
@@ -227,6 +246,15 @@
       postInsertImage:'写真',
       editorInsertTable:'表',
       postSyncMarkdown:'本文整理',
+      postFontBase:'基本',
+      postFontRound:'丸字',
+      postFontSerif:'明朝',
+      postFontMono:'等幅',
+      postTextColor:'文字色',
+      postBgColor:'背景',
+      postScheduleLabel:'予約公開',
+      postScheduleHint:'未来の日時を入れると、その時刻まで一般訪問者には表示されません。',
+      postScheduledBadge:'予約',
       postInlineUploading:'本文画像をアップロード中...',
       postAssetsHint:'素材をクリック、または本文へドラッグすると装飾アイコンとして挿入されます。'
     },
@@ -242,6 +270,15 @@
       postInsertImage:'照片',
       editorInsertTable:'表格',
       postSyncMarkdown:'整理正文',
+      postFontBase:'默认',
+      postFontRound:'圆体',
+      postFontSerif:'衬线',
+      postFontMono:'等宽',
+      postTextColor:'文字色',
+      postBgColor:'背景',
+      postScheduleLabel:'预约公开',
+      postScheduleHint:'设置未来时间后，到该时间前普通访客不会看到。',
+      postScheduledBadge:'预约',
       postInlineUploading:'正在上传正文图片...',
       postAssetsHint:'点击或拖入编辑器即可插入素材，作为正文装饰图标使用。'
     }
@@ -970,6 +1007,52 @@
     };
   }
 
+  function normalizePostMetaConfig(value = {}) {
+    const data = value && typeof value === 'object' ? value : {};
+    const raw = String(data.scheduled_at || data.scheduledAt || '').trim();
+    const date = raw ? new Date(raw) : null;
+    return { scheduled_at: date && !Number.isNaN(date.getTime()) ? date.toISOString() : '' };
+  }
+
+  function splitPostMetaText(value) {
+    const text = String(value || '').replace(/\r\n/g, '\n');
+    const index = text.lastIndexOf(POST_META_PREFIX);
+    if (index < 0) return { body:text.trim(), meta:normalizePostMetaConfig({}) };
+    const body = text.slice(0, index).trim();
+    const raw = text.slice(index + POST_META_PREFIX.length).split(/\n/, 1)[0].trim();
+    let parsed = {};
+    try { parsed = JSON.parse(decodeURIComponent(raw)); } catch (_) { parsed = {}; }
+    return { body, meta:normalizePostMetaConfig(parsed) };
+  }
+
+  function detailWithPostMeta(body, meta) {
+    const normalized = normalizePostMetaConfig(meta);
+    const text = String(body || '').trim();
+    if (!normalized.scheduled_at) return text;
+    return `${text}\n\n${POST_META_PREFIX}${encodeURIComponent(JSON.stringify(normalized))}`;
+  }
+
+  function datetimeLocalFromIso(value) {
+    const date = new Date(value || '');
+    if (Number.isNaN(date.getTime())) return '';
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  function isoFromDatetimeLocal(value) {
+    const text = String(value || '').trim();
+    if (!text) return '';
+    const date = new Date(text);
+    return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+  }
+
+  function isScheduledFutureItem(item = {}) {
+    if (!isPostItem(item)) return false;
+    const meta = splitPostContentText(item.detail_text || '').meta || {};
+    const time = Date.parse(meta.scheduled_at || '');
+    return Number.isFinite(time) && time > Date.now();
+  }
+
   function splitPostWidgetText(value) {
     const text = String(value || '').replace(/\r\n/g, '\n');
     const index = text.lastIndexOf(POST_WIDGET_PREFIX);
@@ -982,9 +1065,10 @@
   }
 
   function splitPostContentText(value) {
-    const widgetParts = splitPostWidgetText(value);
+    const metaParts = splitPostMetaText(value);
+    const widgetParts = splitPostWidgetText(metaParts.body);
     const attachmentParts = splitPostAttachmentText(widgetParts.body);
-    return { body:attachmentParts.body, attachments:attachmentParts.attachments, widgets:widgetParts.widgets };
+    return { body:attachmentParts.body, attachments:attachmentParts.attachments, widgets:widgetParts.widgets, meta:metaParts.meta };
   }
 
   function detailWithPostWidgets(body, config) {
@@ -2314,6 +2398,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const q = searchQuery.trim().toLowerCase();
     return artifacts.filter((item) => {
       if (!isAdminOn() && statusKey(item) === 'draft') return false;
+      if (!isAdminOn() && isScheduledFutureItem(item)) return false;
       if (!itemBelongsToRoute(item, currentRoute)) return false;
       const secret = isSecretItem(item);
       if (currentFilter === 'secret') {
@@ -2353,6 +2438,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const status = statusKey(item);
     const locked = status === 'private' && !isAdminOn();
     const draftAdmin = status === 'draft' && isAdminOn() ? `<span class="private-badge-admin draft-badge-admin">${esc(tr('draftBadge'))}</span>` : '';
+    const scheduledAdmin = isAdminOn() && isScheduledFutureItem(item) ? `<span class="private-badge-admin scheduled-badge-admin">${esc(tr('postScheduledBadge'))}</span>` : '';
     const views = Number(item.view_count || 0);
     if (locked) {
       return `<article class="card card-locked title-only-lock ${compactCard ? 'card-compact' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
@@ -2365,7 +2451,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const profile = visualProfile(item);
     const extraTags = visibleArtifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, compactCard ? 2 : 4);
     const tagHtml = extraTags.length ? `<div class="card-tags">${extraTags.map(tag => `<span class="card-tag-chip">${esc(tag)}</span>`).join('')}</div>` : '';
-    const privateAdmin = status === 'private' ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : draftAdmin;
+    const privateAdmin = `${status === 'private' ? `<span class="private-badge-admin">🔒 ${esc(tr('privateBadge'))}</span>` : draftAdmin}${scheduledAdmin}`;
     return `<article class="card v21-card ${compactCard ? 'card-compact' : ''} ${post ? 'card-post' : ''} ${esc(profile.klass)}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}">
       <span class="card-sticker" aria-hidden="true">${esc(profile.icon)}</span>
       <div class="card-body"><div class="card-meta-line"><span class="tag">${esc(post ? tr('typePost') : catLabel(type))}</span><span class="card-date">${esc(fmtMonth(item.updated_at || item.created_at))}</span></div><h3 class="card-title">${esc(title)}${privateAdmin}</h3><p class="card-desc">${esc(compact(desc, 132))}</p>${tagHtml}
@@ -2431,6 +2517,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return artifacts.filter((item) => {
       if (!isPostItem(item)) return false;
       if (!isAdminOn() && statusKey(item) === 'draft') return false;
+      if (!isAdminOn() && isScheduledFutureItem(item)) return false;
       return true;
     });
   }
@@ -2448,6 +2535,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function postSidebarCount(items, filter, subtopic = '') {
     return items.filter((item) => {
       if (!isAdminOn() && statusKey(item) === 'draft') return false;
+      if (!isAdminOn() && isScheduledFutureItem(item)) return false;
       if (filter === 'all') return !isSecretItem(item);
       if (filter === 'secret') return isSecretItem(item);
       if (isSecretItem(item)) return false;
@@ -2653,11 +2741,12 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const sub = postSubcategory(item);
     const tags = visibleArtifactTags(item).filter(tag => !tagMatchesCategory(tag, type)).slice(0, 5);
     const date = fmtMonth(item.updated_at || item.created_at);
+    const scheduledAdmin = isAdminOn() && isScheduledFutureItem(item) ? `<span>${esc(tr('postScheduledBadge'))}</span>` : '';
     if (locked) {
       return `<article class="post-list-item post-list-locked ${active ? 'active' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(tr('privateBadge'))}</p><h3>${esc(title)}</h3><div class="locked-blind" aria-hidden="true"><span></span><span></span></div></div><span class="post-list-arrow" aria-hidden="true">♡</span></article>`;
     }
-    const desc = item.description || item.detail_text || tr('noDescription');
-    return `<article class="post-list-item ${active ? 'active' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(catLabel(type))}${sub ? ` · ${esc(sub)}` : ''}</p><h3>${esc(title)}</h3><p>${esc(compact(desc, 150))}</p>${tags.length ? `<div class="post-list-tags">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : ''}</div><div class="post-list-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div></article>`;
+    const desc = item.description || splitPostContentText(item.detail_text || '').body || tr('noDescription');
+    return `<article class="post-list-item ${active ? 'active' : ''}" data-id="${esc(item.id)}" tabindex="0" aria-label="${esc(title)}"><div class="post-list-date">${esc(date)}</div><div class="post-list-copy"><p class="post-list-category">${esc(catLabel(type))}${sub ? ` · ${esc(sub)}` : ''}${scheduledAdmin}</p><h3>${esc(title)}</h3><p>${esc(compact(desc, 150))}</p>${tags.length ? `<div class="post-list-tags">${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div>` : ''}</div><div class="post-list-actions"><button class="circle-action" type="button" data-open="${esc(item.id)}" aria-label="${esc(tr('openProject'))}">↗</button><button class="circle-action" type="button" data-copy="${esc(item.id)}" aria-label="${esc(tr('copyLink'))}">⛓</button><button class="btn small admin-only" type="button" data-edit="${esc(item.id)}">${esc(tr('edit'))}</button><button class="btn small danger admin-only" type="button" data-remove="${esc(item.id)}">${esc(tr('delete'))}</button></div></article>`;
   }
 
   function selectPost(id) {
@@ -2675,12 +2764,34 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return '';
   }
 
+  function safePostColor(value) {
+    const text = String(value || '').trim();
+    return /^#[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : '';
+  }
+
+  function safePostFont(value) {
+    const text = String(value || '').toLowerCase().trim();
+    return ['round', 'serif', 'mono'].includes(text) ? text : '';
+  }
+
+  function postInlineHtml(value) {
+    let html = esc(value || '');
+    html = html.replace(/\[([^\]\n]+)\]\{color:(#[0-9a-f]{6})\}/gi, (_m, text, color) => `<span class="post-text-color" style="color:${safePostColor(color)}">${text}</span>`);
+    html = html.replace(/\[([^\]\n]+)\]\{bg:(#[0-9a-f]{6})\}/gi, (_m, text, color) => `<span class="post-text-bg" style="background-color:${safePostColor(color)}">${text}</span>`);
+    html = html.replace(/\[([^\]\n]+)\]\{font:(round|serif|mono)\}/gi, (_m, text, font) => `<span class="post-font-${safePostFont(font)}">${text}</span>`);
+    html = html.replace(/\*\*([^*\n][\s\S]*?[^*\n])\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(^|[^*])\*([^*\n][^*\n]*?)\*/g, '$1<em>$2</em>');
+    return html.replace(/\n/g, '<br />');
+  }
+
   function postBodyMarkup(value) {
     const body = String(value || '').trim();
     if (!body) return `<p class="post-reader-empty">${esc(tr('postReaderEmpty'))}</p>`;
     return body.split(/\n{2,}/).map((chunk) => {
       const text = chunk.trim();
       if (!text) return '';
+      const alignMatch = text.match(/^:::align:(left|center|right)\n([\s\S]*?)\n:::$/i);
+      if (alignMatch) return `<p class="post-align-${alignMatch[1].toLowerCase()}">${postInlineHtml(alignMatch[2])}</p>`;
       if (/^[-*_]{3,}$/.test(text)) return '<hr class="post-body-divider">';
       if (isMarkdownTableBlock(text)) return markdownTableToHtml(text, 'post-body-table');
       const image = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
@@ -2691,7 +2802,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         const decorative = /\/assets\/illust\//i.test(src) || /\/(divider|index)-/i.test(src);
         return `<figure class="post-body-asset ${decorative ? 'decorative' : ''}"><img src="${esc(src)}" alt="${esc(alt)}" loading="lazy"></figure>`;
       }
-      return `<p>${esc(text).replace(/\n/g, '<br />')}</p>`;
+      return `<p>${postInlineHtml(text)}</p>`;
     }).join('');
   }
 
@@ -2816,9 +2927,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const attachments = (parts.attachments || []).map(file => `<a class="detail-attachment" href="${esc(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(file.name || 'attachment')}</strong><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><span>↗</span></a>`).join('');
     const status = statusKey(item);
     const adminStatus = isAdminOn() && status !== 'public' ? `<span class="post-reader-status">${esc(statusLabel(status))}</span>` : '';
+    const scheduledStatus = isAdminOn() && isScheduledFutureItem(item) ? `<span class="post-reader-status scheduled-badge-admin">${esc(tr('postScheduledBadge'))}</span>` : '';
     const dividerFile = postDividerForItem(item);
     const divider = dividerFile ? `<img class="post-reader-divider-img" src="${esc(`${POST_ASSET_BASE}${dividerFile}`)}" alt="" loading="lazy" aria-hidden="true">` : '';
-    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}${postInteractionMarkup(item, parts.widgets)}`;
+    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}${scheduledStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}${postInteractionMarkup(item, parts.widgets)}`;
     bindPostInteractions(item.id);
   }
 
@@ -3002,14 +3114,26 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return `<table class="${esc(className)}" data-markdown="${esc(lines.join('\n'))}"><thead><tr>${head.map(cell => `<th>${esc(cell || ' ')}</th>`).join('')}</tr></thead><tbody>${body.map(row => `<tr>${head.map((_, index) => `<td>${esc(row[index] || ' ')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   }
 
+  function postInlineMarkdownToEditorHtml(value) {
+    let html = esc(value || '');
+    html = html.replace(/\[([^\]\n]+)\]\{color:(#[0-9a-f]{6})\}/gi, (_m, text, color) => `<span data-post-color="${safePostColor(color)}" style="color:${safePostColor(color)}">${text}</span>`);
+    html = html.replace(/\[([^\]\n]+)\]\{bg:(#[0-9a-f]{6})\}/gi, (_m, text, color) => `<span data-post-bg="${safePostColor(color)}" style="background-color:${safePostColor(color)}">${text}</span>`);
+    html = html.replace(/\[([^\]\n]+)\]\{font:(round|serif|mono)\}/gi, (_m, text, font) => `<span data-post-font="${safePostFont(font)}" class="post-font-${safePostFont(font)}">${text}</span>`);
+    html = html.replace(/\*\*([^*\n][\s\S]*?[^*\n])\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/(^|[^*])\*([^*\n][^*\n]*?)\*/g, '$1<em>$2</em>');
+    return html.replace(/\n/g, '<br>');
+  }
+
   function postMarkdownBlockToEditorHtml(snippet) {
     const text = String(snippet || '').trim();
     if (!text) return '';
+    const alignMatch = text.match(/^:::align:(left|center|right)\n([\s\S]*?)\n:::$/i);
+    if (alignMatch) return `<p style="text-align:${esc(alignMatch[1].toLowerCase())}">${postInlineMarkdownToEditorHtml(alignMatch[2])}</p>`;
     if (/^[-*_]{3,}$/.test(text)) return '<hr class="post-editor-divider">';
     if (isMarkdownTableBlock(text)) return markdownTableToHtml(text);
     const image = text.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (image) return postEditorImageHtml(image[2], image[1]);
-    return `<p>${esc(text).replace(/\n/g, '<br>')}</p>`;
+    return `<p>${postInlineMarkdownToEditorHtml(text)}</p>`;
   }
 
   function postMarkdownToEditorHtml(value) {
@@ -3022,6 +3146,111 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if (!node) return '';
     const html = node.innerHTML || '';
     return html.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(div|p)>/gi, '\n').replace(/<[^>]+>/g, '').replace(/\u00a0/g, ' ').trim();
+  }
+
+  function cssColorToHex(value) {
+    const text = String(value || '').trim();
+    if (/^#[0-9a-f]{6}$/i.test(text)) return text.toLowerCase();
+    const rgb = text.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (!rgb) return '';
+    return `#${[rgb[1], rgb[2], rgb[3]].map(n => Math.max(0, Math.min(255, Number(n) || 0)).toString(16).padStart(2, '0')).join('')}`;
+  }
+
+  function postInlineMarkdownFromNode(node) {
+    if (!node) return '';
+    if (node.nodeType === Node.TEXT_NODE) return String(node.textContent || '').replace(/\u00a0/g, ' ');
+    if (node.nodeType !== Node.ELEMENT_NODE) return '';
+    const element = node;
+    if (element.matches('br')) return '\n';
+    let text = Array.from(element.childNodes).map(postInlineMarkdownFromNode).join('');
+    if (!text) return '';
+    const tag = element.tagName.toLowerCase();
+    if (tag === 'strong' || tag === 'b') text = `**${text}**`;
+    if (tag === 'em' || tag === 'i') text = `*${text}*`;
+    const color = safePostColor(element.getAttribute('data-post-color')) || cssColorToHex(element.style && element.style.color);
+    const bg = safePostColor(element.getAttribute('data-post-bg')) || cssColorToHex(element.style && element.style.backgroundColor);
+    const font = safePostFont(element.getAttribute('data-post-font'));
+    if (font) text = `[${text}]{font:${font}}`;
+    if (bg) text = `[${text}]{bg:${bg}}`;
+    if (color) text = `[${text}]{color:${color}}`;
+    return text;
+  }
+
+  function postElementTextAlign(element) {
+    const align = String(element && (element.style && element.style.textAlign || element.getAttribute('align') || '') || '').toLowerCase();
+    return ['left', 'center', 'right'].includes(align) ? align : '';
+  }
+
+  function selectedPostEditorRange() {
+    const editor = $('postRichEditor');
+    const selection = window.getSelection && window.getSelection();
+    if (!editor || !selection || !selection.rangeCount) return null;
+    const range = selection.getRangeAt(0);
+    const root = range.commonAncestorContainer;
+    return editor === root || editor.contains(root) ? range : null;
+  }
+
+  function ensurePostEditorRange() {
+    const editor = $('postRichEditor');
+    if (!editor) return null;
+    editor.focus();
+    const selection = window.getSelection && window.getSelection();
+    let range = selectedPostEditorRange();
+    if (!range && selection) {
+      range = document.createRange();
+      range.selectNodeContents(editor);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    return range;
+  }
+
+  function insertStyledPostSpan(kind, value) {
+    const range = ensurePostEditorRange();
+    if (!range) return;
+    const selected = range.toString();
+    if (!selected.trim()) {
+      const messages = { ko:'꾸밀 글자를 먼저 선택해주세요.', en:'Select text first.', ja:'装飾する文字を先に選択してください。', zh:'请先选择要设置样式的文字。' };
+      toast(messages[currentLang] || messages.ko);
+      return;
+    }
+    const safeText = esc(selected).replace(/\n/g, '<br>');
+    let html = safeText;
+    if (kind === 'color') {
+      const color = safePostColor(value);
+      if (!color) return;
+      html = `<span data-post-color="${color}" style="color:${color}">${safeText}</span>`;
+    } else if (kind === 'bg') {
+      const bg = safePostColor(value);
+      if (!bg) return;
+      html = `<span data-post-bg="${bg}" style="background-color:${bg}">${safeText}</span>`;
+    } else if (kind === 'font') {
+      const font = safePostFont(value);
+      if (!font) return;
+      html = `<span data-post-font="${font}" class="post-font-${font}">${safeText}</span>`;
+    }
+    document.execCommand('insertHTML', false, html);
+    syncTextareaFromPostEditor();
+  }
+
+  function applyPostInlineFormat(kind, value = '') {
+    if (!postEditorReady()) return;
+    ensurePostEditorRange();
+    if (kind === 'bold' || kind === 'italic') {
+      document.execCommand(kind === 'bold' ? 'bold' : 'italic', false, null);
+      syncTextareaFromPostEditor();
+      return;
+    }
+    insertStyledPostSpan(kind, value);
+  }
+
+  function applyPostAlignment(align) {
+    if (!postEditorReady()) return;
+    const safeAlign = ['left', 'center', 'right'].includes(align) ? align : 'left';
+    ensurePostEditorRange();
+    document.execCommand(`justify${safeAlign.charAt(0).toUpperCase()}${safeAlign.slice(1)}`, false, null);
+    syncTextareaFromPostEditor();
   }
 
   function postEditorToMarkdown() {
@@ -3053,8 +3282,12 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         if (src) blocks.push(`![${img.getAttribute('alt') || tr('postAssetsLabel')}](${src})`);
         return;
       }
-      const text = postEditorText(element);
-      if (text) blocks.push(text);
+      let text = Array.from(element.childNodes).map(postInlineMarkdownFromNode).join('').trim();
+      if (!text) text = postEditorText(element);
+      if (text) {
+        const align = postElementTextAlign(element);
+        blocks.push(align && align !== 'left' ? `:::align:${align}\n${text}\n:::` : text);
+      }
     });
     return blocks.join('\n\n').trim();
   }
@@ -3334,6 +3567,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     if ($('contentKindInput')) $('contentKindInput').value = 'project';
     if ($('tagsInput')) $('tagsInput').value = '';
     if ($('postSubcategoryInput')) $('postSubcategoryInput').value = '';
+    if ($('postScheduleInput')) $('postScheduleInput').value = '';
     if ($('detailInput')) $('detailInput').value = '';
     fillPostWidgetConfig({});
     if ($('privateInput')) $('privateInput').checked = false;
@@ -3414,8 +3648,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const isPost = isPostItem(item);
       if ($('tagsInput')) $('tagsInput').value = tagsText(isPost ? visibleArtifactTags(item) : (item.tags || []));
       if ($('postSubcategoryInput')) $('postSubcategoryInput').value = isPost ? postSubcategory(item) : '';
-      const postParts = isPost ? splitPostContentText(item.detail_text || '') : { body:item.detail_text || '', attachments:[], widgets:normalizePostWidgetConfig({}) };
+      const postParts = isPost ? splitPostContentText(item.detail_text || '') : { body:item.detail_text || '', attachments:[], widgets:normalizePostWidgetConfig({}), meta:normalizePostMetaConfig({}) };
       if ($('detailInput')) $('detailInput').value = postParts.body || '';
+      if ($('postScheduleInput')) $('postScheduleInput').value = datetimeLocalFromIso(postParts.meta && postParts.meta.scheduled_at);
       fillPostWidgetConfig(postParts.widgets || {});
       if ($('statusInput')) $('statusInput').value = statusKey(item);
       if ($('contentKindInput')) $('contentKindInput').value = isPost ? 'post' : 'project';
@@ -3529,6 +3764,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         }
         detail_text = detailWithPostAttachments(detail_text, attachments);
         detail_text = detailWithPostWidgets(detail_text, collectPostWidgetConfig());
+        detail_text = detailWithPostMeta(detail_text, { scheduled_at:isoFromDatetimeLocal($('postScheduleInput')?.value || '') });
       }
 
       const payload = {
@@ -3946,18 +4182,21 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const text = artifacts.map((item, index) => {
       const tags = visibleArtifactTags(item).join(', ');
       const post = isPostItem(item);
+      const postParts = post ? splitPostContentText(item.detail_text || '') : null;
+      const scheduledAt = postParts && postParts.meta && postParts.meta.scheduled_at ? fmtMonth(postParts.meta.scheduled_at) : '';
       return [`#${index + 1}`,
         `제목: ${item.title || ''}`,
         `종류: ${post ? 'post' : 'project'}`,
         `상태: ${statusLabel(statusKey(item))}`,
+        post && scheduledAt ? `예약 공개: ${scheduledAt}` : '',
         `대표 분류: ${catLabel(typeKey(item.type))}`,
         `태그: ${tags}`,
         `짧은 설명: ${item.description || ''}`,
-        `상세 소개: ${item.detail_text || ''}`,
+        `상세 소개: ${post ? (postParts.body || '') : (item.detail_text || '')}`,
         `조회수: ${Number(item.view_count || 0)}`,
         `상세 URL: ${projectUrl(item.id)}`,
         post ? `실행 URL: 포스트는 실행 페이지 없음` : `실행 URL: ${runUrl(item.id)}`
-      ].join('\n');
+      ].filter(Boolean).join('\n');
     }).join('\n\n---\n\n');
     copyText(text).then(() => toast(tr('exportCopied')));
   }
@@ -4292,6 +4531,17 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     });
     $('detailInput')?.addEventListener('input', detailQualityText);
     $('postRichEditor')?.addEventListener('input', syncTextareaFromPostEditor);
+    $('postBoldBtn')?.addEventListener('click', () => applyPostInlineFormat('bold'));
+    $('postItalicBtn')?.addEventListener('click', () => applyPostInlineFormat('italic'));
+    $('postTextColorInput')?.addEventListener('input', (event) => applyPostInlineFormat('color', event.target.value));
+    $('postBgColorInput')?.addEventListener('input', (event) => applyPostInlineFormat('bg', event.target.value));
+    $('postFontSelect')?.addEventListener('change', (event) => {
+      if (event.target.value !== 'base') applyPostInlineFormat('font', event.target.value);
+      event.target.value = 'base';
+    });
+    $('postAlignLeftBtn')?.addEventListener('click', () => applyPostAlignment('left'));
+    $('postAlignCenterBtn')?.addEventListener('click', () => applyPostAlignment('center'));
+    $('postAlignRightBtn')?.addEventListener('click', () => applyPostAlignment('right'));
     $('postParagraphBtn')?.addEventListener('click', () => insertPostEditorHtml('<p><br></p>'));
     $('postDividerBtn')?.addEventListener('click', () => insertPostMarkdown('---'));
     $('postInlineImageBtn')?.addEventListener('click', () => $('postInlineImageInput')?.click());

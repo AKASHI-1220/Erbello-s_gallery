@@ -24,6 +24,7 @@ const STORAGE_SOURCE_PREFIX = 'ERBELLO_STORAGE_SOURCE_V1\n';
 const POST_SOURCE_CODE = '__ERBELLO_POST__';
 const POST_ATTACH_PREFIX = 'ERBELLO_POST_ATTACHMENTS_V1:';
 const POST_WIDGET_PREFIX = 'ERBELLO_POST_WIDGETS_V1:';
+const POST_META_PREFIX = 'ERBELLO_POST_META_V1:';
 const STORAGE_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
@@ -70,7 +71,7 @@ function plainText(value, max = 1000) {
 function safePostInlineAssetUrl(value) {
   const text = String(value || '').trim();
   if (/^\/assets\/illust\/post-assets\/[-\w.]+\.png$/i.test(text)) return text;
-  if (/^\/assets\/illust\/imagegen-assets\/web\/[-\w.]+\.png$/i.test(text)) return text;
+  if (/^\/assets\/illust\/imagegen-assets\/web\/(?:[-\w]+\/)*[-\w.]+\.png$/i.test(text)) return text;
   if (/^\/assets\/illust\/[-\w.]+\.(?:png|webp|jpe?g|gif)$/i.test(text)) return text;
   if (/^https:\/\/[^\s"'<>]+$/i.test(text) && text.length <= 1200) return text;
   return '';
@@ -91,10 +92,32 @@ function renderMarkdownTable(value) {
   return `<table class="post-body-table"><thead><tr>${head.map(cell => `<th>${escHtml(cell || ' ')}</th>`).join('')}</tr></thead><tbody>${body.map(row => `<tr>${head.map((_, index) => `<td>${escHtml(row[index] || ' ')}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 }
 
+function safePostColor(value) {
+  const text = String(value || '').trim();
+  return /^#[0-9a-f]{6}$/i.test(text) ? text.toLowerCase() : '';
+}
+
+function safePostFont(value) {
+  const text = String(value || '').toLowerCase().trim();
+  return ['round', 'serif', 'mono'].includes(text) ? text : '';
+}
+
+function postInlineHtml(value) {
+  let html = escHtml(value || '');
+  html = html.replace(/\[([^\]\n]+)\]\{color:(#[0-9a-f]{6})\}/gi, (_m, text, color) => `<span class="post-text-color" style="color:${safePostColor(color)}">${text}</span>`);
+  html = html.replace(/\[([^\]\n]+)\]\{bg:(#[0-9a-f]{6})\}/gi, (_m, text, color) => `<span class="post-text-bg" style="background-color:${safePostColor(color)}">${text}</span>`);
+  html = html.replace(/\[([^\]\n]+)\]\{font:(round|serif|mono)\}/gi, (_m, text, font) => `<span class="post-font-${safePostFont(font)}">${text}</span>`);
+  html = html.replace(/\*\*([^*\n][\s\S]*?[^*\n])\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/(^|[^*])\*([^*\n][^*\n]*?)\*/g, '$1<em>$2</em>');
+  return html.replace(/\n/g, '<br>');
+}
+
 function renderPostBodyHtml(value) {
   const blocks = String(value || '').replace(/\r\n/g, '\n').split(/\n{2,}/).map(part => part.trim()).filter(Boolean).slice(0, 80);
   if (!blocks.length) return '<p>아직 본문이 없습니다.</p>';
   return blocks.map((block) => {
+    const alignMatch = block.match(/^:::align:(left|center|right)\n([\s\S]*?)\n:::$/i);
+    if (alignMatch) return `<p class="post-align-${alignMatch[1].toLowerCase()}">${postInlineHtml(alignMatch[2])}</p>`;
     if (/^(?:---|\*\*\*)$/.test(block)) return '<hr class="post-body-divider">';
     if (isMarkdownTableBlock(block)) return renderMarkdownTable(block);
     const imageMatch = block.match(/^!\[([^\]\n]{0,120})\]\(([^)\s]+)\)$/);
@@ -105,7 +128,7 @@ function renderPostBodyHtml(value) {
       const decorative = /\/assets\/illust\//i.test(src) || /\/(?:divider|index)-/i.test(src);
       return `<figure class="post-body-asset${decorative ? ' decorative' : ''}"><img src="${escAttr(src)}" alt="${escAttr(alt)}" loading="lazy"></figure>`;
     }
-    return `<p>${escHtml(block).replace(/\n/g, '<br>')}</p>`;
+    return `<p>${postInlineHtml(block)}</p>`;
   }).filter(Boolean).join('');
 }
 
@@ -176,10 +199,35 @@ function splitPostWidgets(value) {
   return { body, config:normalizePostWidgetConfig(parsed) };
 }
 
+function normalizePostMetaConfig(value) {
+  const data = value && typeof value === 'object' ? value : {};
+  const scheduled = fmtIsoDate(data.scheduled_at || data.scheduledAt || '');
+  return { scheduled_at: scheduled };
+}
+
+function splitPostMeta(value) {
+  const text = String(value || '').replace(/\r\n/g, '\n');
+  const index = text.lastIndexOf(POST_META_PREFIX);
+  if (index < 0) return { body:text.trim(), meta:normalizePostMetaConfig({}) };
+  const body = text.slice(0, index).trim();
+  const raw = text.slice(index + POST_META_PREFIX.length).split(/\n/, 1)[0].trim();
+  let parsed = {};
+  try { parsed = JSON.parse(decodeURIComponent(raw)); } catch (_) { parsed = {}; }
+  return { body, meta:normalizePostMetaConfig(parsed) };
+}
+
 function splitPostContent(value) {
-  const widgetParts = splitPostWidgets(value);
+  const metaParts = splitPostMeta(value);
+  const widgetParts = splitPostWidgets(metaParts.body);
   const attachmentParts = splitPostAttachments(widgetParts.body);
-  return { body:attachmentParts.body, attachments:attachmentParts.attachments, widgets:widgetParts.config };
+  return { body:attachmentParts.body, attachments:attachmentParts.attachments, widgets:widgetParts.config, meta:metaParts.meta };
+}
+
+function isScheduledFutureArtifact(artifact) {
+  if (!artifact || !isPostArtifact(artifact)) return false;
+  const meta = splitPostContent(artifact.detail_text || '').meta || {};
+  const time = Date.parse(meta.scheduled_at || '');
+  return Number.isFinite(time) && time > Date.now();
 }
 
 function pollResults(interactions, options) {
@@ -1329,7 +1377,7 @@ async function handleAiCron(req, res, kind) {
 
 async function interactionPostFromRequest(req, res) {
   const artifact = await store.getArtifact(req.params.id);
-  if (!artifact || !isPostArtifact(artifact) || isDraftArtifact(artifact)) {
+  if (!artifact || !isPostArtifact(artifact) || isDraftArtifact(artifact) || (isScheduledFutureArtifact(artifact) && !isAdminRequest(req))) {
     res.status(404).json({ error:'Post not found.' });
     return null;
   }
@@ -1483,7 +1531,8 @@ app.get('/api/artifacts', async (req, res) => {
   try {
     const isAdmin = isAdminRequest(req);
     const artifacts = await store.listArtifacts({ includePrivateDetails: isAdmin });
-    res.json(artifacts.map((artifact) => isAdmin ? stripPrivateSecrets(artifact) : publicArtifactSummary(artifact)));
+    const visible = isAdmin ? artifacts : artifacts.filter(artifact => !isScheduledFutureArtifact(artifact));
+    res.json(visible.map((artifact) => isAdmin ? stripPrivateSecrets(artifact) : publicArtifactSummary(artifact)));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -1709,7 +1758,7 @@ app.get('/project/:id', async (req, res) => {
     const artifact = await store.getArtifact(req.params.id);
     if (!artifact) return res.status(404).send(`<!doctype html><html lang="ko"><head>${baseHead({ title:'Project not found · ERBELLO', description:'삭제되었거나 잘못된 프로젝트 링크입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><section class="detail-panel"><p class="detail-kicker">ERBELLO / 404</p><h1>프로젝트를 찾을 수 없습니다.</h1><p>삭제되었거나 잘못된 링크입니다.</p><a class="btn primary" href="/projects">프로젝트 목록으로</a></section></main></body></html>`);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    if (isDraftArtifact(artifact)) {
+    if (isDraftArtifact(artifact) || (isScheduledFutureArtifact(artifact) && !isAdminRequest(req))) {
       res.setHeader('X-Robots-Tag', 'noindex, nofollow');
       return res.status(404).send(`<!doctype html><html lang="ko"><head>${baseHead({ title:'Project not found · ERBELLO', description:'아직 공개되지 않은 프로젝트입니다.', ads:false, robots:'noindex,nofollow' })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><section class="detail-panel"><p class="detail-kicker">ERBELLO / DRAFT</p><h1>아직 공개되지 않은 프로젝트입니다.</h1><p>이 프로젝트는 소유자만 확인할 수 있습니다.</p><a class="btn primary" href="/projects">프로젝트 목록으로</a></section></main></body></html>`);
     }
@@ -1742,7 +1791,7 @@ app.get('/sitemap.xml', async (req, res) => {
   try {
     const origin = siteOrigin(req);
     const rows = await store.listArtifacts({ includePrivateDetails:false });
-    const publicRows = (rows || []).filter(item => !item.is_private && item.status !== 'draft');
+    const publicRows = (rows || []).filter(item => !item.is_private && item.status !== 'draft' && !isScheduledFutureArtifact(item));
     const staticUrls = ['/', '/Akashi', '/projects', '/posts', '/about', '/contact', '/privacy', '/terms'].map(url => ({ url }));
     const projectUrls = publicRows.map(item => ({ url:`/project/${encodeURIComponent(String(item.id))}`, lastmod:fmtIsoDate(item.updated_at || item.created_at) }));
     const urls = [...staticUrls, ...projectUrls];
@@ -1757,7 +1806,7 @@ app.get('/asset/:id/*', async (req, res) => {
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   try {
     const artifact = await store.getArtifact(req.params.id);
-    if (!artifact || isDraftArtifact(artifact)) return res.status(404).send('Not found');
+    if (!artifact || isDraftArtifact(artifact) || isScheduledFutureArtifact(artifact)) return res.status(404).send('Not found');
     const access = String(req.query.access || '');
     if (artifact.is_private && !verifyPrivateAccessToken(access, artifact)) return res.status(401).send('Locked');
     const requested = normalizeZipPath(req.params[0] || '');
@@ -1806,7 +1855,7 @@ app.get('/run/:id', async (req, res) => {
       return res.status(404).send(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Not found</title><style>body{margin:0;background:#090909;color:#f4f4f4;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}.box{border:1px solid #2a2a2a;padding:28px;border-radius:18px;background:#111}.k{color:#c7ff4f;font-family:monospace}</style></head><body><div class="box"><div class="k">ERBELLO / 404</div><h1>Artifact not found</h1><p>삭제되었거나 잘못된 링크입니다.</p></div></body></html>`);
     }
 
-    if (isDraftArtifact(artifact)) {
+    if (isDraftArtifact(artifact) || isScheduledFutureArtifact(artifact)) {
       return res.status(404).send(`<!doctype html><html><body><pre>Draft project</pre></body></html>`);
     }
 

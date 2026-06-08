@@ -2305,3 +2305,148 @@ body.akashi-mode .footer{
     opacity:.38;
   }
 }
+
+/* v45 hotfix: post rich text controls, scheduled badges and gentler assets */
+.post-format-btn{
+  min-width:36px!important;
+  width:36px;
+  padding:0!important;
+  justify-content:center;
+}
+.post-format-select{
+  width:auto;
+  min-width:82px;
+  height:36px;
+  padding:0 26px 0 10px;
+  font-size:12px;
+  font-weight:900;
+}
+.post-color-tool{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  min-height:36px;
+  padding:0 9px;
+  border:1px solid var(--border);
+  background:color-mix(in srgb,var(--panel2) 88%,transparent);
+  color:var(--muted);
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.post-color-tool input{
+  width:22px;
+  height:22px;
+  padding:0;
+  border:0;
+  background:transparent;
+  cursor:pointer;
+}
+.post-text-bg,
+.post-rich-editor span[data-post-bg]{
+  border-radius:5px;
+  padding:.08em .24em;
+  box-decoration-break:clone;
+  -webkit-box-decoration-break:clone;
+}
+.post-font-round,
+.post-rich-editor span[data-post-font="round"]{
+  font-family:"Trebuchet MS","Apple SD Gothic Neo","Noto Sans KR",Arial,sans-serif;
+}
+.post-font-serif,
+.post-rich-editor span[data-post-font="serif"]{
+  font-family:Georgia,"Times New Roman","Noto Serif KR",serif;
+}
+.post-font-mono,
+.post-rich-editor span[data-post-font="mono"]{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.post-align-left{text-align:left}
+.post-align-center{text-align:center}
+.post-align-right{text-align:right}
+.post-reader-status.scheduled-badge-admin,
+.scheduled-badge-admin{
+  border-color:color-mix(in srgb,var(--accent2) 50%,var(--border))!important;
+  background:color-mix(in srgb,var(--accent2) 12%,var(--panel))!important;
+  color:var(--accent2)!important;
+}
+.post-list-category span{
+  display:inline-flex;
+  align-items:center;
+  min-height:18px;
+  margin-left:7px;
+  padding:0 7px;
+  border:1px solid color-mix(in srgb,var(--accent2) 42%,var(--border));
+  background:color-mix(in srgb,var(--accent2) 10%,transparent);
+  color:var(--accent2);
+  font-size:10px;
+  font-weight:950;
+  letter-spacing:.08em;
+}
+.post-reader-body{
+  overflow-wrap:break-word;
+}
+.post-reader-body strong{
+  font-weight:950;
+  color:color-mix(in srgb,var(--text) 88%,var(--accent));
+}
+.post-reader-body em{
+  color:color-mix(in srgb,var(--muted) 74%,var(--accent));
+}
+.post-body-asset{
+  width:100%;
+  margin:12px auto;
+  display:grid;
+  justify-items:center;
+}
+.post-body-asset img{
+  display:block;
+  max-width:min(100%,680px);
+  max-height:360px;
+  object-fit:contain;
+}
+.post-body-asset.decorative{
+  margin:8px auto;
+}
+.post-body-asset.decorative img{
+  max-width:min(100%,520px);
+  max-height:86px;
+}
+.post-body-asset.decorative img[src*="/pello/"]{
+  max-width:108px;
+  max-height:108px;
+}
+.post-body-asset.decorative img[src*="/typo-"]{
+  max-width:min(100%,360px);
+  max-height:74px;
+}
+.post-body-asset.decorative img[src*="/divider-"]{
+  max-width:min(100%,540px);
+  max-height:54px;
+}
+.post-editor-asset img[src*="/pello/"]{
+  max-width:104px;
+  max-height:104px;
+}
+.post-editor-asset img[src*="/typo-"]{
+  max-width:min(100%,340px);
+  max-height:74px;
+}
+
+@media(max-width:720px){
+  .post-format-select{
+    flex:1 1 92px;
+    min-width:92px;
+  }
+  .post-color-tool{
+    flex:1 1 calc(50% - 8px);
+    justify-content:space-between;
+  }
+  .post-body-asset.decorative img[src*="/pello/"]{
+    max-width:86px;
+    max-height:86px;
+  }
+  .post-body-asset.decorative img[src*="/typo-"]{
+    max-height:58px;
+  }
+}
