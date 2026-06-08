@@ -12,7 +12,9 @@ const {
   parseGeneratedPost,
   normalizeGeneratedPost,
   decorateAiPostBody,
-  buildGeminiPrompt
+  buildGeminiPrompt,
+  buildGeminiRetryPrompt,
+  aiPostBodyLooksShort
 } = require('./lib/ai-posting');
 
 const app = express();
@@ -1280,8 +1282,19 @@ async function generateAiPost(kind = 'diary') {
   }
   const recent = await recentAiPromptPosts();
   const prompt = buildGeminiPrompt(safeKind, config, recent);
-  const raw = await callGeminiText(prompt, config);
-  const generated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
+  let raw = await callGeminiText(prompt, config);
+  let generated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
+  if (aiPostBodyLooksShort(safeKind, generated.body)) {
+    const retryPrompt = buildGeminiRetryPrompt(safeKind, config, recent, generated);
+    raw = await callGeminiText(retryPrompt, config);
+    const retryGenerated = normalizeGeneratedPost(safeKind, parseGeneratedPost(raw), config);
+    if (!aiPostBodyLooksShort(safeKind, retryGenerated.body)) generated = retryGenerated;
+  }
+  if (aiPostBodyLooksShort(safeKind, generated.body)) {
+    const error = new Error('AI가 충분한 본문을 만들지 못했습니다. 짧은 글은 저장하지 않았으니 다시 생성해주세요.');
+    error.statusCode = 502;
+    throw error;
+  }
   const detailBody = decorateAiPostBody(safeKind, generated, config);
   const status = config.autoPublish ? 'public' : 'draft';
   const payload = {
