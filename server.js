@@ -36,6 +36,10 @@ const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
   ? `<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}" crossorigin="anonymous"></script>`
   : '';
+const ADSENSE_PUBLISHER_ID = String(process.env.ADSENSE_PUBLISHER_ID || ADSENSE_CLIENT || 'pub-3039189451733887')
+  .replace(/^ca-/, '')
+  .trim();
+const ADS_TXT_LINE = `google.com, ${ADSENSE_PUBLISHER_ID}, DIRECT, f08c47fec0942fa0`;
 
 const interactionLimit = rateLimit({
   windowMs: 10 * 60 * 1000,
@@ -1785,6 +1789,11 @@ app.get('/terms', async (req, res) => {
 app.get('/robots.txt', (req, res) => {
   const origin = siteOrigin(req);
   res.type('text/plain').send(`User-agent: *\nDisallow: /api/\nDisallow: /run/\nDisallow: /asset/\nDisallow: /preview.html\nDisallow: /*?admin=1\nAllow: /ads.txt\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
+});
+
+app.get('/ads.txt', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=3600');
+  res.type('text/plain').send(`${ADS_TXT_LINE}\n`);
 });
 
 app.get('/sitemap.xml', async (req, res) => {
