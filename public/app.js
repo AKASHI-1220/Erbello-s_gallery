@@ -1047,7 +1047,6 @@
   }
 
   function isScheduledFutureItem(item = {}) {
-    if (!isPostItem(item)) return false;
     const meta = splitPostContentText(item.detail_text || '').meta || {};
     const time = Date.parse(meta.scheduled_at || '');
     return Number.isFinite(time) && time > Date.now();
@@ -2949,7 +2948,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const post = isPostItem(item);
     $('viewerTag').textContent = [post ? tr('typePost') : catLabel(typeKey(item.type)), ...visibleArtifactTags(item).slice(0, 3), formatLabel(item)].filter(Boolean).join(' · ');
     $('viewerTitle').textContent = item.title || tr('untitled');
-    $('viewerDesc').textContent = item.description || item.detail_text || tr('ownerPreview');
+    const detailPreview = splitPostContentText(item.detail_text || '').body || '';
+    $('viewerDesc').textContent = item.description || detailPreview || tr('ownerPreview');
     if ($('viewerViews')) $('viewerViews').textContent = `${tr('views')}: ${Number(item.view_count || 0)}`;
     const mediaNode = $('viewerMedia');
     if (mediaNode) {
@@ -3648,10 +3648,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       const isPost = isPostItem(item);
       if ($('tagsInput')) $('tagsInput').value = tagsText(isPost ? visibleArtifactTags(item) : (item.tags || []));
       if ($('postSubcategoryInput')) $('postSubcategoryInput').value = isPost ? postSubcategory(item) : '';
-      const postParts = isPost ? splitPostContentText(item.detail_text || '') : { body:item.detail_text || '', attachments:[], widgets:normalizePostWidgetConfig({}), meta:normalizePostMetaConfig({}) };
+      const contentParts = splitPostContentText(item.detail_text || '');
+      const postParts = isPost ? contentParts : { body:contentParts.body || '', attachments:[], widgets:normalizePostWidgetConfig({}), meta:contentParts.meta || normalizePostMetaConfig({}) };
       if ($('detailInput')) $('detailInput').value = postParts.body || '';
       if ($('postScheduleInput')) $('postScheduleInput').value = datetimeLocalFromIso(postParts.meta && postParts.meta.scheduled_at);
-      fillPostWidgetConfig(postParts.widgets || {});
+      fillPostWidgetConfig(isPost ? (postParts.widgets || {}) : {});
       if ($('statusInput')) $('statusInput').value = statusKey(item);
       if ($('contentKindInput')) $('contentKindInput').value = isPost ? 'post' : 'project';
       if ($('privateInput')) $('privateInput').checked = statusKey(item) === 'private' || Boolean(item.is_private);
@@ -3748,6 +3749,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         }
       }
 
+      const scheduled_at = isoFromDatetimeLocal($('postScheduleInput')?.value || '');
       if (isPost) {
         detail_text = await uploadPendingInlineImages(detail_text);
         const attachments = [...pendingPostAttachments];
@@ -3764,8 +3766,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
         }
         detail_text = detailWithPostAttachments(detail_text, attachments);
         detail_text = detailWithPostWidgets(detail_text, collectPostWidgetConfig());
-        detail_text = detailWithPostMeta(detail_text, { scheduled_at:isoFromDatetimeLocal($('postScheduleInput')?.value || '') });
       }
+      detail_text = detailWithPostMeta(detail_text, { scheduled_at });
 
       const payload = {
         title, description, type, tags, status, format, source_kind: format, code, detail_text, cover_image, gallery_images, is_private, private_password,
@@ -4182,17 +4184,17 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const text = artifacts.map((item, index) => {
       const tags = visibleArtifactTags(item).join(', ');
       const post = isPostItem(item);
-      const postParts = post ? splitPostContentText(item.detail_text || '') : null;
-      const scheduledAt = postParts && postParts.meta && postParts.meta.scheduled_at ? fmtMonth(postParts.meta.scheduled_at) : '';
+      const detailParts = splitPostContentText(item.detail_text || '');
+      const scheduledAt = detailParts && detailParts.meta && detailParts.meta.scheduled_at ? fmtMonth(detailParts.meta.scheduled_at) : '';
       return [`#${index + 1}`,
         `제목: ${item.title || ''}`,
         `종류: ${post ? 'post' : 'project'}`,
         `상태: ${statusLabel(statusKey(item))}`,
-        post && scheduledAt ? `예약 공개: ${scheduledAt}` : '',
+        scheduledAt ? `예약 공개: ${scheduledAt}` : '',
         `대표 분류: ${catLabel(typeKey(item.type))}`,
         `태그: ${tags}`,
         `짧은 설명: ${item.description || ''}`,
-        `상세 소개: ${post ? (postParts.body || '') : (item.detail_text || '')}`,
+        `상세 소개: ${detailParts.body || ''}`,
         `조회수: ${Number(item.view_count || 0)}`,
         `상세 URL: ${projectUrl(item.id)}`,
         post ? `실행 URL: 포스트는 실행 페이지 없음` : `실행 URL: ${runUrl(item.id)}`

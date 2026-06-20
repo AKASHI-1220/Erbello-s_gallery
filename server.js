@@ -228,7 +228,7 @@ function splitPostContent(value) {
 }
 
 function isScheduledFutureArtifact(artifact) {
-  if (!artifact || !isPostArtifact(artifact)) return false;
+  if (!artifact) return false;
   const meta = splitPostContent(artifact.detail_text || '').meta || {};
   const time = Date.parse(meta.scheduled_at || '');
   return Number.isFinite(time) && time > Date.now();
@@ -1649,12 +1649,15 @@ app.get('/api/admin/export', checkAdmin, async (req, res) => {
     const origin = siteOrigin(req);
     const text = (rows || []).map((item, index) => {
       const tags = Array.isArray(item.tags) ? item.tags.join(', ') : '';
-      const detail = plainText(item.detail_text, 1000);
+      const detailParts = splitPostContent(item.detail_text || '');
+      const detail = plainText(detailParts.body, 1000);
+      const scheduledAt = detailParts.meta && detailParts.meta.scheduled_at ? fmtMonthKo(detailParts.meta.scheduled_at) : '';
       const isPost = isPostArtifact(item);
       return [`#${index + 1}`,
         `제목: ${item.title || ''}`,
         `종류: ${isPost ? 'post' : 'project'}`,
         `상태: ${item.status || (item.is_private ? 'private' : 'public')}`,
+        scheduledAt ? `예약 공개: ${scheduledAt}` : '',
         `대표 분류: ${item.type || ''}`,
         `태그: ${tags}`,
         `짧은 설명: ${item.description || ''}`,
@@ -1732,7 +1735,7 @@ app.post('/api/admin/verify', (req, res) => {
 app.post('/api/artifacts/:id/unlock', async (req, res) => {
   try {
     const artifact = await store.getArtifact(req.params.id);
-    if (!artifact || isDraftArtifact(artifact)) return res.status(404).json({ error: 'Artifact not found.' });
+    if (!artifact || isDraftArtifact(artifact) || isScheduledFutureArtifact(artifact)) return res.status(404).json({ error: 'Artifact not found.' });
     if (!artifact.is_private) return res.json({ access: signPrivateAccess(artifact) });
     if (!verifyPrivatePassword(req.body && req.body.password, artifact)) return res.status(401).json({ error: '비밀번호가 맞지 않습니다.' });
     res.json({ access: signPrivateAccess(artifact) });
