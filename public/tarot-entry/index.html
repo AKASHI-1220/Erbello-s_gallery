@@ -98,8 +98,10 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
   padding:12px;
   outline:none;
 }
+.field select{color-scheme:dark;background-color:#1b1c23}
 .field textarea{min-height:92px;resize:vertical}
 .field input:focus,.field textarea:focus,.field select:focus{border-color:rgba(217,184,111,.5);box-shadow:0 0 0 2px rgba(217,184,111,.08)}
+.field select option{background:#171820;color:#f4ead4}
 .checklist{display:grid;gap:9px;margin-top:14px}
 .checkline{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;color:var(--muted);font-size:13px;line-height:1.65}
 .checkline input{width:16px;height:16px;margin-top:3px;accent-color:#c69d4d}
@@ -151,6 +153,10 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .result-card strong{display:block;color:var(--text);font-size:15px;line-height:1.45}
 .result-card span{display:block;color:var(--muted);font-size:12px;margin-top:5px;line-height:1.55}
 .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.admin-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+.admin-tab{min-height:42px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.035);color:var(--muted);font-weight:700}
+.admin-tab.active{background:linear-gradient(135deg,rgba(217,184,111,.28),rgba(217,184,111,.12));color:var(--gold2);border-color:rgba(217,184,111,.58)}
+.admin-section{display:block}
 .admin-list{display:grid;gap:9px;margin-top:14px}
 .admin-item{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
 .admin-item strong{display:block;color:var(--gold2);margin-bottom:5px}
@@ -175,6 +181,7 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
   .layout,.public-layout{grid-template-columns:1fr}
   .hero{min-height:340px;padding-top:36px}
   .admin-grid{grid-template-columns:1fr}
+  .admin-tabs{grid-template-columns:1fr 1fr}
   .admin-filters{grid-template-columns:1fr}
 }
 @media(max-width:520px){
@@ -315,8 +322,30 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
         <p class="status" id="admin-login-status"></p>
       </div>
     </section>
-    <section class="admin-grid">
-      <div class="panel">
+    <div id="admin-content" class="hidden">
+      <nav class="admin-tabs" aria-label="관리 메뉴">
+        <button class="admin-tab active" type="button" data-admin-tab="page" onclick="switchAdminTab('page')">페이지 관리</button>
+        <button class="admin-tab" type="button" data-admin-tab="create" onclick="switchAdminTab('create')">참여코드 만들기</button>
+        <button class="admin-tab" type="button" data-admin-tab="invites" onclick="switchAdminTab('invites')">참여코드 관리</button>
+        <button class="admin-tab" type="button" data-admin-tab="results" onclick="switchAdminTab('results')">결과 관리</button>
+      </nav>
+
+      <section class="panel admin-section" data-admin-section="page">
+        <h3>공개 안내 관리</h3>
+        <div class="form-grid">
+          <div class="field"><label>공개 제목</label><input id="public-title" value="타로 리딩 접수"></div>
+          <div class="field"><label>공개 설명</label><textarea id="public-desc">참여코드를 받은 분만 접수할 수 있습니다.</textarea></div>
+          <div class="field"><label>안내 문구</label><textarea id="public-notice">실명이나 연락처 없이 닉네임과 질문만 남겨 주세요. 타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.</textarea></div>
+          <div class="field"><label>외부 사이트 버튼 이름</label><input id="public-button" value="타로 접수 사이트 열기"></div>
+          <div class="field"><label>외부 사이트 링크</label><input id="public-link" placeholder="예: https://example.com/tarot"></div>
+          <div class="field"><label>참여코드 버튼 이름</label><input id="public-entry-button-label" value="참여코드 입력하기"></div>
+          <label class="checkline"><input type="checkbox" id="public-visible" checked><span>공개</span></label>
+          <button class="btn" type="button" onclick="savePublicSettings()">안내 저장</button>
+          <p class="status" id="public-status"></p>
+        </div>
+      </section>
+
+      <section class="panel admin-section hidden" data-admin-section="create">
         <h3>참여코드 만들기</h3>
         <div class="form-grid">
           <div class="field"><label>리딩 제목</label><input id="admin-title" value="개인 타로 리딩"></div>
@@ -341,29 +370,14 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
           <button class="btn-main" type="button" onclick="createInvite()">코드 만들기</button>
           <p class="status" id="admin-create-status"></p>
         </div>
-      </div>
-      <div class="panel">
-        <h3>공개 안내 관리</h3>
-        <div class="form-grid">
-          <div class="field"><label>공개 제목</label><input id="public-title" value="타로 리딩 접수"></div>
-          <div class="field"><label>공개 설명</label><textarea id="public-desc">참여코드를 받은 분만 접수할 수 있습니다.</textarea></div>
-          <div class="field"><label>안내 문구</label><textarea id="public-notice">실명이나 연락처 없이 닉네임과 질문만 남겨 주세요. 타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.</textarea></div>
-          <div class="field"><label>외부 사이트 버튼 이름</label><input id="public-button" value="타로 접수 사이트 열기"></div>
-          <div class="field"><label>외부 사이트 링크</label><input id="public-link" placeholder="예: https://example.com/tarot"></div>
-          <div class="field"><label>참여코드 버튼 이름</label><input id="public-entry-button-label" value="참여코드 입력하기"></div>
-          <label class="checkline"><input type="checkbox" id="public-visible" checked><span>공개</span></label>
-          <button class="btn" type="button" onclick="savePublicSettings()">안내 저장</button>
-          <p class="status" id="public-status"></p>
-        </div>
-      </div>
-    </section>
+      </section>
 
-    <section class="admin-grid" style="margin-top:12px">
-      <div class="panel">
+      <section class="panel admin-section hidden" data-admin-section="invites">
         <h3>참여코드 목록</h3>
         <div class="admin-list" id="invite-list"></div>
-      </div>
-      <div class="panel">
+      </section>
+
+      <section class="panel admin-section hidden" data-admin-section="results">
         <h3>접수 결과</h3>
         <div class="admin-filters">
           <div class="field"><label>상태</label><select id="filter-status" onchange="renderAdmin()"><option value="">전체</option><option value="received">접수</option><option value="reading">해석 중</option><option value="completed">완료</option></select></div>
@@ -371,8 +385,8 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
           <div class="field" style="grid-column:1/-1"><label>검색</label><input id="filter-search" placeholder="닉네임, 제목, 질문" oninput="renderAdmin()"></div>
         </div>
         <div class="admin-list" id="submission-list"></div>
-      </div>
-    </section>
+      </section>
+    </div>
   </section>
 
   <p class="footer">ARCANA Tarot Entry · 참여코드 전용 접수 페이지 · 실명/연락처 없이 최소 정보만 접수합니다.</p>
@@ -474,6 +488,7 @@ let participantDraft = null;
 let drawState = null;
 let publicExternalUrl = '';
 let activeSubmissionId = '';
+let activeAdminTab = 'page';
 const plainCodes = new Map();
 const INPUT_LIMITS = {
   participantName:24,
@@ -494,6 +509,8 @@ const ERROR_MESSAGES = {
   sensitive_personal_info_not_allowed:'연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.',
   tarot_invite_not_found:'참여코드를 찾을 수 없습니다.',
   tarot_submission_not_found:'접수 기록을 찾을 수 없습니다.',
+  admin_auth_required:'관리자 로그인이 필요합니다.',
+  'Invalid admin password.':'관리자 비밀번호가 맞지 않습니다.',
   Unauthorized:'관리자 로그인이 필요합니다.',
   'Wrong password':'관리자 비밀번호가 맞지 않습니다.'
 };
@@ -519,10 +536,20 @@ function storeAdminToken(token){
     try { localStorage.setItem('erbello-admin-token', token); } catch(_) {}
   }
 }
-function updateAdminLoginBox(){
+function clearAdminToken(){
+  try { sessionStorage.removeItem('erbello-admin-token'); } catch(e) {}
+  try { localStorage.removeItem('erbello-admin-token'); } catch(e) {}
+}
+function hasAdminAccess(){
+  return !useServerApi() || Boolean(adminToken());
+}
+function updateAdminLoginBox(revealContent = true){
   const box = document.getElementById('admin-login-box');
-  if (!box) return;
-  box.classList.toggle('hidden', !useServerApi() || Boolean(adminToken()));
+  const content = document.getElementById('admin-content');
+  const authed = hasAdminAccess();
+  if (box) box.classList.toggle('hidden', !useServerApi() || authed);
+  if (content) content.classList.toggle('hidden', !authed || !revealContent);
+  return authed;
 }
 function errorMessage(error, fallback='처리하지 못했습니다. 잠시 후 다시 시도해 주세요.'){
   const key = error && error.message ? error.message : String(error || '');
@@ -555,13 +582,14 @@ async function loginAdmin(){
   const password = document.getElementById('admin-password')?.value || '';
   if (!password) { setStatus('admin-login-status','비밀번호를 입력해 주세요.','bad'); return; }
   try {
-    await apiJson('/api/admin/verify', {
+    const data = await apiJson('/api/admin/verify', {
       method:'POST',
       body:JSON.stringify({ password })
     });
-    storeAdminToken(password);
+    if (!data || !data.token) throw new Error('admin_auth_required');
+    storeAdminToken(data.token);
     setStatus('admin-login-status','로그인했습니다.','ok');
-    updateAdminLoginBox();
+    updateAdminLoginBox(false);
     await showAdmin();
   } catch(error) {
     setStatus('admin-login-status', errorMessage(error, '로그인하지 못했습니다.'), 'bad');
@@ -688,15 +716,26 @@ function showParticipant(){
 }
 async function showAdmin(){
   setMode('admin');
-  updateAdminLoginBox();
+  if (!updateAdminLoginBox(false)) {
+    setStatus('admin-login-status','관리자 비밀번호를 입력해 주세요.');
+    return;
+  }
   syncSpreadTypes();
   try {
     await loadRemoteAdminData();
   } catch(error) {
+    if (/admin_auth_required|Unauthorized|HTTP_401/i.test(error.message || String(error))) {
+      clearAdminToken();
+      updateAdminLoginBox();
+      setStatus('admin-login-status','관리자 로그인이 필요합니다.','bad');
+      return;
+    }
     setStatus('admin-create-status', errorMessage(error, '관리 데이터를 불러오지 못했습니다.'), 'bad');
   }
   loadPublicSettingsIntoForm();
   renderAdmin();
+  updateAdminLoginBox(true);
+  switchAdminTab(activeAdminTab);
 }
 function showPublic(){
   setMode('public');
@@ -869,19 +908,24 @@ function defaultPublicSettings(){
 function getPublicSettings(){
   return { ...defaultPublicSettings(), ...readJson(STORE_KEYS.public, {}) };
 }
+function isEntryButtonUrl(value){
+  const text = String(value || '').trim();
+  return text === '?entry=1' || text === '/tarot-entry/?entry=1' || /\/tarot-entry\/?\?entry=1$/i.test(text);
+}
 function loadPublicSettingsIntoForm(){
   const value = getPublicSettings();
+  const externalUrl = isEntryButtonUrl(value.buttonUrl) ? '' : value.buttonUrl;
   document.getElementById('public-title').value = value.title || '';
   document.getElementById('public-desc').value = value.description || '';
   document.getElementById('public-notice').value = value.notice || '';
   document.getElementById('public-button').value = value.buttonLabel || '타로 접수 사이트 열기';
-  document.getElementById('public-link').value = value.buttonUrl || '';
+  document.getElementById('public-link').value = externalUrl || '';
   document.getElementById('public-entry-button-label').value = value.entryButtonLabel || '참여코드 입력하기';
   document.getElementById('public-visible').checked = value.isPublic !== false;
 }
 function renderPublicPage(){
   const value = getPublicSettings();
-  publicExternalUrl = value.buttonUrl || '';
+  publicExternalUrl = isEntryButtonUrl(value.buttonUrl) ? '' : (value.buttonUrl || '');
   document.getElementById('public-page-title').textContent = value.isPublic === false ? '비공개 안내' : (value.title || '타로 리딩 접수');
   document.getElementById('public-page-desc').textContent = value.isPublic === false ? '현재 공개되지 않은 프로젝트입니다.' : (value.description || '');
   document.getElementById('public-page-notice').textContent = value.isPublic === false ? '관리자 공개 설정을 확인해 주세요.' : (value.notice || '');
@@ -902,6 +946,15 @@ function openEntryPage(){
   url.searchParams.delete('public');
   url.searchParams.set('entry','1');
   location.href = url.href;
+}
+function switchAdminTab(tab){
+  activeAdminTab = tab || 'page';
+  document.querySelectorAll('[data-admin-tab]').forEach(button => {
+    button.classList.toggle('active', button.dataset.adminTab === activeAdminTab);
+  });
+  document.querySelectorAll('[data-admin-section]').forEach(section => {
+    section.classList.toggle('hidden', section.dataset.adminSection !== activeAdminTab);
+  });
 }
 function renderAdmin(){
   const invites = getInvites();
