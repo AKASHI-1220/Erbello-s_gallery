@@ -114,6 +114,20 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .step span{color:var(--muted);font-size:12px;line-height:1.6}
 .hidden{display:none!important}
 .deck-stage{margin-top:16px}
+.draw-mode-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.draw-mode-btn{
+  min-height:42px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:rgba(255,255,255,.035);
+  color:var(--muted);
+  font-weight:700;
+}
+.draw-mode-btn.active{
+  color:var(--gold2);
+  border-color:rgba(217,184,111,.58);
+  background:linear-gradient(135deg,rgba(217,184,111,.24),rgba(217,184,111,.08));
+}
 .slot-line{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .slot{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font-size:12px;background:rgba(0,0,0,.22)}
 .slot.done{color:var(--ok);border-color:rgba(169,220,203,.35)}
@@ -130,6 +144,54 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 }
 .deck-card:hover{transform:translateY(-3px);border-color:rgba(217,184,111,.55)}
 .deck-card:disabled{opacity:.35;transform:none;cursor:not-allowed}
+.draw-review{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:12px;margin-top:16px}
+.draw-picked{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
+.draw-picked-card{min-height:164px;perspective:900px;margin-bottom:10px}
+.flip-inner{position:relative;width:100%;height:164px;transform-style:preserve-3d;transform:rotateY(180deg)}
+.draw-picked.fresh .flip-inner{animation:cardFlip .58s ease both}
+.flip-back,.flip-front{
+  position:absolute;
+  inset:0;
+  border-radius:8px;
+  backface-visibility:hidden;
+  border:1px solid rgba(217,184,111,.24);
+  overflow:hidden;
+}
+.flip-back{
+  background:
+    linear-gradient(180deg,rgba(8,9,13,.18),rgba(8,9,13,.34)),
+    url('assets/card-back-premium.png') center/cover no-repeat;
+}
+.flip-front{
+  transform:rotateY(180deg);
+  display:grid;
+  place-items:center;
+  padding:12px;
+  background:
+    radial-gradient(circle at 50% 18%,rgba(217,184,111,.22),rgba(255,255,255,.04) 42%,rgba(8,9,13,.88)),
+    linear-gradient(180deg,rgba(24,24,30,.98),rgba(11,12,17,.98));
+}
+.draw-symbol{display:block;color:var(--gold2);font-size:44px;line-height:1;transition:.18s ease}
+.draw-symbol.reversed{transform:rotate(180deg)}
+.draw-picked small{display:block;color:var(--gold);font-size:11px;margin-bottom:5px}
+.draw-picked strong{display:block;color:var(--text);font-size:14px;line-height:1.45;min-height:40px}
+.direction-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.direction-btn{
+  min-height:34px;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.035);
+  color:var(--muted);
+  font-size:12px;
+}
+.direction-btn.active{color:var(--ink);background:var(--gold);border-color:rgba(242,217,152,.62);font-weight:700}
+.draw-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.btn-mini{min-height:34px;padding:7px 10px;font-size:12px;margin-top:8px;width:100%}
+button:disabled{cursor:not-allowed;opacity:.55}
+@keyframes cardFlip{
+  0%{transform:rotateY(0deg)}
+  100%{transform:rotateY(180deg)}
+}
 .result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-top:16px}
 .result-card{
   min-height:214px;
@@ -191,6 +253,8 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
   .panel{padding:16px}
   .deck-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
   .deck-card{min-height:78px}
+  .draw-mode-row{grid-template-columns:1fr}
+  .draw-review{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -274,9 +338,16 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
         <div class="kicker">DRAW</div>
         <h2>카드를 선택해 주세요.</h2>
         <p id="draw-guide"></p>
+        <div class="draw-mode-row" id="draw-mode-row" aria-label="카드 뽑기 방식"></div>
         <div class="deck-stage">
           <div class="slot-line" id="slot-line"></div>
           <div class="deck-grid" id="deck-grid"></div>
+        </div>
+        <div class="draw-review hidden" id="draw-review"></div>
+        <div class="draw-actions hidden" id="draw-actions">
+          <button class="btn" type="button" onclick="undoLastPick()">마지막 카드 다시</button>
+          <button class="btn" type="button" onclick="resetDraw()">처음부터</button>
+          <button class="btn-main" id="confirm-draw-button" type="button" onclick="confirmDraw()">접수하기</button>
         </div>
         <p class="status" id="draw-status"></p>
       </section>
@@ -1189,54 +1260,189 @@ function beginDraw(){
   startDraw();
 }
 function shuffleDeck(){
-  const deck = [...TAROT_CARDS];
+  const deck = orderedDeck();
   for (let i=deck.length-1;i>0;i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
   return deck;
 }
-function startDraw(){
+function orderedDeck(){
+  return TAROT_CARDS.map(card => ({ ...card, used:false }));
+}
+function normalizeDrawMode(mode){
+  return ['manual_select','shuffle_select','auto'].includes(mode) ? mode : 'manual_select';
+}
+function deckForMode(mode){
+  return mode === 'manual_select' ? orderedDeck() : shuffleDeck();
+}
+function startDraw(preferredMode){
   const spread = getSpread(activeInvite);
+  const drawMode = normalizeDrawMode(preferredMode || settingValue(activeInvite.settings, 'drawMode', 'draw_mode', 'manual_select'));
   drawState = {
-    deck:shuffleDeck(),
+    deck:deckForMode(drawMode),
     picked:[],
     positions:spread.positions,
-    settings:activeInvite.settings || {}
+    settings:activeInvite.settings || {},
+    drawMode,
+    submitting:false
   };
   document.getElementById('draw-panel').classList.remove('hidden');
-  const drawMode = settingValue(drawState.settings, 'drawMode', 'draw_mode', 'manual_select');
-  document.getElementById('draw-guide').textContent = drawMode === 'auto'
-    ? `${drawState.positions.length}장이 자동으로 선택됩니다. 같은 카드는 중복으로 뽑히지 않습니다.`
-    : `${drawState.positions.length}장을 선택해 주세요. 같은 카드는 중복으로 뽑히지 않습니다.`;
+  document.getElementById('draw-guide').textContent = '방식을 고르고 카드를 뽑아 주세요. 뽑은 뒤 방향을 바꿀 수 있습니다.';
+  renderDraw();
   if (drawMode === 'auto') {
-    for (let i=0;i<drawState.positions.length;i++) pickCard(i, true);
-    return;
-  } else {
-    renderDraw();
+    autoPickCards();
   }
   document.getElementById('draw-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
-function renderDraw(){
-  const slots = drawState.positions.map((pos,index) => `<span class="slot ${drawState.picked[index] ? 'done' : ''}">${escapeHtml(pos)}</span>`).join('');
-  document.getElementById('slot-line').innerHTML = slots;
-  document.getElementById('deck-grid').innerHTML = drawState.deck.slice(0,36).map((card,index) => `
-    <button class="deck-card" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${card.used ? 'disabled' : ''}></button>
+function renderDrawModes(){
+  const modes = [
+    ['manual_select','직접 고르기'],
+    ['shuffle_select','섞어서 고르기'],
+    ['auto','자동 뽑기']
+  ];
+  document.getElementById('draw-mode-row').innerHTML = modes.map(([mode,label]) => `
+    <button class="draw-mode-btn ${drawState.drawMode === mode ? 'active' : ''}" type="button" onclick="setParticipantDrawMode('${mode}')">${label}</button>
   `).join('');
 }
+function renderDraw(){
+  if (!drawState) return;
+  renderDrawModes();
+  const slots = drawState.positions.map((pos,index) => `<span class="slot ${drawState.picked[index] ? 'done' : ''}">${escapeHtml(pos)}</span>`).join('');
+  document.getElementById('slot-line').innerHTML = slots;
+  const deckGrid = document.getElementById('deck-grid');
+  const canPick = drawState.picked.length < drawState.positions.length && drawState.drawMode !== 'auto' && !drawState.submitting;
+  deckGrid.classList.toggle('hidden', drawState.drawMode === 'auto');
+  deckGrid.innerHTML = drawState.drawMode === 'auto' ? '' : drawState.deck.slice(0,36).map((card,index) => `
+    <button class="deck-card" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${!canPick || card.used ? 'disabled' : ''}></button>
+  `).join('');
+  renderDrawReview();
+}
+function renderDrawReview(){
+  const review = document.getElementById('draw-review');
+  const actions = document.getElementById('draw-actions');
+  const confirmButton = document.getElementById('confirm-draw-button');
+  if (!drawState?.picked?.length) {
+    review.classList.add('hidden');
+    review.innerHTML = '';
+    actions.classList.add('hidden');
+    setStatus('draw-status', drawState?.drawMode === 'auto' ? '자동 뽑기를 선택했습니다.' : '');
+    return;
+  }
+  review.classList.remove('hidden');
+  actions.classList.remove('hidden');
+  const showCardNames = settingValue(drawState.settings, 'showCardsToParticipant', 'show_cards_to_participant', true) !== false;
+  review.innerHTML = drawState.picked.map((card,index) => `
+    <div class="draw-picked ${card.animate ? 'fresh' : ''}">
+      <div class="draw-picked-card">
+        <div class="flip-inner">
+          <div class="flip-back" aria-hidden="true"></div>
+          <div class="flip-front">
+            <span class="draw-symbol ${card.orientation === 'reversed' ? 'reversed' : ''}">${escapeHtml(cardSymbol(card))}</span>
+          </div>
+        </div>
+      </div>
+      <small>${escapeHtml(card.position)}</small>
+      <strong>${showCardNames ? escapeHtml(cardKo(card)) : '선택된 카드'}</strong>
+      <div class="direction-row" aria-label="카드 방향">
+        <button class="direction-btn ${card.orientation === 'upright' ? 'active' : ''}" type="button" onclick="setCardOrientation(${index}, 'upright')">정방향</button>
+        <button class="direction-btn ${card.orientation === 'reversed' ? 'active' : ''}" type="button" onclick="setCardOrientation(${index}, 'reversed')">역방향</button>
+      </div>
+      <button class="btn btn-mini" type="button" onclick="unpickCard(${index})">${drawState.drawMode === 'auto' ? '다시 뽑기' : '다시 고르기'}</button>
+    </div>
+  `).join('');
+  drawState.picked.forEach(card => { card.animate = false; });
+  const complete = drawState.picked.length >= drawState.positions.length;
+  confirmButton.disabled = !complete || drawState.submitting;
+  setStatus('draw-status', complete ? '카드와 방향을 확인한 뒤 접수해 주세요.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
+}
+function setParticipantDrawMode(mode){
+  if (!drawState) return;
+  const nextMode = normalizeDrawMode(mode);
+  if (drawState.drawMode === nextMode) return;
+  drawState.drawMode = nextMode;
+  drawState.deck = deckForMode(nextMode);
+  drawState.picked = [];
+  drawState.submitting = false;
+  renderDraw();
+  if (nextMode === 'auto') autoPickCards();
+}
+function autoPickCards(){
+  if (!drawState) return;
+  drawState.deck = shuffleDeck();
+  drawState.picked = [];
+  for (let i=0;i<drawState.positions.length;i++) {
+    pickCard(i, true);
+  }
+  drawState.picked.forEach(card => { card.animate = true; });
+  renderDraw();
+}
 function pickCard(index, silent=false){
+  if (!drawState || drawState.submitting) return;
   const card = drawState.deck[index];
   if (!card || card.used || drawState.picked.length >= drawState.positions.length) return;
   card.used = true;
-  const orientation = settingValue(drawState.settings, 'allowReversed', 'allow_reversed', true) && Math.random() > .5 ? 'reversed' : 'upright';
-  drawState.picked.push({ ...card, position:drawState.positions[drawState.picked.length], orientation });
-  if (drawState.picked.length >= drawState.positions.length) {
-    completeSubmission();
-  } else if (!silent) {
+  const orientation = Math.random() > .5 ? 'reversed' : 'upright';
+  drawState.picked.push({ ...card, deckIndex:index, position:drawState.positions[drawState.picked.length], orientation, animate:!silent });
+  if (!silent) {
     renderDraw();
   }
 }
+function reassignPickedPositions(){
+  drawState.picked = drawState.picked.map((card,index) => ({ ...card, position:drawState.positions[index], animate:false }));
+}
+function unpickCard(index){
+  if (!drawState || drawState.submitting) return;
+  if (drawState.drawMode === 'auto') {
+    const nextIndex = drawState.deck.findIndex(card => !card.used);
+    if (nextIndex < 0) return;
+    const nextCard = drawState.deck[nextIndex];
+    nextCard.used = true;
+    drawState.picked[index] = {
+      ...nextCard,
+      deckIndex:nextIndex,
+      position:drawState.positions[index],
+      orientation:Math.random() > .5 ? 'reversed' : 'upright',
+      animate:true
+    };
+    renderDraw();
+    return;
+  }
+  const [removed] = drawState.picked.splice(index, 1);
+  const deckCard = removed ? (drawState.deck[removed.deckIndex] || drawState.deck.find(card => card.id === removed.id)) : null;
+  if (deckCard) deckCard.used = false;
+  reassignPickedPositions();
+  renderDraw();
+}
+function undoLastPick(){
+  if (!drawState?.picked?.length) return;
+  unpickCard(drawState.picked.length - 1);
+}
+function resetDraw(){
+  if (!drawState || drawState.submitting) return;
+  drawState.deck = deckForMode(drawState.drawMode);
+  drawState.picked = [];
+  renderDraw();
+  if (drawState.drawMode === 'auto') autoPickCards();
+}
+function setCardOrientation(index, orientation){
+  if (!drawState?.picked?.[index] || drawState.submitting) return;
+  drawState.picked[index].orientation = orientation === 'reversed' ? 'reversed' : 'upright';
+  renderDrawReview();
+}
+function confirmDraw(){
+  if (!drawState || drawState.picked.length < drawState.positions.length) {
+    setStatus('draw-status','카드를 모두 뽑아 주세요.','bad');
+    return;
+  }
+  completeSubmission();
+}
 async function completeSubmission(){
+  if (drawState?.submitting) return;
+  if (drawState) {
+    drawState.submitting = true;
+    renderDraw();
+  }
   const settings = activeInvite.settings || {};
   const submission = {
     id:`submission_${now()}_${Math.random().toString(36).slice(2,7)}`,
@@ -1273,6 +1479,10 @@ async function completeSubmission(){
       renderResult(saved);
       return;
     } catch(error) {
+      if (drawState) {
+        drawState.submitting = false;
+        renderDraw();
+      }
       setStatus('draw-status', errorMessage(error, '접수하지 못했습니다.'), 'bad');
       return;
     }
@@ -1350,8 +1560,14 @@ function resetParticipant(){
   participantDraft = null;
   drawState = null;
   ['consent-panel','draw-panel','result-panel'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  ['draw-mode-row','slot-line','deck-grid','draw-review','result-grid'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '';
+  });
+  document.getElementById('draw-actions')?.classList.add('hidden');
   document.getElementById('entry-code').value = '';
   setStatus('entry-status','');
+  setStatus('draw-status','');
   document.getElementById('entry-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 function copyParticipantLink(){
