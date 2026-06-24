@@ -2104,9 +2104,9 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('adminError').textContent = '';
     if (!password) { $('adminError').textContent = tr('needPassword'); return; }
     try {
-      await api('/api/admin/verify', { method:'POST', body:JSON.stringify({ password }) });
-      adminToken = password;
-      safeStorage.set('session', 'erbello-admin-token', password);
+      const data = await api('/api/admin/verify', { method:'POST', body:JSON.stringify({ password }) });
+      adminToken = data && data.token ? data.token : password;
+      safeStorage.set('session', 'erbello-admin-token', adminToken);
       $('passwordInput').value = '';
       closeModal('adminModal');
       setAdminUI(true);
@@ -2121,7 +2121,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   async function verifyExistingAdmin() {
     if (!ownerModeRequested || !adminToken || PREVIEW_MODE) return;
     try {
-      await api('/api/admin/verify', { method:'POST', body:JSON.stringify({ password:adminToken }) });
+      await api('/api/admin/system', { headers:{ 'x-admin-token':adminToken } });
       setAdminUI(true);
     } catch (_) {
       adminToken = '';

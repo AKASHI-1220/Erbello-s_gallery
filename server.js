@@ -28,6 +28,7 @@ const POST_META_PREFIX = 'ERBELLO_POST_META_V1:';
 const STORAGE_UPLOAD_LIMIT_BYTES = 50 * 1024 * 1024;
 const RANDOM_GAMSUNG_COVER = '__GAMSUNG_RANDOM__';
 const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
+const ADMIN_TOKEN_TTL_MS = Number(process.env.ADMIN_TOKEN_TTL_MS || 6 * 60 * 60 * 1000);
 const DEFAULT_SITE_ORIGIN = 'https://erbello.vercel.app';
 const AI_POSTING_PAGE_SLUG = 'ai-posting';
 const AI_POSTING_FALLBACK_PAGE_SLUGS = ['posts', 'home'];
@@ -801,11 +802,44 @@ function safeEqualHex(a, b) {
   }
 }
 
-function isAdminRequest(req) {
+function safeEqualText(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+  } catch (_) {
+    return false;
+  }
+}
+
+function adminTokenSecret() {
+  return process.env.ADMIN_TOKEN_SECRET || getAdminHash() || process.env.ADMIN_PASSWORD || 'erbello-admin-token-secret';
+}
+
+function signAdminAccess() {
+  const payload = Buffer.from(JSON.stringify({ scope:'admin', exp:Date.now() + ADMIN_TOKEN_TTL_MS }), 'utf8').toString('base64url');
+  const sig = crypto.createHmac('sha256', adminTokenSecret()).update(payload).digest('base64url');
+  return `admin.${payload}.${sig}`;
+}
+
+function verifyAdminAccessToken(token) {
+  const raw = String(token || '');
   const expected = getAdminHash();
+  if (!expected || !raw) return false;
+  if (safeEqualHex(sha256(raw), expected)) return true;
+  const parts = raw.split('.');
+  if (parts.length !== 3 || parts[0] !== 'admin') return false;
+  const [, payload, sig] = parts;
+  const actual = crypto.createHmac('sha256', adminTokenSecret()).update(payload).digest('base64url');
+  if (!safeEqualText(sig, actual)) return false;
+  let parsed = null;
+  try { parsed = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')); } catch (_) { return false; }
+  return parsed && parsed.scope === 'admin' && Number(parsed.exp || 0) > Date.now();
+}
+
+function isAdminRequest(req) {
   const token = req && req.headers && req.headers['x-admin-token'];
-  if (!expected || !token || typeof token !== 'string') return false;
-  return safeEqualHex(sha256(token), expected);
+  if (!token || typeof token !== 'string') return false;
+  return verifyAdminAccessToken(token);
 }
 
 function hashPrivatePassword(password, salt = crypto.randomBytes(16).toString('hex')) {
@@ -972,8 +1006,7 @@ function checkAdmin(req, res, next) {
   if (!expected) return res.status(503).json({ error: 'ADMIN_PASSWORD_HASH or ADMIN_PASSWORD is not configured.' });
   const token = req.headers['x-admin-token'];
   if (!token || typeof token !== 'string') return res.status(401).json({ error: 'Unauthorized' });
-  const actual = sha256(token);
-  if (!safeEqualHex(actual, expected)) return res.status(401).json({ error: 'Wrong password' });
+  if (!verifyAdminAccessToken(token)) return res.status(401).json({ error: 'Unauthorized' });
   next();
 }
 
@@ -2140,10 +2173,10 @@ app.post('/api/admin/verify', (req, res) => {
   const expected = getAdminHash();
   if (!expected) return res.status(503).json({ ok: false, error: 'Admin password is not configured.' });
   const password = String(req.body.password || '');
-  if (!password) return res.status(400).json({ ok: false });
+  if (!password) return res.status(400).json({ ok: false, error: 'Invalid admin password.' });
   const actual = sha256(password);
-  if (safeEqualHex(actual, expected)) return res.json({ ok: true });
-  res.status(401).json({ ok: false });
+  if (safeEqualHex(actual, expected)) return res.json({ ok: true, token: signAdminAccess() });
+  res.status(401).json({ ok: false, error: 'Invalid admin password.' });
 });
 
 app.post('/api/artifacts/:id/unlock', async (req, res) => {
