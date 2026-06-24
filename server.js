@@ -31,6 +31,7 @@ const PRIVATE_TOKEN_TTL_MS = 15 * 60 * 1000;
 const DEFAULT_SITE_ORIGIN = 'https://erbello.vercel.app';
 const AI_POSTING_PAGE_SLUG = 'ai-posting';
 const AI_POSTING_FALLBACK_PAGE_SLUGS = ['posts', 'home'];
+const ADMIN_ENTRY_CODE = String(process.env.ADMIN_ENTRY_CODE || '1220').trim() || '1220';
 
 const ADSENSE_CLIENT = process.env.ADSENSE_CLIENT || 'ca-pub-3039189451733887';
 const ADSENSE_SCRIPT = ADSENSE_CLIENT
@@ -206,7 +207,17 @@ function splitPostWidgets(value) {
 function normalizePostMetaConfig(value) {
   const data = value && typeof value === 'object' ? value : {};
   const scheduled = fmtIsoDate(data.scheduled_at || data.scheduledAt || '');
-  return { scheduled_at: scheduled };
+  const tarotEntryUrl = cleanProjectActionUrl(data.tarot_entry_url || data.tarotEntryUrl || '');
+  const tarotButtonLabel = cleanText(data.tarot_button_label || data.tarotButtonLabel || '참여 페이지 열기', 40);
+  const tarotNotice = cleanText(data.tarot_notice || data.tarotNotice || '', 500);
+  const tarotPublicOnly = data.tarot_public_only === true || data.tarotPublicOnly === true || Boolean(tarotEntryUrl);
+  return {
+    scheduled_at: scheduled,
+    tarot_entry_url: tarotEntryUrl,
+    tarot_button_label: tarotButtonLabel,
+    tarot_notice: tarotNotice,
+    tarot_public_only: tarotPublicOnly
+  };
 }
 
 function splitPostMeta(value) {
@@ -262,6 +273,13 @@ function fmtIsoDate(value) {
   const d = new Date(value || '');
   if (Number.isNaN(d.getTime())) return '';
   return d.toISOString();
+}
+
+function cleanProjectActionUrl(value) {
+  const text = cleanText(value, 500);
+  if (!text) return '';
+  if (/^(?:\/(?!\/)|\?|#|https:\/\/)/i.test(text)) return text;
+  return '';
 }
 
 function formatBytes(value) {
@@ -749,6 +767,14 @@ app.get('/index.html', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(renderIndexPage(req));
 });
+app.get('/tarot-entry/admin-config.js', (_req, res) => {
+  res.setHeader('Content-Type', 'text/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  res.send(`window.__ARCANA_ADMIN_ENTRY_CODE__=${JSON.stringify(ADMIN_ENTRY_CODE)};`);
+});
+app.get(['/tarot-entry', '/tarot-entry/'], (_req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'tarot-entry', 'index.html'));
+});
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const apiLimit = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
@@ -849,7 +875,9 @@ function renderProjectDetailPage(req, artifact) {
   const title = artifact.title || 'Untitled project';
   const isPost = isPostArtifact(artifact);
   const desc = artifact.description || (isPost ? 'ERBELLO가 작성한 포스트입니다.' : 'ERBELLO에 보관된 프로젝트입니다.');
-  const postContentData = isPost ? splitPostContent(artifact.detail_text) : { attachments:[], widgets:normalizePostWidgetConfig({}) };
+  const detailContentData = splitPostContent(artifact.detail_text || '');
+  const detailMeta = detailContentData.meta || {};
+  const postContentData = isPost ? detailContentData : { attachments:[], widgets:normalizePostWidgetConfig({}), meta:detailMeta };
   const postAttachmentData = postContentData.attachments || [];
   const summary = artifactDetailBody(artifact);
   const summaryPlain = plainText(summary || desc, 5000);
@@ -862,6 +890,9 @@ function renderProjectDetailPage(req, artifact) {
   const updated = fmtMonthKo(artifact.updated_at || artifact.created_at);
   const category = artifact.type || 'other';
   const format = isPost ? 'POST' : cleanSourceKind(artifact.source_kind, artifact.is_jsx).toUpperCase();
+  const tarotEntryUrl = !isPost && detailMeta.tarot_public_only ? cleanProjectActionUrl(detailMeta.tarot_entry_url) : '';
+  const tarotButtonLabel = cleanText(detailMeta.tarot_button_label, 40) || '참여 페이지 열기';
+  const tarotNotice = cleanText(detailMeta.tarot_notice, 500);
   const structured = {
     '@context':'https://schema.org',
     '@type':'CreativeWork',
@@ -880,11 +911,15 @@ function renderProjectDetailPage(req, artifact) {
   const detailLength = summaryPlain.length;
   const allowDetailAds = detailLength >= 500;
   const metaHtml = `<dl class="detail-meta"><div><dt>대표 분류</dt><dd>${escHtml(category)}</dd></div><div><dt>형식</dt><dd>${escHtml(format)}</dd></div>${updated ? `<div><dt>년월</dt><dd>${escHtml(updated)}</dd></div>` : ''}</dl>`;
-  const primaryAction = isPost ? '' : `<a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a>`;
+  const primaryAction = isPost ? '' : (tarotEntryUrl
+    ? `<a class="btn primary" href="${escAttr(tarotEntryUrl)}">${escHtml(tarotButtonLabel)}</a>`
+    : `<a class="btn primary" href="${escAttr(runUrl)}">프로젝트 실행하기</a>`);
   const listUrl = isPost ? '/posts' : '/projects';
   const listLabel = isPost ? '포스트 목록' : '목록으로';
   const bodyHtml = isPost ? renderPostBodyHtml(summary) : summary.split(/\n{2,}/).map(p => `<p>${escHtml(p)}</p>`).join('');
-  const guide = isPost
+  const guide = tarotEntryUrl
+    ? `<section class="detail-panel detail-guide"><p class="section-kicker">TAROT ENTRY</p><h2>리딩 접수 안내</h2><ul><li>${escHtml(tarotNotice || '참여코드를 받은 분만 접수할 수 있습니다.')}</li><li>이 프로젝트 상세 페이지에서는 카드 뽑기 기능을 열지 않습니다.</li><li>타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.</li></ul></section>`
+    : isPost
     ? `<section class="detail-panel detail-guide"><p class="section-kicker">POST NOTE</p><h2>포스트 안내</h2><ul><li>이 글은 코드 실행 화면이 없는 이미지, 글, 파일 중심의 포스트입니다.</li><li>첨부 이미지가 있는 경우 글 아래 이미지 자료 영역에서 확인할 수 있습니다.</li><li>첨부 파일이 있는 경우 별도 링크로 열 수 있습니다.</li></ul></section>`
     : `<section class="detail-panel detail-guide"><p class="section-kicker">HOW TO VIEW</p><h2>이용 안내</h2><ul><li>프로젝트 실행 버튼을 누르면 실제 HTML/JSX 페이지가 열립니다.</li><li>모바일과 PC에서 보이는 방식이 다를 수 있습니다.</li><li>비밀번호가 필요한 프로젝트는 제목 외 내용이 보호됩니다.</li></ul></section>`;
   return `<!doctype html><html lang="ko"><head>${baseHead({ title:`${title} · ERBELLO`, description:plainText(summaryPlain || desc, 160), ads:allowDetailAds, url:projectUrl, image:cover, type:'article' })}<script type="application/ld+json">${JSON.stringify(structured).replace(/</g, '\\u003c')}</script></head><body data-scheme="white" data-color="pixel" data-theme="white-pixel" class="detail-document">${themeBootstrap()}<div class="site-bg" aria-hidden="true"><span class="grid-glow glow-a"></span><span class="grid-glow glow-b"></span></div><main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-hero"><div><p class="detail-kicker">${isPost ? 'POST DETAIL' : 'PROJECT DETAIL'}</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(desc)}</p>${metaHtml}<div class="detail-tags">${tagHtml}</div><div class="detail-actions">${primaryAction}<a class="btn" href="${escAttr(listUrl)}">${escHtml(listLabel)}</a></div></div><aside class="detail-cover detail-cover-note"><span class="detail-cover-sticker">✦</span><strong>${escHtml(isPost ? 'POST' : category)}</strong><small>${updated ? escHtml(updated) : 'ERBELLO'}</small></aside></section><section class="detail-panel"><p class="section-kicker">${isPost ? 'POST BODY' : 'ABOUT THIS PROJECT'}</p><h2>${isPost ? '포스트 본문' : '프로젝트 소개'}</h2><div class="detail-text ${isPost ? 'post-rich-body' : ''}">${bodyHtml}</div></section>${galleryHtml ? `<section class="detail-panel detail-gallery-panel"><p class="section-kicker">GALLERY</p><h2>이미지 자료</h2>${galleryHtml}</section>` : ''}${attachmentHtml}${guide}<footer class="detail-footer"><span>© ERBELLO</span><a href="/privacy">개인정보처리방침</a><a href="/terms">이용약관</a></footer></main></body></html>`;
@@ -944,6 +979,263 @@ function checkAdmin(req, res, next) {
 
 function cleanText(value, max = 500) {
   return String(value || '').trim().slice(0, max);
+}
+
+const TAROT_SPREADS = {
+  1:[
+    { id:'one', label:'한 장 리딩', positions:['핵심'] },
+    { id:'today', label:'오늘의 흐름', positions:['오늘의 흐름'] },
+    { id:'advice', label:'질문 조언', positions:['조언'] }
+  ],
+  3:[
+    { id:'flow', label:'현재 / 흐름 / 조언', positions:['현재','흐름','조언'] },
+    { id:'past', label:'과거 / 현재 / 미래', positions:['과거','현재','미래'] },
+    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] }
+  ],
+  5:[
+    { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'] },
+    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] }
+  ],
+  7:[
+    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] }
+  ],
+  9:[
+    { id:'deep9', label:'전체 흐름형 9장 배열', positions:['현재','원인','겉으로 보이는 일','숨은 마음','흐름','변수','조언','가까운 결과','전체 결론'] },
+    { id:'relation9', label:'관계/상황 확장 리딩', positions:['나','상대','관계','장애물','기대','두려움','조언','가능성','결과'] }
+  ],
+  10:[
+    { id:'celtic', label:'켈틱크로스형 10장 배열', positions:['현재','도전','숨은 기반','과거','가능성','가까운 미래','나의 태도','환경','바람과 두려움','결과'] }
+  ]
+};
+
+const TAROT_MAJOR_IDS = Array.from({ length:22 }, (_, index) => `major_${String(index).padStart(2, '0')}`);
+const TAROT_MINOR_IDS = ['wands', 'cups', 'swords', 'pentacles']
+  .flatMap(suit => Array.from({ length:14 }, (_, index) => `minor_${suit}_${String(index + 1).padStart(2, '0')}`));
+const TAROT_CARD_IDS = new Set([...TAROT_MAJOR_IDS, ...TAROT_MINOR_IDS]);
+
+function normalizeTarotCode(value) {
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+
+function hashTarotCode(value) {
+  return sha256(`arcana-entry:${normalizeTarotCode(value)}`);
+}
+
+function randomTarotChars(length) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.randomBytes(length);
+  return [...bytes].map(byte => alphabet[byte % alphabet.length]).join('');
+}
+
+function makeTarotCode() {
+  return `TARO-${randomTarotChars(4)}-${randomTarotChars(4)}-${randomTarotChars(4)}`;
+}
+
+function tarotCodeSuffix(code) {
+  return normalizeTarotCode(code).slice(-4);
+}
+
+function hasRestrictedPersonalInfo(value) {
+  const text = String(value || '');
+  return /(010[-.\s]?\d{3,4}[-.\s]?\d{4}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|주민등록|주민번호|여권번호|운전면허|계좌번호|카카오톡\s*ID|카톡\s*ID|인스타\s*ID|주소\s*:)/i.test(text);
+}
+
+function cleanTarotUrl(value, fallback = '') {
+  const text = cleanText(value, 300);
+  if (!text) return fallback;
+  if (/^(?:\/(?!\/)|\?|#|https:\/\/)/i.test(text)) return text;
+  return fallback;
+}
+
+function cleanTarotPublicSettingsBody(body) {
+  const source = body && typeof body === 'object' ? body : {};
+  return {
+    title:cleanText(source.title, 80) || '타로 리딩 접수',
+    description:cleanText(source.description, 500) || '참여코드를 받은 분만 접수할 수 있습니다.',
+    notice:cleanText(source.notice, 500) || '실명이나 연락처 없이 닉네임과 질문만 남겨 주세요. 타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.',
+    buttonLabel:cleanText(source.buttonLabel || source.button_label, 40) || '타로 접수 사이트 열기',
+    buttonUrl:cleanTarotUrl(source.buttonUrl || source.button_url, ''),
+    entryButtonLabel:cleanText(source.entryButtonLabel || source.entry_button_label, 40) || '참여코드 입력하기',
+    isPublic:source.isPublic !== false && source.is_public !== false
+  };
+}
+
+function cleanTarotSettings(value, spreadCount) {
+  const source = value && typeof value === 'object' ? value : {};
+  const get = (camel, snake, fallback) => source[camel] !== undefined ? source[camel] : (source[snake] !== undefined ? source[snake] : fallback);
+  const bool = (camel, snake, fallback) => get(camel, snake, fallback) !== false;
+  const drawModeRaw = String(get('drawMode', 'draw_mode', 'manual_select'));
+  const drawMode = ['manual_select', 'shuffle_select', 'auto'].includes(drawModeRaw) ? drawModeRaw : 'manual_select';
+  const revealMode = String(get('revealMode', 'reveal_mode', 'flip')) === 'static' ? 'static' : 'flip';
+  const completionMessage = cleanText(get('completionMessage', 'completion_message', '카드가 접수되었습니다.'), 200) || '카드가 접수되었습니다.';
+  return {
+    allowReversed:bool('allowReversed', 'allow_reversed', true),
+    allow_reversed:bool('allowReversed', 'allow_reversed', true),
+    showCardsToParticipant:bool('showCardsToParticipant', 'show_cards_to_participant', true),
+    show_cards_to_participant:bool('showCardsToParticipant', 'show_cards_to_participant', true),
+    showOrientationToParticipant:bool('showOrientationToParticipant', 'show_orientation_to_participant', true),
+    show_orientation_to_participant:bool('showOrientationToParticipant', 'show_orientation_to_participant', true),
+    enableResultImage:bool('enableResultImage', 'enable_result_image', true),
+    enable_result_image:bool('enableResultImage', 'enable_result_image', true),
+    includeQuestionInImage:get('includeQuestionInImage', 'include_question_in_image', false) === true,
+    include_question_in_image:get('includeQuestionInImage', 'include_question_in_image', false) === true,
+    revealMode,
+    reveal_mode:revealMode,
+    drawMode,
+    draw_mode:drawMode,
+    requireNickname:bool('requireNickname', 'require_nickname', true),
+    require_nickname:bool('requireNickname', 'require_nickname', true),
+    requireTitle:bool('requireTitle', 'require_title', true),
+    require_title:bool('requireTitle', 'require_title', true),
+    requireQuestion:bool('requireQuestion', 'require_question', true),
+    require_question:bool('requireQuestion', 'require_question', true),
+    allowTopicSelect:bool('allowTopicSelect', 'allow_topic_select', true),
+    allow_topic_select:bool('allowTopicSelect', 'allow_topic_select', true),
+    singleUse:bool('singleUse', 'single_use', true),
+    single_use:bool('singleUse', 'single_use', true),
+    completionMessage,
+    completion_message:completionMessage,
+    spreadCount
+  };
+}
+
+function tarotSpreadFor(count, spreadType) {
+  const spreadCount = TAROT_SPREADS[count] ? count : 3;
+  const spreads = TAROT_SPREADS[spreadCount] || TAROT_SPREADS[3];
+  return spreads.find(item => item.id === spreadType) || spreads[0];
+}
+
+function cleanTarotInviteBody(body) {
+  const source = body && typeof body === 'object' ? body : {};
+  const requestedCount = Number(source.spreadCount || source.spread_count || 3);
+  const spreadCount = TAROT_SPREADS[requestedCount] ? requestedCount : 3;
+  const spread = tarotSpreadFor(spreadCount, cleanText(source.spreadType || source.spread_type, 40));
+  const expiresRaw = source.expiresAt || source.expires_at || '';
+  const expiresAt = expiresRaw ? Date.parse(expiresRaw) : null;
+  return {
+    label:cleanText(source.label, 80),
+    internalNote:cleanText(source.internalNote || source.internal_note, 500),
+    readingTitle:cleanText(source.readingTitle || source.reading_title, 80) || '개인 타로 리딩',
+    spreadCount,
+    spreadType:spread.id,
+    spreadPositions:spread.positions,
+    settings:cleanTarotSettings(source.settings, spreadCount),
+    expiresAt:Number.isFinite(expiresAt) ? expiresAt : null
+  };
+}
+
+function cleanTarotSubmissionBody(body) {
+  const source = body && typeof body === 'object' ? body : {};
+  const participantName = cleanText(source.participantName || source.participant_name, 24);
+  const title = cleanText(source.title, 50);
+  const topic = cleanText(source.topic, 24);
+  const question = cleanText(source.question, 400);
+  if (hasRestrictedPersonalInfo(`${participantName} ${title} ${topic} ${question}`)) {
+    const err = new Error('restricted_personal_info');
+    err.statusCode = 400;
+    throw err;
+  }
+  return {
+    participantName,
+    title,
+    topic,
+    question,
+    drawnCards:normalizeTarotDrawnCards(source.drawnCards || source.drawn_cards)
+  };
+}
+
+function normalizeTarotDrawnCards(value) {
+  const cards = Array.isArray(value) ? value.slice(0, 10) : [];
+  const seen = new Set();
+  return cards.map((card, index) => {
+    const item = card && typeof card === 'object' ? card : {};
+    const cardId = cleanText(item.cardId || item.card_id, 60);
+    const orientation = String(item.orientation || '').toLowerCase() === 'reversed' ? 'reversed' : 'upright';
+    if (!TAROT_CARD_IDS.has(cardId) || seen.has(cardId)) {
+      const err = new Error(seen.has(cardId) ? 'duplicate_drawn_cards' : 'invalid_drawn_cards');
+      err.statusCode = 400;
+      throw err;
+    }
+    seen.add(cardId);
+    return {
+      position:cleanText(item.position, 40) || `카드 ${index + 1}`,
+      card_id:cardId,
+      cardId,
+      nameKo:cleanText(item.nameKo || item.name_ko, 40),
+      nameEn:cleanText(item.nameEn || item.name_en, 80),
+      orientation,
+      symbol:cleanText(item.symbol, 12),
+      imageUrl:null
+    };
+  });
+}
+
+function safeTarotInvite(invite, options = {}) {
+  const item = invite || {};
+  const safe = {
+    id:String(item.id || ''),
+    codeSuffix:String(item.codeSuffix || item.code_suffix || ''),
+    label:String(item.label || ''),
+    readingTitle:String(item.readingTitle || item.reading_title || ''),
+    spreadCount:Number(item.spreadCount || item.spread_count || 3),
+    spreadType:String(item.spreadType || item.spread_type || ''),
+    spreadPositions:Array.isArray(item.spreadPositions) ? item.spreadPositions : (Array.isArray(item.spread_positions) ? item.spread_positions : []),
+    settings:item.settings && typeof item.settings === 'object' ? item.settings : {},
+    status:String(item.status || 'open'),
+    expiresAt:item.expiresAt || item.expires_at || null,
+    usedAt:item.usedAt || item.used_at || null,
+    createdAt:item.createdAt || item.created_at || null,
+    updatedAt:item.updatedAt || item.updated_at || null
+  };
+  if (options.admin) safe.internalNote = String(item.internalNote || item.internal_note || '');
+  return safe;
+}
+
+function safeTarotSubmission(submission) {
+  const item = submission || {};
+  return {
+    id:String(item.id || ''),
+    inviteId:String(item.inviteId || item.invite_id || ''),
+    participantName:String(item.participantName || item.participant_name || ''),
+    title:String(item.title || ''),
+    topic:String(item.topic || ''),
+    question:String(item.question || ''),
+    spreadCount:Number(item.spreadCount || item.spread_count || 3),
+    spreadType:String(item.spreadType || item.spread_type || ''),
+    drawnCards:Array.isArray(item.drawnCards) ? item.drawnCards : (Array.isArray(item.drawn_cards) ? item.drawn_cards : []),
+    resultImageUrl:String(item.resultImageUrl || item.result_image_url || ''),
+    status:String(item.status || 'received'),
+    adminNote:String(item.adminNote || item.admin_note || ''),
+    interpretation:String(item.interpretation || ''),
+    createdAt:item.createdAt || item.created_at || null,
+    updatedAt:item.updatedAt || item.updated_at || null,
+    deleteAt:item.deleteAt || item.delete_after || null
+  };
+}
+
+function assertInviteUsable(invite) {
+  if (!invite) {
+    const err = new Error('invalid_invite_code');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (invite.expiresAt && Number(invite.expiresAt) < Date.now()) {
+    const err = new Error('expired_invite_code');
+    err.statusCode = 400;
+    throw err;
+  }
+  const settings = invite.settings || {};
+  const singleUse = settings.singleUse !== undefined ? settings.singleUse : settings.single_use;
+  if (singleUse !== false && invite.status !== 'open') {
+    const err = new Error('used_invite_code');
+    err.statusCode = 400;
+    throw err;
+  }
+}
+
+function sendTarotError(res, error, fallback = 'tarot_request_failed') {
+  const status = error && error.statusCode ? error.statusCode : 500;
+  res.status(status).json({ error:error && error.message ? error.message : fallback });
 }
 
 function cleanType(value) {
@@ -1143,11 +1435,18 @@ function hasPostContent(payload) {
   ));
 }
 
+function hasTarotEntryMeta(payload) {
+  if (!payload || payload.source_kind === 'post') return false;
+  const meta = splitPostContent(payload.detail_text || '').meta || {};
+  return Boolean(meta.tarot_public_only && meta.tarot_entry_url);
+}
+
 function validateArtifactPayload(payload) {
   if (!payload || !payload.title) return 'title and content are required.';
   if (payload.source_kind === 'post') {
     return hasPostContent(payload) ? '' : 'post body, description or image is required.';
   }
+  if (hasTarotEntryMeta(payload)) return '';
   return (payload.code || payload.code_storage_path) ? '' : 'title and code are required.';
 }
 
@@ -1493,6 +1792,121 @@ app.post('/api/posts/:id/votes', interactionLimit, async (req, res) => {
   }
 });
 
+app.get('/api/tarot/public-settings', async (_req, res) => {
+  try {
+    res.json({ ok:true, settings:await store.getTarotPublicSettings() });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.post('/api/tarot/validate', interactionLimit, async (req, res) => {
+  try {
+    const code = normalizeTarotCode(req.body && req.body.code);
+    if (!code) return res.status(400).json({ error:'invalid_invite_code' });
+    const invite = await store.validateTarotInvite(hashTarotCode(code));
+    assertInviteUsable(invite);
+    res.json({ ok:true, invite:safeTarotInvite(invite) });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.post('/api/tarot/submit', interactionLimit, async (req, res) => {
+  try {
+    const code = normalizeTarotCode(req.body && req.body.code);
+    if (!code) return res.status(400).json({ error:'invalid_invite_code' });
+    const codeHash = hashTarotCode(code);
+    const invite = await store.validateTarotInvite(codeHash);
+    assertInviteUsable(invite);
+    const payload = cleanTarotSubmissionBody(req.body || {});
+    if (payload.drawnCards.length !== Number(invite.spreadCount || 0)) {
+      return res.status(400).json({ error:'invalid_drawn_cards' });
+    }
+    const submission = await store.submitTarotReading({ codeHash, ...payload });
+    res.status(201).json({ ok:true, submission:safeTarotSubmission(submission) });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.get('/api/admin/tarot', checkAdmin, async (_req, res) => {
+  try {
+    const [settings, invites, submissions] = await Promise.all([
+      store.getTarotPublicSettings(),
+      store.listTarotInvites(),
+      store.listTarotSubmissions()
+    ]);
+    res.json({
+      ok:true,
+      mode:store.mode,
+      settings,
+      invites:(invites || []).map(invite => safeTarotInvite(invite, { admin:true })),
+      submissions:(submissions || []).map(safeTarotSubmission)
+    });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.put('/api/admin/tarot/public-settings', checkAdmin, async (req, res) => {
+  try {
+    const settings = await store.updateTarotPublicSettings(cleanTarotPublicSettingsBody(req.body || {}));
+    res.json({ ok:true, settings });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.post('/api/admin/tarot/invites', checkAdmin, async (req, res) => {
+  try {
+    const code = makeTarotCode();
+    const payload = cleanTarotInviteBody(req.body || {});
+    const invite = await store.createTarotInvite({
+      ...payload,
+      codeHash:hashTarotCode(code),
+      codeSuffix:tarotCodeSuffix(code)
+    });
+    res.status(201).json({ ok:true, code, invite:safeTarotInvite(invite, { admin:true }) });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.delete('/api/admin/tarot/invites/:id', checkAdmin, async (req, res) => {
+  try {
+    const ok = await store.deleteTarotInvite(req.params.id);
+    if (!ok) return res.status(404).json({ error:'tarot_invite_not_found' });
+    res.json({ ok:true });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.put('/api/admin/tarot/submissions/:id', checkAdmin, async (req, res) => {
+  try {
+    const submission = await store.updateTarotSubmission(req.params.id, {
+      status:cleanText(req.body && req.body.status, 40) || 'received',
+      adminNote:cleanText(req.body && (req.body.adminNote || req.body.admin_note), 2000),
+      interpretation:cleanText(req.body && req.body.interpretation, 6000)
+    });
+    if (!submission) return res.status(404).json({ error:'tarot_submission_not_found' });
+    res.json({ ok:true, submission:safeTarotSubmission(submission) });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
+app.delete('/api/admin/tarot/submissions/:id', checkAdmin, async (req, res) => {
+  try {
+    const ok = await store.deleteTarotSubmission(req.params.id);
+    if (!ok) return res.status(404).json({ error:'tarot_submission_not_found' });
+    res.json({ ok:true });
+  } catch (error) {
+    sendTarotError(res, error);
+  }
+});
+
 app.get('/api/admin/ai-posting/config', checkAdmin, async (_req, res) => {
   try {
     const config = await getAiPostingConfig();
@@ -1791,7 +2205,7 @@ app.get('/terms', async (req, res) => {
 
 app.get('/robots.txt', (req, res) => {
   const origin = siteOrigin(req);
-  res.type('text/plain').send(`User-agent: *\nDisallow: /api/\nDisallow: /run/\nDisallow: /asset/\nDisallow: /preview.html\nDisallow: /*?admin=1\nAllow: /ads.txt\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
+  res.type('text/plain').send(`User-agent: *\nDisallow: /api/\nDisallow: /run/\nDisallow: /asset/\nDisallow: /preview.html\nDisallow: /*?admin=\nAllow: /ads.txt\nAllow: /\nSitemap: ${origin}/sitemap.xml\n`);
 });
 
 app.get('/ads.txt', (req, res) => {
@@ -1872,6 +2286,10 @@ app.get('/run/:id', async (req, res) => {
     }
 
     if (isPostArtifact(artifact)) {
+      return res.redirect(302, `/project/${encodeURIComponent(String(artifact.id))}`);
+    }
+
+    if (hasTarotEntryMeta(artifact)) {
       return res.redirect(302, `/project/${encodeURIComponent(String(artifact.id))}`);
     }
 

@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>ARCANA Tarot Entry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Noto+Serif+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#08080d;
+  --panel:#11131a;
+  --panel2:#17151b;
+  --line:rgba(220,188,121,.18);
+  --line2:rgba(241,226,191,.1);
+  --gold:#d9b86f;
+  --gold2:#f1dfad;
+  --text:#f4ead8;
+  --muted:#a99c89;
+  --dim:#766e63;
+  --bad:#efb5a8;
+  --ok:#a9dccb;
+  --ink:#06070a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Noto Serif KR',serif;letter-spacing:0;overflow-x:hidden}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-2;
+  background:
+    linear-gradient(180deg,rgba(7,8,12,.2),rgba(7,8,12,.92)),
+    url('assets/hero-table-v2.webp') center/cover no-repeat;
+  filter:saturate(.86) brightness(.82);
+}
+body::after{
+  content:"";
+  position:fixed;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  background:
+    radial-gradient(circle at 20% 20%,rgba(217,184,111,.12),transparent 28%),
+    radial-gradient(circle at 80% 16%,rgba(125,95,178,.12),transparent 30%),
+    linear-gradient(90deg,rgba(0,0,0,.48),transparent 35%,rgba(0,0,0,.4));
+}
+button,input,textarea,select{font:inherit}
+button{cursor:pointer}
+.shell{width:min(1080px,calc(100vw - 28px));margin:0 auto;padding:24px 0 48px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:10px;color:var(--gold2);font-family:'Cinzel',serif;letter-spacing:4px;font-size:18px}
+.brand-mark{width:26px;height:38px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;background:rgba(217,184,111,.08)}
+.top-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.btn,.btn-main,.btn-ghost{
+  min-height:40px;
+  border-radius:8px;
+  padding:10px 14px;
+  border:1px solid var(--line);
+  color:var(--text);
+  background:rgba(255,255,255,.035);
+  transition:.18s ease;
+}
+.btn:hover,.btn-ghost:hover{border-color:rgba(217,184,111,.42);color:var(--gold2)}
+.btn-main{background:linear-gradient(135deg,#d2a957,#8d6a32);border-color:rgba(242,217,152,.52);color:#160f08;font-weight:700;box-shadow:0 14px 32px rgba(189,135,50,.24)}
+.btn-main:hover{filter:brightness(1.08)}
+.btn-ghost{background:transparent}
+.hero{min-height:420px;display:grid;align-items:end;padding:70px 0 42px}
+.hero-inner{width:min(720px,100%)}
+.kicker{font-family:'Cinzel',serif;color:var(--gold);font-size:11px;letter-spacing:3px;margin-bottom:10px}
+h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;letter-spacing:7px;color:var(--gold2);font-weight:500}
+.lead{margin-top:16px;color:var(--muted);line-height:1.85;font-size:15px;max-width:620px}
+.notice-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.pill{border:1px solid var(--line);border-radius:999px;padding:6px 10px;color:var(--muted);font-size:12px;background:rgba(0,0,0,.2)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:14px;align-items:start}
+.public-layout{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:stretch}
+.panel{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:linear-gradient(145deg,rgba(20,21,27,.94),rgba(9,10,15,.94));
+  box-shadow:0 18px 58px rgba(0,0,0,.34);
+  padding:20px;
+}
+.panel + .panel{margin-top:12px}
+.panel h2{font-size:24px;color:var(--gold2);line-height:1.35}
+.panel h3{font-size:17px;color:var(--gold2);line-height:1.45;margin-bottom:8px}
+.panel p{color:var(--muted);line-height:1.8;font-size:13px}
+.form-grid{display:grid;gap:12px;margin-top:16px}
+.field{display:grid;gap:7px}
+.field label{font-size:12px;color:var(--gold);letter-spacing:.4px}
+.field input,.field textarea,.field select{
+  width:100%;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.045);
+  color:var(--text);
+  padding:12px;
+  outline:none;
+}
+.field textarea{min-height:92px;resize:vertical}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:rgba(217,184,111,.5);box-shadow:0 0 0 2px rgba(217,184,111,.08)}
+.checklist{display:grid;gap:9px;margin-top:14px}
+.checkline{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;color:var(--muted);font-size:13px;line-height:1.65}
+.checkline input{width:16px;height:16px;margin-top:3px;accent-color:#c69d4d}
+.status{min-height:22px;margin-top:12px;color:var(--gold2);font-size:13px;line-height:1.7}
+.status.bad{color:var(--bad)}
+.status.ok{color:var(--ok)}
+.steps{display:grid;gap:9px}
+.step{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
+.step strong{display:block;color:var(--gold2);font-size:13px;margin-bottom:4px}
+.step span{color:var(--muted);font-size:12px;line-height:1.6}
+.hidden{display:none!important}
+.deck-stage{margin-top:16px}
+.slot-line{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.slot{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font-size:12px;background:rgba(0,0,0,.22)}
+.slot.done{color:var(--ok);border-color:rgba(169,220,203,.35)}
+.deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px}
+.deck-card{
+  min-height:92px;
+  border:1px solid rgba(217,184,111,.24);
+  border-radius:8px;
+  background:
+    linear-gradient(180deg,rgba(8,9,13,.25),rgba(8,9,13,.35)),
+    url('assets/card-back-premium.png') center/cover no-repeat;
+  box-shadow:0 8px 22px rgba(0,0,0,.26);
+  transition:.18s ease;
+}
+.deck-card:hover{transform:translateY(-3px);border-color:rgba(217,184,111,.55)}
+.deck-card:disabled{opacity:.35;transform:none;cursor:not-allowed}
+.result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-top:16px}
+.result-card{
+  min-height:214px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  padding:13px;
+  background:linear-gradient(180deg,rgba(24,24,30,.95),rgba(11,12,17,.95));
+}
+.card-face{
+  height:128px;
+  display:grid;
+  place-items:center;
+  border-radius:8px;
+  border:1px solid rgba(241,226,191,.12);
+  background:radial-gradient(circle at 50% 20%,rgba(217,184,111,.18),rgba(255,255,255,.03));
+  color:var(--gold2);
+  font-size:42px;
+  margin-bottom:10px;
+}
+.result-card small{display:block;color:var(--gold);font-size:11px;margin-bottom:5px}
+.result-card strong{display:block;color:var(--text);font-size:15px;line-height:1.45}
+.result-card span{display:block;color:var(--muted);font-size:12px;margin-top:5px;line-height:1.55}
+.admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.admin-list{display:grid;gap:9px;margin-top:14px}
+.admin-item{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
+.admin-item strong{display:block;color:var(--gold2);margin-bottom:5px}
+.admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.admin-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.admin-detail{display:grid;gap:12px;margin-top:14px}
+.admin-detail textarea{min-height:110px}
+.danger{border-color:rgba(239,181,168,.36);color:#ffd7d0}
+.footer{margin-top:28px;text-align:center;color:var(--dim);font-size:11px;line-height:1.7}
+.modal[hidden]{display:none}
+.modal{position:fixed;inset:0;z-index:20;display:grid;place-items:center;padding:18px;background:rgba(3,4,7,.72);backdrop-filter:blur(8px)}
+.modal-box{width:min(680px,100%);max-height:min(86vh,760px);overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:20px}
+.public-thumb{
+  min-height:320px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:
+    linear-gradient(180deg,rgba(8,9,13,.12),rgba(8,9,13,.78)),
+    url('assets/reading-cloth-v2.webp') center/cover no-repeat;
+}
+@media(max-width:860px){
+  .layout,.public-layout{grid-template-columns:1fr}
+  .hero{min-height:340px;padding-top:36px}
+  .admin-grid{grid-template-columns:1fr}
+  .admin-filters{grid-template-columns:1fr}
+}
+@media(max-width:520px){
+  .shell{width:min(100vw - 22px,1080px);padding-top:16px}
+  .topbar{align-items:flex-start;flex-direction:column}
+  h1{letter-spacing:4px}
+  .panel{padding:16px}
+  .deck-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
+  .deck-card{min-height:78px}
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">✦</span><span>ARCANA</span></div>
+    <div class="top-actions">
+      <button class="btn-ghost" id="nav-public" type="button" onclick="goPublic()">공개 안내</button>
+      <button class="btn-ghost" id="nav-entry" type="button" onclick="goEntry()">참여 페이지</button>
+      <button class="btn-ghost hidden" id="nav-admin" type="button" onclick="toggleAdmin()">관리</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="kicker">PRIVATE TAROT ENTRY</div>
+      <h1>ARCANA</h1>
+      <p class="lead">참여코드를 받은 사람만 카드를 뽑고 접수할 수 있는 페이지입니다. 타로는 미래를 확정하는 도구가 아니라, 질문을 정리해보는 참고용 콘텐츠입니다.</p>
+      <div class="notice-row">
+        <span class="pill">참여코드 1회 사용</span>
+        <span class="pill">30일 후 삭제 기준</span>
+        <span class="pill">최소 정보 접수</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="public-view" class="public-layout hidden">
+    <section class="panel">
+      <div class="kicker">PROJECT</div>
+      <h2 id="public-page-title">타로 리딩 접수</h2>
+      <p id="public-page-desc">참여코드를 받은 분만 접수할 수 있습니다.</p>
+      <div class="steps" style="margin-top:16px">
+        <div class="step"><strong>안내</strong><span id="public-page-notice">개인 리딩 접수를 위한 페이지입니다. 타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.</span></div>
+        <div class="step"><strong>주의</strong><span>타로는 확정적인 미래 예측이 아니라 질문을 정리해보는 참고용 콘텐츠입니다.</span></div>
+        <div class="step"><strong>접수</strong><span>외부 접수 사이트로 이동하거나, 참여코드를 받은 경우 바로 입력 페이지로 이동할 수 있습니다.</span></div>
+      </div>
+      <div class="admin-actions">
+        <button class="btn-main hidden" id="public-external-button" type="button" onclick="openExternalSite()">타로 접수 사이트 열기</button>
+        <button class="btn" id="public-entry-button" type="button" onclick="openEntryPage()">참여코드 입력하기</button>
+      </div>
+    </section>
+    <aside class="public-thumb" aria-label="타로 리딩 접수 대표 이미지"></aside>
+  </section>
+
+  <section id="participant-view" class="layout">
+    <div>
+      <section class="panel" id="entry-panel">
+        <div class="kicker">ENTRY</div>
+        <h2>참여코드를 입력해 주세요.</h2>
+        <p>코드가 확인되면 리딩 정보와 동의 항목을 확인한 뒤 카드를 뽑을 수 있습니다.</p>
+        <div class="form-grid">
+          <div class="field">
+            <label for="entry-code">참여코드</label>
+            <input id="entry-code" autocomplete="one-time-code" placeholder="예: TARO-7K2M-9A4P-Z8Q2">
+          </div>
+          <button class="btn-main" type="button" onclick="verifyInvite()">코드 확인</button>
+          <p class="status" id="entry-status"></p>
+        </div>
+      </section>
+
+      <section class="panel hidden" id="consent-panel">
+        <div class="kicker">CONSENT</div>
+        <h2 id="reading-title">리딩 접수</h2>
+        <p id="reading-summary"></p>
+        <div class="form-grid" id="participant-fields"></div>
+        <div class="checklist">
+          <label class="checkline"><input type="checkbox" id="agree-fun"><span>타로는 진지한 미래 예측이 아니라 참고용·오락용 콘텐츠임을 확인했습니다.</span></label>
+          <label class="checkline"><input type="checkbox" id="agree-privacy"><span>닉네임, 제목, 질문, 선택한 카드 정보만 접수 확인 목적으로 저장되며 30일 후 삭제되는 것에 동의합니다.</span></label>
+          <label class="checkline"><input type="checkbox" id="agree-sensitive"><span>실명, 연락처, 주소, 계좌번호 같은 개인정보는 적지 않겠습니다.</span></label>
+          <label class="checkline"><input type="checkbox" id="agree-once"><span>참여코드는 기본 1회용이며, 접수 후 같은 코드로 다시 제출할 수 없음을 확인했습니다.</span></label>
+        </div>
+        <div class="admin-actions">
+          <button class="btn-main" type="button" onclick="beginDraw()">동의하고 카드 뽑기</button>
+          <button class="btn" type="button" onclick="resetParticipant()">처음으로</button>
+        </div>
+        <p class="status" id="consent-status"></p>
+      </section>
+
+      <section class="panel hidden" id="draw-panel">
+        <div class="kicker">DRAW</div>
+        <h2>카드를 선택해 주세요.</h2>
+        <p id="draw-guide"></p>
+        <div class="deck-stage">
+          <div class="slot-line" id="slot-line"></div>
+          <div class="deck-grid" id="deck-grid"></div>
+        </div>
+        <p class="status" id="draw-status"></p>
+      </section>
+
+      <section class="panel hidden" id="result-panel">
+        <div class="kicker">RECEIVED</div>
+        <h2>카드가 접수되었습니다.</h2>
+        <p id="completion-message">해석이 준비되면 전달됩니다. 중요한 결정은 현실적인 정보와 함께 판단해 주세요.</p>
+        <div class="result-grid" id="result-grid"></div>
+        <div class="admin-actions">
+          <button class="btn-main" id="save-image-button" type="button" onclick="downloadResultImage()">결과 이미지 저장</button>
+          <button class="btn" type="button" onclick="resetParticipant()">새 코드 입력</button>
+        </div>
+        <p class="status ok" id="result-status"></p>
+      </section>
+    </div>
+
+    <aside>
+      <section class="panel">
+        <h3>이 페이지 기준</h3>
+        <div class="steps">
+          <div class="step"><strong>참여코드</strong><span>관리자가 발급한 코드가 있어야 접수할 수 있습니다.</span></div>
+          <div class="step"><strong>동의</strong><span>재미·참고용 안내와 30일 삭제 기준에 동의한 뒤 진행합니다.</span></div>
+          <div class="step"><strong>보관</strong><span>실명이나 연락처 없이 접수하고, 기록은 30일 기준으로 정리합니다.</span></div>
+        </div>
+      </section>
+    </aside>
+  </section>
+
+  <section id="admin-view" class="hidden">
+    <section class="panel">
+      <div class="kicker">ADMIN</div>
+      <h2>타로 리딩 관리</h2>
+      <p>참여코드 발급과 접수 기록을 관리합니다.</p>
+      <div class="form-grid hidden" id="admin-login-box">
+        <div class="field">
+          <label for="admin-password">관리자 비밀번호</label>
+          <input id="admin-password" type="password" autocomplete="current-password">
+        </div>
+        <div class="admin-actions">
+          <button class="btn-main" type="button" onclick="loginAdmin()">로그인</button>
+        </div>
+        <p class="status" id="admin-login-status"></p>
+      </div>
+    </section>
+    <section class="admin-grid">
+      <div class="panel">
+        <h3>참여코드 만들기</h3>
+        <div class="form-grid">
+          <div class="field"><label>리딩 제목</label><input id="admin-title" value="개인 타로 리딩"></div>
+          <div class="field"><label>참여코드 라벨</label><input id="admin-label" placeholder="예: 6월 개인 리딩"></div>
+          <div class="field"><label>내부 메모</label><textarea id="admin-internal-note" placeholder="관리자만 보는 메모"></textarea></div>
+          <div class="field"><label>카드 장수</label><select id="admin-count" onchange="syncSpreadTypes()"><option>1</option><option selected>3</option><option>5</option><option>7</option><option>9</option><option>10</option></select></div>
+          <div class="field"><label>배열</label><select id="admin-spread"></select></div>
+          <div class="field"><label>만료일</label><input id="admin-expires" type="date"></div>
+          <div class="field"><label>카드 선택 방식</label><select id="admin-draw-mode"><option value="manual_select">직접 선택</option><option value="shuffle_select">섞기 후 선택</option><option value="auto">자동 뽑기</option></select></div>
+          <label class="checkline"><input type="checkbox" id="admin-reversed" checked><span>정방향/역방향 사용</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-show-names" checked><span>참여자에게 카드 이름 표시</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-show-orientation" checked><span>참여자에게 정/역방향 표시</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-allow-topic" checked><span>리딩 주제 선택 허용</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-result-image" checked><span>결과 이미지 저장 버튼 표시</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-reveal" checked><span>카드 뒤집기 연출 사용</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-question-image"><span>저장 이미지에 질문 포함</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-single" checked><span>참여코드 1회용</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-require-nickname" checked><span>닉네임 필수</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-require-title" checked><span>제목 필수</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-require-question" checked><span>질문 필수</span></label>
+          <div class="field"><label>접수 완료 문구</label><textarea id="admin-completion">카드가 접수되었습니다. 해석이 준비되면 전달됩니다.</textarea></div>
+          <button class="btn-main" type="button" onclick="createInvite()">코드 만들기</button>
+          <p class="status" id="admin-create-status"></p>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>공개 안내 관리</h3>
+        <div class="form-grid">
+          <div class="field"><label>공개 제목</label><input id="public-title" value="타로 리딩 접수"></div>
+          <div class="field"><label>공개 설명</label><textarea id="public-desc">참여코드를 받은 분만 접수할 수 있습니다.</textarea></div>
+          <div class="field"><label>안내 문구</label><textarea id="public-notice">실명이나 연락처 없이 닉네임과 질문만 남겨 주세요. 타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.</textarea></div>
+          <div class="field"><label>외부 사이트 버튼 이름</label><input id="public-button" value="타로 접수 사이트 열기"></div>
+          <div class="field"><label>외부 사이트 링크</label><input id="public-link" placeholder="예: https://example.com/tarot"></div>
+          <div class="field"><label>참여코드 버튼 이름</label><input id="public-entry-button-label" value="참여코드 입력하기"></div>
+          <label class="checkline"><input type="checkbox" id="public-visible" checked><span>공개</span></label>
+          <button class="btn" type="button" onclick="savePublicSettings()">안내 저장</button>
+          <p class="status" id="public-status"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-grid" style="margin-top:12px">
+      <div class="panel">
+        <h3>참여코드 목록</h3>
+        <div class="admin-list" id="invite-list"></div>
+      </div>
+      <div class="panel">
+        <h3>접수 결과</h3>
+        <div class="admin-filters">
+          <div class="field"><label>상태</label><select id="filter-status" onchange="renderAdmin()"><option value="">전체</option><option value="received">접수</option><option value="reading">해석 중</option><option value="completed">완료</option></select></div>
+          <div class="field"><label>주제</label><select id="filter-topic" onchange="renderAdmin()"><option value="">전체</option><option>연애</option><option>관계</option><option>진로</option><option>금전</option><option>가족</option><option>오늘의 흐름</option><option>자유질문</option></select></div>
+          <div class="field" style="grid-column:1/-1"><label>검색</label><input id="filter-search" placeholder="닉네임, 제목, 질문" oninput="renderAdmin()"></div>
+        </div>
+        <div class="admin-list" id="submission-list"></div>
+      </div>
+    </section>
+  </section>
+
+  <p class="footer">ARCANA Tarot Entry · 참여코드 전용 접수 페이지 · 실명/연락처 없이 최소 정보만 접수합니다.</p>
+</main>
+
+<div class="modal" id="confirm-modal" hidden>
+  <div class="modal-box">
+    <h3>완전 삭제</h3>
+    <p>이 기록은 서버에서 완전히 삭제됩니다. 되돌릴 수 없습니다.</p>
+    <div class="admin-actions">
+      <button class="btn danger" type="button" id="confirm-delete">삭제</button>
+      <button class="btn" type="button" onclick="closeDeleteModal()">취소</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="submission-modal" hidden>
+  <div class="modal-box">
+    <h3>접수 상세</h3>
+    <div class="admin-detail" id="submission-detail"></div>
+    <div class="admin-actions">
+      <button class="btn-main" type="button" onclick="saveSubmissionDetail()">저장</button>
+      <button class="btn" type="button" onclick="closeSubmissionDetail()">닫기</button>
+    </div>
+    <p class="status" id="submission-detail-status"></p>
+  </div>
+</div>
+
+<script src="admin-config.js"></script>
+<script>
+const STORE_KEYS = {
+  invites:'arcana_entry_invites_v1',
+  submissions:'arcana_entry_submissions_v1',
+  public:'arcana_entry_public_v1'
+};
+const ADMIN_ENTRY_CODE = String(globalThis.__ARCANA_ADMIN_ENTRY_CODE__ || '1220').trim() || '1220';
+
+const TOPICS = ['연애','관계','진로','금전','가족','오늘의 흐름','자유질문'];
+const SPREADS = {
+  1:[
+    { id:'one', label:'한 장 리딩', positions:['핵심'] },
+    { id:'today', label:'오늘의 흐름', positions:['오늘의 흐름'] },
+    { id:'advice', label:'질문 조언', positions:['조언'] }
+  ],
+  3:[
+    { id:'flow', label:'현재 / 흐름 / 조언', positions:['현재','흐름','조언'] },
+    { id:'past', label:'과거 / 현재 / 미래', positions:['과거','현재','미래'] },
+    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] }
+  ],
+  5:[
+    { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'] },
+    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] }
+  ],
+  7:[
+    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] }
+  ],
+  9:[
+    { id:'deep9', label:'전체 흐름형 9장 배열', positions:['현재','원인','겉으로 보이는 일','숨은 마음','흐름','변수','조언','가까운 결과','전체 결론'] },
+    { id:'relation9', label:'관계/상황 확장 리딩', positions:['나','상대','관계','장애물','기대','두려움','조언','가능성','결과'] }
+  ],
+  10:[
+    { id:'celtic', label:'켈틱크로스형 10장 배열', positions:['현재','도전','숨은 기반','과거','가능성','가까운 미래','나의 태도','환경','바람과 두려움','결과'] }
+  ]
+};
+
+const MAJOR = [
+  ['major_00','바보','The Fool','0','🌅'],['major_01','마법사','The Magician','I','⚡'],['major_02','여사제','The High Priestess','II','🌙'],['major_03','여황제','The Empress','III','🌿'],
+  ['major_04','황제','The Emperor','IV','♔'],['major_05','교황','The Hierophant','V','🕯'],['major_06','연인','The Lovers','VI','♡'],['major_07','전차','The Chariot','VII','✦'],
+  ['major_08','힘','Strength','VIII','∞'],['major_09','은둔자','The Hermit','IX','🕯'],['major_10','운명의 수레바퀴','Wheel of Fortune','X','◎'],['major_11','정의','Justice','XI','⚖'],
+  ['major_12','매달린 사람','The Hanged Man','XII','⌁'],['major_13','죽음','Death','XIII','✧'],['major_14','절제','Temperance','XIV','☽'],['major_15','악마','The Devil','XV','◆'],
+  ['major_16','탑','The Tower','XVI','♜'],['major_17','별','The Star','XVII','✶'],['major_18','달','The Moon','XVIII','☾'],['major_19','태양','The Sun','XIX','☀'],
+  ['major_20','심판','Judgement','XX','☊'],['major_21','세계','The World','XXI','◌']
+];
+const SUITS = [
+  { key:'wands', ko:'완드', en:'Wands', icon:'🔥' },
+  { key:'cups', ko:'컵', en:'Cups', icon:'💧' },
+  { key:'swords', ko:'소드', en:'Swords', icon:'⚔' },
+  { key:'pentacles', ko:'펜타클', en:'Pentacles', icon:'✦' }
+];
+const RANKS = [
+  ['01','에이스','Ace'],['02','2','Two'],['03','3','Three'],['04','4','Four'],['05','5','Five'],['06','6','Six'],['07','7','Seven'],['08','8','Eight'],['09','9','Nine'],['10','10','Ten'],['11','시종','Page'],['12','기사','Knight'],['13','여왕','Queen'],['14','왕','King']
+];
+const TAROT_CARDS = [
+  ...MAJOR.map(([id,nameKo,nameEn,number,symbol]) => ({ id, nameKo, nameEn, arcana:'major', suit:'대아르카나', number, symbol })),
+  ...SUITS.flatMap(suit => RANKS.map(([num,rankKo,rankEn]) => ({
+    id:`minor_${suit.key}_${num}`,
+    nameKo:`${suit.ko} ${rankKo}`,
+    nameEn:`${rankEn} of ${suit.en}`,
+    arcana:'minor',
+    suit:suit.ko,
+    number:num,
+    symbol:suit.icon
+  })))
+];
+
+let activeInvite = null;
+let activeCode = '';
+let participantDraft = null;
+let drawState = null;
+let publicExternalUrl = '';
+let activeSubmissionId = '';
+const plainCodes = new Map();
+const INPUT_LIMITS = {
+  participantName:24,
+  title:50,
+  topic:24,
+  question:400,
+  adminLabel:80,
+  readingTitle:80,
+  publicText:500
+};
+const ERROR_MESSAGES = {
+  invalid_invite_code:'확인되지 않은 참여코드입니다.',
+  expired_invite_code:'만료된 참여코드입니다.',
+  used_invite_code:'이미 사용된 참여코드입니다.',
+  invalid_drawn_cards:'카드 접수 정보가 올바르지 않습니다.',
+  duplicate_drawn_cards:'같은 카드가 중복 선택되었습니다.',
+  restricted_personal_info:'연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.',
+  sensitive_personal_info_not_allowed:'연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.',
+  tarot_invite_not_found:'참여코드를 찾을 수 없습니다.',
+  tarot_submission_not_found:'접수 기록을 찾을 수 없습니다.',
+  Unauthorized:'관리자 로그인이 필요합니다.',
+  'Wrong password':'관리자 비밀번호가 맞지 않습니다.'
+};
+
+function useServerApi(){
+  return location.protocol !== 'file:' && !new URLSearchParams(location.search).has('local');
+}
+function adminToken(){
+  try {
+    return sessionStorage.getItem('erbello-admin-token') || localStorage.getItem('erbello-admin-token') || '';
+  } catch(e) {
+    return '';
+  }
+}
+function adminHeaders(){
+  const token = adminToken();
+  return token ? { 'x-admin-token':token } : {};
+}
+function storeAdminToken(token){
+  try {
+    sessionStorage.setItem('erbello-admin-token', token);
+  } catch(e) {
+    try { localStorage.setItem('erbello-admin-token', token); } catch(_) {}
+  }
+}
+function updateAdminLoginBox(){
+  const box = document.getElementById('admin-login-box');
+  if (!box) return;
+  box.classList.toggle('hidden', !useServerApi() || Boolean(adminToken()));
+}
+function errorMessage(error, fallback='처리하지 못했습니다. 잠시 후 다시 시도해 주세요.'){
+  const key = error && error.message ? error.message : String(error || '');
+  return ERROR_MESSAGES[key] || fallback;
+}
+async function apiJson(path, options={}){
+  const headers = { ...(options.headers || {}) };
+  if (options.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  const response = await fetch(path, { ...options, headers });
+  let data = null;
+  try { data = await response.json(); } catch(e) { data = null; }
+  if (!response.ok) throw new Error((data && data.error) || `HTTP_${response.status}`);
+  return data;
+}
+async function loadRemotePublicSettings(){
+  if (!useServerApi()) return false;
+  const data = await apiJson('/api/tarot/public-settings');
+  if (data && data.settings) writeJson(STORE_KEYS.public, data.settings);
+  return true;
+}
+async function loadRemoteAdminData(){
+  if (!useServerApi() || !adminToken()) return false;
+  const data = await apiJson('/api/admin/tarot', { headers:adminHeaders() });
+  if (data.settings) writeJson(STORE_KEYS.public, data.settings);
+  setInvites(Array.isArray(data.invites) ? data.invites : []);
+  setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
+  return true;
+}
+async function loginAdmin(){
+  const password = document.getElementById('admin-password')?.value || '';
+  if (!password) { setStatus('admin-login-status','비밀번호를 입력해 주세요.','bad'); return; }
+  try {
+    await apiJson('/api/admin/verify', {
+      method:'POST',
+      body:JSON.stringify({ password })
+    });
+    storeAdminToken(password);
+    setStatus('admin-login-status','로그인했습니다.','ok');
+    updateAdminLoginBox();
+    await showAdmin();
+  } catch(error) {
+    setStatus('admin-login-status', errorMessage(error, '로그인하지 못했습니다.'), 'bad');
+  }
+}
+
+function readJson(key, fallback){
+  try { return JSON.parse(localStorage.getItem(key) || JSON.stringify(fallback)); } catch(e) { return fallback; }
+}
+function writeJson(key, value){ localStorage.setItem(key, JSON.stringify(value)); }
+function now(){ return Date.now(); }
+function days(n){ return n * 24 * 60 * 60 * 1000; }
+function escapeHtml(value){
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function normalizeText(value, max=200){
+  return String(value || '')
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+function normalizeLongText(value, max=2000){
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, ' ')
+    .trim()
+    .slice(0, max);
+}
+function normalizeCode(value){
+  return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
+}
+function hasRestrictedPersonalInfo(value){
+  const text = String(value || '');
+  return /(010[-.\s]?\d{3,4}[-.\s]?\d{4}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|주민등록|주민번호|여권번호|운전면허|계좌번호|카카오톡\s*ID|카톡\s*ID|인스타\s*ID|주소\s*:)/i.test(text);
+}
+function truncateText(value, max=140){
+  const text = normalizeText(value, max + 1);
+  return text.length > max ? `${text.slice(0, max)}...` : text;
+}
+function settingValue(settings, camelKey, snakeKey, fallback){
+  if (!settings) return fallback;
+  if (settings[camelKey] !== undefined) return settings[camelKey];
+  if (settings[snakeKey] !== undefined) return settings[snakeKey];
+  return fallback;
+}
+function cardKo(card){ return card?.nameKo || card?.name_ko || card?.cardId || card?.card_id || '선택된 카드'; }
+function cardEn(card){ return card?.nameEn || card?.name_en || ''; }
+function cardSymbol(card){ return card?.symbol || '✦'; }
+function dateText(value){
+  if (!value) return '-';
+  const d = new Date(value);
+  return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+}
+async function hashText(value){
+  const text = normalizeCode(value);
+  if (globalThis.crypto?.subtle) {
+    const data = new TextEncoder().encode(`arcana-entry:${text}`);
+    const digest = await globalThis.crypto.subtle.digest('SHA-256', data);
+    return [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2,'0')).join('');
+  }
+  let h = 2166136261;
+  for (let i=0;i<text.length;i++) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return `fallback_${(h >>> 0).toString(16)}`;
+}
+function codeSuffix(code){ return normalizeCode(code).slice(-4); }
+function randomChars(length){
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = new Uint8Array(length);
+  if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+  else for (let i=0;i<length;i++) bytes[i] = Math.floor(Math.random() * 256);
+  return [...bytes].map(byte => alphabet[byte % alphabet.length]).join('');
+}
+function makeCode(){
+  return `TARO-${randomChars(4)}-${randomChars(4)}-${randomChars(4)}`;
+}
+function purgeExpired(){
+  const submissions = readJson(STORE_KEYS.submissions, []);
+  writeJson(STORE_KEYS.submissions, submissions.filter(item => !item.deleteAt || item.deleteAt > now()));
+}
+function getInvites(){ return readJson(STORE_KEYS.invites, []); }
+function setInvites(value){ writeJson(STORE_KEYS.invites, value); }
+function getSubmissions(){ purgeExpired(); return readJson(STORE_KEYS.submissions, []); }
+function setSubmissions(value){ writeJson(STORE_KEYS.submissions, value); }
+function currentUrlWithCode(code=''){
+  const url = new URL(location.href);
+  url.searchParams.delete('admin');
+  url.searchParams.delete('public');
+  url.searchParams.set('entry','1');
+  if (code) url.searchParams.set('code', code);
+  return url.href;
+}
+function baseEntryUrl(){
+  const url = new URL(location.href);
+  url.searchParams.delete('admin');
+  url.searchParams.delete('public');
+  url.searchParams.set('entry','1');
+  return url.href;
+}
+function goPublic(){
+  const url = new URL(location.href);
+  url.search = '?public=1';
+  location.href = url.href;
+}
+function goEntry(){
+  location.href = baseEntryUrl();
+}
+function toggleAdmin(){
+  const url = new URL(location.href);
+  if (url.searchParams.get('admin') === ADMIN_ENTRY_CODE) url.searchParams.delete('admin');
+  else url.searchParams.set('admin', ADMIN_ENTRY_CODE);
+  location.href = url.href;
+}
+function setMode(mode){
+  document.getElementById('public-view').classList.toggle('hidden', mode !== 'public');
+  document.getElementById('participant-view').classList.toggle('hidden', mode !== 'participant');
+  document.getElementById('admin-view').classList.toggle('hidden', mode !== 'admin');
+  document.getElementById('nav-public').classList.toggle('hidden', mode === 'public');
+  document.getElementById('nav-entry').classList.toggle('hidden', mode === 'participant');
+  document.getElementById('nav-admin').classList.toggle('hidden', mode !== 'admin');
+}
+function showParticipant(){
+  setMode('participant');
+}
+async function showAdmin(){
+  setMode('admin');
+  updateAdminLoginBox();
+  syncSpreadTypes();
+  try {
+    await loadRemoteAdminData();
+  } catch(error) {
+    setStatus('admin-create-status', errorMessage(error, '관리 데이터를 불러오지 못했습니다.'), 'bad');
+  }
+  loadPublicSettingsIntoForm();
+  renderAdmin();
+}
+function showPublic(){
+  setMode('public');
+  renderPublicPage();
+}
+function setStatus(id, message, type=''){
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `status ${type}`;
+  el.textContent = message || '';
+}
+function getSpread(invite){
+  if (Array.isArray(invite?.spreadPositions) && invite.spreadPositions.length) {
+    const list = SPREADS[invite.spreadCount] || [];
+    const known = list.find(item => item.id === invite.spreadType);
+    return { id:invite.spreadType || known?.id || 'custom', label:known?.label || `${invite.spreadCount || invite.spreadPositions.length}장 배열`, positions:invite.spreadPositions };
+  }
+  const list = SPREADS[invite.spreadCount] || SPREADS[3];
+  return list.find(item => item.id === invite.spreadType) || list[0];
+}
+function settingsFromAdmin(){
+  const count = Number(document.getElementById('admin-count').value || 3);
+  return {
+    allowReversed:document.getElementById('admin-reversed').checked,
+    allow_reversed:document.getElementById('admin-reversed').checked,
+    showCardsToParticipant:document.getElementById('admin-show-names').checked,
+    show_cards_to_participant:document.getElementById('admin-show-names').checked,
+    showOrientationToParticipant:document.getElementById('admin-show-orientation').checked,
+    show_orientation_to_participant:document.getElementById('admin-show-orientation').checked,
+    singleUse:document.getElementById('admin-single').checked,
+    single_use:document.getElementById('admin-single').checked,
+    requireNickname:document.getElementById('admin-require-nickname').checked,
+    require_nickname:document.getElementById('admin-require-nickname').checked,
+    requireTitle:document.getElementById('admin-require-title').checked,
+    require_title:document.getElementById('admin-require-title').checked,
+    requireQuestion:document.getElementById('admin-require-question').checked,
+    require_question:document.getElementById('admin-require-question').checked,
+    allowTopicSelect:document.getElementById('admin-allow-topic').checked,
+    allow_topic_select:document.getElementById('admin-allow-topic').checked,
+    enableResultImage:document.getElementById('admin-result-image').checked,
+    enable_result_image:document.getElementById('admin-result-image').checked,
+    includeQuestionInImage:document.getElementById('admin-question-image').checked,
+    include_question_in_image:document.getElementById('admin-question-image').checked,
+    drawMode:document.getElementById('admin-draw-mode').value,
+    draw_mode:document.getElementById('admin-draw-mode').value,
+    revealMode:document.getElementById('admin-reveal').checked ? 'flip' : 'static',
+    reveal_mode:document.getElementById('admin-reveal').checked ? 'flip' : 'static',
+    completionMessage:document.getElementById('admin-completion').value.trim() || '카드가 접수되었습니다.',
+    completion_message:document.getElementById('admin-completion').value.trim() || '카드가 접수되었습니다.',
+    spreadCount:count
+  };
+}
+function syncSpreadTypes(){
+  const count = Number(document.getElementById('admin-count')?.value || 3);
+  const select = document.getElementById('admin-spread');
+  if (!select) return;
+  select.innerHTML = (SPREADS[count] || SPREADS[3]).map(spread => `<option value="${spread.id}">${escapeHtml(spread.label)}</option>`).join('');
+}
+async function createInvite(){
+  const code = makeCode();
+  const count = Number(document.getElementById('admin-count').value || 3);
+  const spread = (SPREADS[count] || SPREADS[3]).find(item => item.id === document.getElementById('admin-spread').value) || SPREADS[count][0];
+  const expires = document.getElementById('admin-expires').value;
+  const payload = {
+    label:normalizeText(document.getElementById('admin-label').value, INPUT_LIMITS.adminLabel),
+    internalNote:normalizeText(document.getElementById('admin-internal-note').value, 500),
+    readingTitle:normalizeText(document.getElementById('admin-title').value, INPUT_LIMITS.readingTitle) || '개인 타로 리딩',
+    spreadCount:count,
+    spreadType:spread.id,
+    settings:settingsFromAdmin(),
+    expiresAt:expires ? new Date(`${expires}T23:59:59`).getTime() : null
+  };
+  if (useServerApi() && !adminToken()) {
+    setStatus('admin-create-status','관리자 로그인 후 저장할 수 있습니다.','bad');
+    updateAdminLoginBox();
+    return;
+  }
+  if (useServerApi() && adminToken()) {
+    try {
+      const data = await apiJson('/api/admin/tarot/invites', {
+        method:'POST',
+        headers:adminHeaders(),
+        body:JSON.stringify(payload)
+      });
+      const invite = data.invite;
+      const issuedCode = data.code;
+      setInvites([invite, ...getInvites().filter(item => item.id !== invite.id)]);
+      plainCodes.set(invite.id, issuedCode);
+      setStatus('admin-create-status', `생성됨: ${issuedCode} · 코드는 지금 한 번만 보여요.`, 'ok');
+      navigator.clipboard?.writeText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${issuedCode}\n참여 링크: ${baseEntryUrl()}`);
+      renderAdmin();
+      return;
+    } catch(error) {
+      setStatus('admin-create-status', errorMessage(error, '코드를 만들지 못했습니다.'), 'bad');
+      return;
+    }
+  }
+  const invite = {
+    id:`invite_${now()}_${Math.random().toString(36).slice(2,7)}`,
+    codeHash:await hashText(code),
+    codeSuffix:codeSuffix(code),
+    label:payload.label,
+    internalNote:payload.internalNote,
+    readingTitle:payload.readingTitle,
+    spreadCount:payload.spreadCount,
+    spreadType:spread.id,
+    spreadPositions:spread.positions,
+    settings:payload.settings,
+    status:'open',
+    expiresAt:payload.expiresAt,
+    usedAt:null,
+    createdAt:now(),
+    updatedAt:now()
+  };
+  const invites = [invite, ...getInvites()];
+  setInvites(invites);
+  plainCodes.set(invite.id, code);
+  const link = baseEntryUrl();
+  setStatus('admin-create-status', `생성됨: ${code} · 원본 코드는 저장하지 않습니다.`, 'ok');
+  navigator.clipboard?.writeText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${link}`);
+  renderAdmin();
+}
+async function savePublicSettings(){
+  const value = {
+    title:normalizeText(document.getElementById('public-title').value, 80),
+    description:normalizeText(document.getElementById('public-desc').value, INPUT_LIMITS.publicText),
+    notice:normalizeText(document.getElementById('public-notice').value, INPUT_LIMITS.publicText),
+    buttonLabel:normalizeText(document.getElementById('public-button').value, 40),
+    buttonUrl:normalizeText(document.getElementById('public-link').value, 300),
+    entryButtonLabel:normalizeText(document.getElementById('public-entry-button-label').value, 40) || '참여코드 입력하기',
+    isPublic:document.getElementById('public-visible').checked,
+    updatedAt:now()
+  };
+  if (useServerApi() && !adminToken()) {
+    setStatus('public-status','관리자 로그인 후 저장할 수 있습니다.','bad');
+    updateAdminLoginBox();
+    return;
+  }
+  if (useServerApi() && adminToken()) {
+    try {
+      const data = await apiJson('/api/admin/tarot/public-settings', {
+        method:'PUT',
+        headers:adminHeaders(),
+        body:JSON.stringify(value)
+      });
+      writeJson(STORE_KEYS.public, data.settings || value);
+      setStatus('public-status','저장했습니다.','ok');
+      renderPublicPage();
+      return;
+    } catch(error) {
+      setStatus('public-status', errorMessage(error, '안내를 저장하지 못했습니다.'), 'bad');
+      return;
+    }
+  }
+  writeJson(STORE_KEYS.public, value);
+  setStatus('public-status','저장했습니다.','ok');
+  renderPublicPage();
+}
+function defaultPublicSettings(){
+  return {
+    title:'타로 리딩 접수',
+    description:'참여코드를 받은 분만 접수할 수 있습니다.',
+    notice:'실명이나 연락처 없이 닉네임과 질문만 남겨 주세요. 타로 리딩은 자기 이해와 선택을 돕는 참고용 콘텐츠입니다.',
+    buttonLabel:'타로 접수 사이트 열기',
+    buttonUrl:'',
+    entryButtonLabel:'참여코드 입력하기',
+    isPublic:true
+  };
+}
+function getPublicSettings(){
+  return { ...defaultPublicSettings(), ...readJson(STORE_KEYS.public, {}) };
+}
+function loadPublicSettingsIntoForm(){
+  const value = getPublicSettings();
+  document.getElementById('public-title').value = value.title || '';
+  document.getElementById('public-desc').value = value.description || '';
+  document.getElementById('public-notice').value = value.notice || '';
+  document.getElementById('public-button').value = value.buttonLabel || '타로 접수 사이트 열기';
+  document.getElementById('public-link').value = value.buttonUrl || '';
+  document.getElementById('public-entry-button-label').value = value.entryButtonLabel || '참여코드 입력하기';
+  document.getElementById('public-visible').checked = value.isPublic !== false;
+}
+function renderPublicPage(){
+  const value = getPublicSettings();
+  publicExternalUrl = value.buttonUrl || '';
+  document.getElementById('public-page-title').textContent = value.isPublic === false ? '비공개 안내' : (value.title || '타로 리딩 접수');
+  document.getElementById('public-page-desc').textContent = value.isPublic === false ? '현재 공개되지 않은 프로젝트입니다.' : (value.description || '');
+  document.getElementById('public-page-notice').textContent = value.isPublic === false ? '관리자 공개 설정을 확인해 주세요.' : (value.notice || '');
+  const externalButton = document.getElementById('public-external-button');
+  const entryButton = document.getElementById('public-entry-button');
+  externalButton.textContent = value.buttonLabel || '타로 접수 사이트 열기';
+  externalButton.classList.toggle('hidden', value.isPublic === false || !publicExternalUrl);
+  entryButton.textContent = value.entryButtonLabel || '참여코드 입력하기';
+  entryButton.classList.toggle('hidden', value.isPublic === false);
+}
+function openExternalSite(){
+  if (!publicExternalUrl) return;
+  location.href = publicExternalUrl;
+}
+function openEntryPage(){
+  const url = new URL(location.href);
+  url.searchParams.delete('admin');
+  url.searchParams.delete('public');
+  url.searchParams.set('entry','1');
+  location.href = url.href;
+}
+function renderAdmin(){
+  const invites = getInvites();
+  document.getElementById('invite-list').innerHTML = invites.length ? invites.map(invite => {
+    const disabled = invite.status !== 'open' ? ' · 사용됨' : '';
+    const hasPlainCode = plainCodes.has(invite.id);
+    return `<div class="admin-item">
+      <strong>${escapeHtml(invite.label || invite.readingTitle)} <span style="color:var(--muted)">...${escapeHtml(invite.codeSuffix)}</span></strong>
+      <p>${invite.spreadCount}장 · ${escapeHtml(getSpread(invite).label)}${disabled}${invite.expiresAt ? ` · 만료 ${dateText(invite.expiresAt)}` : ''}</p>
+      ${invite.internalNote ? `<p>${escapeHtml(truncateText(invite.internalNote, 120))}</p>` : ''}
+      <div class="admin-actions">
+        <button class="btn" type="button" onclick="copyInviteCode('${invite.id}')" ${hasPlainCode ? '' : 'disabled'}>코드 복사</button>
+        <button class="btn" type="button" onclick="copyInviteSuffix('${invite.id}')">끝자리 복사</button>
+        <button class="btn" type="button" onclick="copyInviteLink('${invite.id}')">참여 링크 복사</button>
+        <button class="btn" type="button" onclick="copyInviteNotice('${invite.id}')">안내문 복사</button>
+        <button class="btn danger" type="button" onclick="askDelete('invite','${invite.id}')">코드 삭제</button>
+      </div>
+    </div>`;
+  }).join('') : '<p>아직 만든 코드가 없습니다.</p>';
+
+  const status = document.getElementById('filter-status')?.value || '';
+  const topic = document.getElementById('filter-topic')?.value || '';
+  const query = normalizeText(document.getElementById('filter-search')?.value || '', 80).toLowerCase();
+  const submissions = getSubmissions().filter(item => {
+    if (status && item.status !== status) return false;
+    if (topic && item.topic !== topic) return false;
+    if (!query) return true;
+    return `${item.participantName || ''} ${item.title || ''} ${item.question || ''}`.toLowerCase().includes(query);
+  });
+  document.getElementById('submission-list').innerHTML = submissions.length ? submissions.map(item => `
+    <div class="admin-item">
+      <strong>${escapeHtml(item.title || item.participantName || '무제 접수')}</strong>
+      <p>${escapeHtml(item.participantName || '-')} · ${escapeHtml(item.topic || '-')} · ${dateText(item.createdAt)} · ${escapeHtml(item.status)}</p>
+      <p>${escapeHtml(truncateText(item.question || '', 160))}</p>
+      <div class="admin-actions">
+        <button class="btn" type="button" onclick="openSubmissionDetail('${item.id}')">상세</button>
+        <button class="btn" type="button" onclick="copyInterpretation('${item.id}')">해석문 복사</button>
+        <button class="btn danger" type="button" onclick="askDelete('submission','${item.id}')">기록 삭제</button>
+      </div>
+    </div>
+  `).join('') : '<p>아직 접수 결과가 없습니다.</p>';
+}
+function copyInviteCode(id){
+  const code = plainCodes.get(id);
+  if (!code) return;
+  navigator.clipboard?.writeText(code);
+}
+function copyInviteSuffix(id){
+  const invite = getInvites().find(item => item.id === id);
+  if (!invite) return;
+  navigator.clipboard?.writeText(`****${invite.codeSuffix}`);
+}
+function copyInviteLink(id){
+  const code = plainCodes.get(id);
+  navigator.clipboard?.writeText(code ? currentUrlWithCode(code) : baseEntryUrl());
+}
+function copyInviteNotice(id){
+  const invite = getInvites().find(item => item.id === id);
+  if (!invite) return;
+  const code = plainCodes.get(id);
+  const text = code
+    ? `아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${baseEntryUrl()}`
+    : `아래 링크에서 전달받은 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여 링크: ${baseEntryUrl()}\n코드 끝자리: ****${invite.codeSuffix}`;
+  navigator.clipboard?.writeText(text);
+}
+function copyInterpretation(id){
+  const item = getSubmissions().find(s => s.id === id);
+  if (!item) return;
+  const cards = item.drawnCards.map(card => `${card.position}: ${cardKo(card)} ${card.orientation === 'reversed' ? '역방향' : '정방향'}`).join('\n');
+  const interpretation = item.interpretation ? `\n\n해석:\n${item.interpretation}` : '\n\n해석:\n';
+  navigator.clipboard?.writeText(`${item.title || '타로 리딩'}\n\n${cards}${interpretation}`);
+}
+function openSubmissionDetail(id){
+  const item = getSubmissions().find(s => s.id === id);
+  if (!item) return;
+  activeSubmissionId = id;
+  const cards = item.drawnCards.map(card => `<li>${escapeHtml(card.position)} · ${escapeHtml(cardKo(card))} · ${card.orientation === 'reversed' ? '역방향' : '정방향'}</li>`).join('');
+  document.getElementById('submission-detail').innerHTML = `
+    <div class="step"><strong>${escapeHtml(item.title || '무제 접수')}</strong><span>${escapeHtml(item.participantName || '-')} · ${escapeHtml(item.topic || '-')} · ${dateText(item.createdAt)}</span></div>
+    <div class="step"><strong>질문</strong><span>${escapeHtml(item.question || '-')}</span></div>
+    <div class="step"><strong>선택 카드</strong><span><ul style="margin-left:18px;line-height:1.8">${cards}</ul></span></div>
+    <div class="field"><label>상태</label><select id="detail-status"><option value="received">접수</option><option value="reading">해석 중</option><option value="completed">완료</option></select></div>
+    <div class="field"><label>관리자 메모</label><textarea id="detail-admin-note" maxlength="2000">${escapeHtml(item.adminNote || '')}</textarea></div>
+    <div class="field"><label>해석문</label><textarea id="detail-interpretation" maxlength="6000">${escapeHtml(item.interpretation || '')}</textarea></div>
+  `;
+  document.getElementById('detail-status').value = item.status || 'received';
+  setStatus('submission-detail-status','');
+  document.getElementById('submission-modal').hidden = false;
+}
+async function saveSubmissionDetail(){
+  const status = document.getElementById('detail-status')?.value || 'received';
+  const adminNote = normalizeLongText(document.getElementById('detail-admin-note')?.value, 2000);
+  const interpretation = normalizeLongText(document.getElementById('detail-interpretation')?.value, 6000);
+  if (useServerApi() && !adminToken()) {
+    setStatus('submission-detail-status','관리자 로그인 후 저장할 수 있습니다.','bad');
+    updateAdminLoginBox();
+    return;
+  }
+  if (useServerApi() && adminToken()) {
+    try {
+      const data = await apiJson(`/api/admin/tarot/submissions/${encodeURIComponent(activeSubmissionId)}`, {
+        method:'PUT',
+        headers:adminHeaders(),
+        body:JSON.stringify({ status, adminNote, interpretation })
+      });
+      const saved = data.submission;
+      setSubmissions(getSubmissions().map(item => item.id === activeSubmissionId ? saved : item));
+      setStatus('submission-detail-status','저장했습니다.','ok');
+      renderAdmin();
+      return;
+    } catch(error) {
+      setStatus('submission-detail-status', errorMessage(error, '저장하지 못했습니다.'), 'bad');
+      return;
+    }
+  }
+  setSubmissions(getSubmissions().map(item => item.id === activeSubmissionId ? {
+    ...item,
+    status,
+    adminNote,
+    interpretation,
+    updatedAt:now()
+  } : item));
+  setStatus('submission-detail-status','저장했습니다.','ok');
+  renderAdmin();
+}
+function closeSubmissionDetail(){
+  activeSubmissionId = '';
+  document.getElementById('submission-modal').hidden = true;
+}
+function askDelete(type,id){
+  const modal = document.getElementById('confirm-modal');
+  modal.hidden = false;
+  document.getElementById('confirm-delete').onclick = async () => {
+    if (useServerApi() && !adminToken()) {
+      setStatus('admin-create-status','관리자 로그인 후 삭제할 수 있습니다.','bad');
+      updateAdminLoginBox();
+      return;
+    }
+    if (useServerApi() && adminToken()) {
+      try {
+        const path = type === 'invite'
+          ? `/api/admin/tarot/invites/${encodeURIComponent(id)}`
+          : `/api/admin/tarot/submissions/${encodeURIComponent(id)}`;
+        await apiJson(path, { method:'DELETE', headers:adminHeaders() });
+      } catch(error) {
+        setStatus('admin-create-status', errorMessage(error, '삭제하지 못했습니다.'), 'bad');
+        return;
+      }
+    }
+    if (type === 'invite') {
+      setInvites(getInvites().filter(item => item.id !== id));
+      setSubmissions(getSubmissions().filter(item => item.inviteId !== id));
+    } else {
+      setSubmissions(getSubmissions().filter(item => item.id !== id));
+    }
+    closeDeleteModal();
+    renderAdmin();
+  };
+}
+function closeDeleteModal(){ document.getElementById('confirm-modal').hidden = true; }
+
+async function verifyInvite(){
+  const code = normalizeCode(document.getElementById('entry-code').value);
+  if (!code) { setStatus('entry-status','참여코드를 입력해 주세요.','bad'); return; }
+  if (useServerApi()) {
+    try {
+      const data = await apiJson('/api/tarot/validate', {
+        method:'POST',
+        body:JSON.stringify({ code })
+      });
+      activeInvite = data.invite;
+      activeCode = code;
+      renderConsent(activeInvite);
+      return;
+    } catch(error) {
+      setStatus('entry-status', errorMessage(error), 'bad');
+      return;
+    }
+  }
+  const codeHash = await hashText(code);
+  const invite = getInvites().find(item => item.codeHash === codeHash);
+  if (!invite) { setStatus('entry-status','확인되지 않은 참여코드입니다.','bad'); return; }
+  if (invite.expiresAt && invite.expiresAt < now()) { setStatus('entry-status','만료된 참여코드입니다.','bad'); return; }
+  if (settingValue(invite.settings, 'singleUse', 'single_use', true) !== false && invite.status !== 'open') { setStatus('entry-status','이미 사용된 참여코드입니다.','bad'); return; }
+  activeInvite = invite;
+  activeCode = code;
+  renderConsent(invite);
+}
+function renderConsent(invite){
+  const settings = invite.settings || {};
+  const spread = getSpread(invite);
+  document.getElementById('entry-status').textContent = '';
+  document.getElementById('consent-panel').classList.remove('hidden');
+  document.getElementById('reading-title').textContent = invite.readingTitle || '리딩 접수';
+  document.getElementById('reading-summary').textContent = `${spread.label} · ${invite.spreadCount}장 · 참여코드는 ${settingValue(settings, 'singleUse', 'single_use', true) === false ? '재사용 가능' : '1회용'}입니다.`;
+  const fields = [];
+  fields.push(`<div class="field"><label>닉네임${settingValue(settings, 'requireNickname', 'require_nickname', true) ? ' *' : ''}</label><input id="participant-name" maxlength="${INPUT_LIMITS.participantName}" placeholder="실명 대신 닉네임"></div>`);
+  fields.push(`<div class="field"><label>제목${settingValue(settings, 'requireTitle', 'require_title', true) ? ' *' : ''}</label><input id="participant-title" maxlength="${INPUT_LIMITS.title}" placeholder="예: 지금 마음에 남은 질문"></div>`);
+  if (settingValue(settings, 'allowTopicSelect', 'allow_topic_select', true)) {
+    fields.push(`<div class="field"><label>주제</label><select id="participant-topic">${TOPICS.map(topic => `<option>${topic}</option>`).join('')}</select></div>`);
+  }
+  fields.push(`<div class="field"><label>질문${settingValue(settings, 'requireQuestion', 'require_question', true) ? ' *' : ''}</label><textarea id="participant-question" maxlength="${INPUT_LIMITS.question}" placeholder="연락처나 주소 없이 질문만 남겨주세요."></textarea></div>`);
+  document.getElementById('participant-fields').innerHTML = fields.join('');
+  document.getElementById('consent-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function requireValue(id, enabled, label, max=200){
+  const value = normalizeText(document.getElementById(id)?.value, max);
+  if (enabled && !value) throw new Error(`${label}을 입력해 주세요.`);
+  return value;
+}
+function beginDraw(){
+  if (!activeInvite) return;
+  const settings = activeInvite.settings || {};
+  try {
+    if (!document.getElementById('agree-fun').checked || !document.getElementById('agree-privacy').checked || !document.getElementById('agree-sensitive').checked || !document.getElementById('agree-once').checked) {
+      throw new Error('동의 항목을 모두 확인해 주세요.');
+    }
+    participantDraft = {
+      participantName:requireValue('participant-name', settingValue(settings, 'requireNickname', 'require_nickname', true), '닉네임', INPUT_LIMITS.participantName),
+      title:requireValue('participant-title', settingValue(settings, 'requireTitle', 'require_title', true), '제목', INPUT_LIMITS.title),
+      topic:normalizeText(document.getElementById('participant-topic')?.value || '', INPUT_LIMITS.topic),
+      question:requireValue('participant-question', settingValue(settings, 'requireQuestion', 'require_question', true), '질문', INPUT_LIMITS.question)
+    };
+    if (hasRestrictedPersonalInfo(`${participantDraft.participantName} ${participantDraft.title} ${participantDraft.question}`)) {
+      throw new Error('연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.');
+    }
+  } catch(error) {
+    setStatus('consent-status', error.message, 'bad');
+    return;
+  }
+  setStatus('consent-status','');
+  startDraw();
+}
+function shuffleDeck(){
+  const deck = [...TAROT_CARDS];
+  for (let i=deck.length-1;i>0;i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [deck[i], deck[j]] = [deck[j], deck[i]];
+  }
+  return deck;
+}
+function startDraw(){
+  const spread = getSpread(activeInvite);
+  drawState = {
+    deck:shuffleDeck(),
+    picked:[],
+    positions:spread.positions,
+    settings:activeInvite.settings || {}
+  };
+  document.getElementById('draw-panel').classList.remove('hidden');
+  const drawMode = settingValue(drawState.settings, 'drawMode', 'draw_mode', 'manual_select');
+  document.getElementById('draw-guide').textContent = drawMode === 'auto'
+    ? `${drawState.positions.length}장이 자동으로 선택됩니다. 같은 카드는 중복으로 뽑히지 않습니다.`
+    : `${drawState.positions.length}장을 선택해 주세요. 같은 카드는 중복으로 뽑히지 않습니다.`;
+  if (drawMode === 'auto') {
+    for (let i=0;i<drawState.positions.length;i++) pickCard(i, true);
+    return;
+  } else {
+    renderDraw();
+  }
+  document.getElementById('draw-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function renderDraw(){
+  const slots = drawState.positions.map((pos,index) => `<span class="slot ${drawState.picked[index] ? 'done' : ''}">${escapeHtml(pos)}</span>`).join('');
+  document.getElementById('slot-line').innerHTML = slots;
+  document.getElementById('deck-grid').innerHTML = drawState.deck.slice(0,36).map((card,index) => `
+    <button class="deck-card" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${card.used ? 'disabled' : ''}></button>
+  `).join('');
+}
+function pickCard(index, silent=false){
+  const card = drawState.deck[index];
+  if (!card || card.used || drawState.picked.length >= drawState.positions.length) return;
+  card.used = true;
+  const orientation = settingValue(drawState.settings, 'allowReversed', 'allow_reversed', true) && Math.random() > .5 ? 'reversed' : 'upright';
+  drawState.picked.push({ ...card, position:drawState.positions[drawState.picked.length], orientation });
+  if (drawState.picked.length >= drawState.positions.length) {
+    completeSubmission();
+  } else if (!silent) {
+    renderDraw();
+  }
+}
+async function completeSubmission(){
+  const settings = activeInvite.settings || {};
+  const submission = {
+    id:`submission_${now()}_${Math.random().toString(36).slice(2,7)}`,
+    inviteId:activeInvite.id,
+    participantName:participantDraft.participantName,
+    title:participantDraft.title,
+    topic:participantDraft.topic,
+    question:participantDraft.question,
+    spreadCount:activeInvite.spreadCount,
+    spreadType:activeInvite.spreadType,
+    drawnCards:drawState.picked.map(card => ({
+      position:card.position,
+      cardId:card.id,
+      nameKo:card.nameKo,
+      nameEn:card.nameEn,
+      orientation:card.orientation,
+      symbol:card.symbol,
+      imageUrl:null
+    })),
+    status:'received',
+    createdAt:now(),
+    deleteAt:now() + days(30)
+  };
+  if (useServerApi()) {
+    try {
+      setStatus('draw-status','접수 중입니다.');
+      const data = await apiJson('/api/tarot/submit', {
+        method:'POST',
+        body:JSON.stringify({ code:activeCode, ...participantDraft, drawnCards:submission.drawnCards })
+      });
+      const saved = data.submission || submission;
+      activeInvite.status = settingValue(settings, 'singleUse', 'single_use', true) !== false ? 'used' : activeInvite.status;
+      setStatus('draw-status','');
+      renderResult(saved);
+      return;
+    } catch(error) {
+      setStatus('draw-status', errorMessage(error, '접수하지 못했습니다.'), 'bad');
+      return;
+    }
+  }
+  setSubmissions([submission, ...getSubmissions()]);
+  if (settingValue(settings, 'singleUse', 'single_use', true) !== false) {
+    const invites = getInvites().map(item => item.id === activeInvite.id ? { ...item, status:'used', usedAt:now(), updatedAt:now() } : item);
+    setInvites(invites);
+    activeInvite.status = 'used';
+  }
+  renderResult(submission);
+}
+function renderResult(submission){
+  const settings = activeInvite.settings || {};
+  document.getElementById('draw-panel').classList.add('hidden');
+  document.getElementById('result-panel').classList.remove('hidden');
+  document.getElementById('completion-message').textContent = settingValue(settings, 'completionMessage', 'completion_message', '카드가 접수되었습니다.');
+  document.getElementById('save-image-button').classList.toggle('hidden', settingValue(settings, 'enableResultImage', 'enable_result_image', true) === false);
+  document.getElementById('result-grid').innerHTML = submission.drawnCards.map(card => `
+    <div class="result-card">
+      <div class="card-face">${escapeHtml(cardSymbol(card))}</div>
+      <small>${escapeHtml(card.position)}</small>
+      <strong>${settingValue(settings, 'showCardsToParticipant', 'show_cards_to_participant', true) === false ? '선택된 카드' : escapeHtml(cardKo(card))}</strong>
+      <span>${settingValue(settings, 'showOrientationToParticipant', 'show_orientation_to_participant', true) === false ? '' : (card.orientation === 'reversed' ? '역방향' : '정방향')}</span>
+    </div>
+  `).join('');
+  setStatus('result-status',`접수일 ${dateText(submission.createdAt)} · 30일 후 삭제 기준`, 'ok');
+  document.getElementById('result-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function downloadResultImage(){
+  if (!drawState?.picked?.length) return;
+  const settings = activeInvite?.settings || {};
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 760;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#08080d';
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = '#f1dfad';
+  ctx.font = '38px serif';
+  ctx.fillText(participantDraft?.title || activeInvite?.readingTitle || 'ARCANA Tarot', 58, 78);
+  ctx.fillStyle = '#a99c89';
+  ctx.font = '22px serif';
+  ctx.fillText(`${participantDraft?.participantName || ''} · ${dateText(now())}`, 58, 118);
+  drawState.picked.forEach((card,index) => {
+    const x = 58 + (index % 5) * 218;
+    const y = 172 + Math.floor(index / 5) * 250;
+    ctx.strokeStyle = 'rgba(217,184,111,.45)';
+    ctx.strokeRect(x,y,170,214);
+    ctx.fillStyle = 'rgba(217,184,111,.08)';
+    ctx.fillRect(x,y,170,214);
+    ctx.fillStyle = '#f1dfad';
+    ctx.font = '48px serif';
+    ctx.fillText(card.symbol, x + 60, y + 78);
+    ctx.font = '18px serif';
+    ctx.fillText(card.position, x + 16, y + 128);
+    ctx.fillStyle = '#f4ead8';
+    ctx.fillText(card.nameKo, x + 16, y + 158);
+    ctx.fillStyle = '#a99c89';
+    ctx.fillText(card.orientation === 'reversed' ? '역방향' : '정방향', x + 16, y + 186);
+  });
+  if (settingValue(settings, 'includeQuestionInImage', 'include_question_in_image', false) && participantDraft?.question) {
+    ctx.fillStyle = '#a99c89';
+    ctx.font = '18px serif';
+    ctx.fillText(`질문: ${truncateText(participantDraft.question, 72)}`, 58, 718);
+  }
+  const a = document.createElement('a');
+  a.href = canvas.toDataURL('image/png');
+  a.download = `arcana-reading-${Date.now()}.png`;
+  a.click();
+}
+function resetParticipant(){
+  activeInvite = null;
+  activeCode = '';
+  participantDraft = null;
+  drawState = null;
+  ['consent-panel','draw-panel','result-panel'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('entry-code').value = '';
+  setStatus('entry-status','');
+  document.getElementById('entry-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function copyParticipantLink(){
+  navigator.clipboard?.writeText(baseEntryUrl());
+}
+function seedDemoInvite(){
+  if (getInvites().length) return;
+  const demo = 'TARO-DEMO77';
+  hashText(demo).then(codeHash => {
+    const spread = SPREADS[3][0];
+    setInvites([{
+      id:'invite_demo',
+      codeHash,
+      codeSuffix:codeSuffix(demo),
+      label:'테스트 코드',
+      readingTitle:'테스트 리딩',
+      spreadCount:3,
+      spreadType:spread.id,
+      spreadPositions:spread.positions,
+      settings:{
+        allowReversed:true,
+        allow_reversed:true,
+        showCardsToParticipant:true,
+        show_cards_to_participant:true,
+        showOrientationToParticipant:true,
+        show_orientation_to_participant:true,
+        enableResultImage:true,
+        enable_result_image:true,
+        includeQuestionInImage:false,
+        include_question_in_image:false,
+        revealMode:'flip',
+        reveal_mode:'flip',
+        drawMode:'manual_select',
+        draw_mode:'manual_select',
+        requireNickname:true,
+        require_nickname:true,
+        requireTitle:true,
+        require_title:true,
+        requireQuestion:true,
+        require_question:true,
+        allowTopicSelect:true,
+        allow_topic_select:true,
+        singleUse:false,
+        single_use:false,
+        completion_message:'카드가 접수되었습니다.',
+        completionMessage:'카드가 접수되었습니다.'
+      },
+      status:'open',
+      expiresAt:null,
+      usedAt:null,
+      createdAt:now(),
+      updatedAt:now()
+    }]);
+    renderAdmin();
+  });
+}
+async function boot(){
+  purgeExpired();
+  try { await loadRemotePublicSettings(); } catch(e) {}
+  const url = new URL(location.href);
+  if (url.searchParams.get('admin') === ADMIN_ENTRY_CODE) await showAdmin();
+  else if (url.searchParams.get('entry') === '1' || url.searchParams.has('code')) showParticipant();
+  else showPublic();
+  const code = url.searchParams.get('code');
+  if (code) document.getElementById('entry-code').value = normalizeCode(code);
+  if (!useServerApi()) seedDemoInvite();
+}
+boot();
+</script>
+</body>
+</html>

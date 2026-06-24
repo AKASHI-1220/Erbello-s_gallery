@@ -1,0 +1,1 @@
+window.__ARCANA_ADMIN_ENTRY_CODE__ = window.__ARCANA_ADMIN_ENTRY_CODE__ || '1220';
