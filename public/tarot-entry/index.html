@@ -147,8 +147,8 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .draw-review{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:12px;margin-top:16px}
 .draw-picked{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
 .draw-picked-card{min-height:164px;perspective:900px;margin-bottom:10px}
-.flip-inner{position:relative;width:100%;height:164px;transform-style:preserve-3d;transform:rotateY(180deg)}
-.draw-picked.fresh .flip-inner{animation:cardFlip .58s ease both}
+.flip-inner{position:relative;width:100%;height:164px;transform-style:preserve-3d}
+.draw-picked.fresh{animation:cardSettle .24s ease both}
 .flip-back,.flip-front{
   position:absolute;
   inset:0;
@@ -174,20 +174,15 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .draw-symbol{display:block;color:var(--gold2);font-size:44px;line-height:1;transition:.18s ease}
 .draw-symbol.reversed{transform:rotate(180deg)}
 .draw-picked small{display:block;color:var(--gold);font-size:11px;margin-bottom:5px}
-.draw-picked strong{display:block;color:var(--text);font-size:14px;line-height:1.45;min-height:40px}
-.direction-row{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
-.direction-btn{
-  min-height:34px;
-  border-radius:8px;
-  border:1px solid var(--line);
-  background:rgba(255,255,255,.035);
-  color:var(--muted);
-  font-size:12px;
-}
-.direction-btn.active{color:var(--ink);background:var(--gold);border-color:rgba(242,217,152,.62);font-weight:700}
+.draw-picked strong{display:block;color:var(--text);font-size:14px;line-height:1.45}
+.picked-hidden-label{display:block;color:var(--muted);font-size:12px;margin-top:4px}
 .draw-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .btn-mini{min-height:34px;padding:7px 10px;font-size:12px;margin-top:8px;width:100%}
 button:disabled{cursor:not-allowed;opacity:.55}
+@keyframes cardSettle{
+  0%{opacity:.4;transform:translateY(10px) scale(.98)}
+  100%{opacity:1;transform:translateY(0) scale(1)}
+}
 @keyframes cardFlip{
   0%{transform:rotateY(0deg)}
   100%{transform:rotateY(180deg)}
@@ -214,6 +209,22 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .result-card small{display:block;color:var(--gold);font-size:11px;margin-bottom:5px}
 .result-card strong{display:block;color:var(--text);font-size:15px;line-height:1.45}
 .result-card span{display:block;color:var(--muted);font-size:12px;margin-top:5px;line-height:1.55}
+.result-card .draw-symbol{color:var(--gold2);font-size:44px;line-height:1;margin:0}
+.result-card.reveal-card{
+  width:100%;
+  text-align:left;
+  cursor:pointer;
+}
+.result-card.reveal-card .flip-inner{height:150px;margin-bottom:10px;transition:transform .58s ease}
+.result-card.reveal-card.revealed .flip-inner{transform:rotateY(180deg)}
+.result-card.reveal-card.revealed .flip-inner{animation:cardFlip .58s ease both}
+.result-card.reveal-card .card-face{height:150px;margin-bottom:0}
+.result-card.reveal-card .flip-front .card-face{width:100%;height:100%}
+.result-card.reveal-card:not(.revealed) small,
+.result-card.reveal-card:not(.revealed) strong,
+.result-card.reveal-card:not(.revealed) span{display:none}
+.result-card.reveal-card:disabled{opacity:1}
+.result-hidden-label{display:block;color:var(--muted);font-size:12px;margin-top:10px;text-align:center}
 .admin-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .admin-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
 .admin-tab{min-height:42px;border:1px solid var(--line);border-radius:8px;background:rgba(255,255,255,.035);color:var(--muted);font-weight:700}
@@ -345,9 +356,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
         </div>
         <div class="draw-review hidden" id="draw-review"></div>
         <div class="draw-actions hidden" id="draw-actions">
-          <button class="btn" type="button" onclick="undoLastPick()">마지막 카드 다시</button>
-          <button class="btn" type="button" onclick="resetDraw()">처음부터</button>
-          <button class="btn-main" id="confirm-draw-button" type="button" onclick="confirmDraw()">접수하기</button>
+          <button class="btn-main" id="confirm-draw-button" type="button" onclick="confirmDraw()">결과 공개 및 접수하기</button>
         </div>
         <p class="status" id="draw-status"></p>
       </section>
@@ -358,6 +367,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
         <p id="completion-message">해석이 준비되면 전달됩니다. 중요한 결정은 현실적인 정보와 함께 판단해 주세요.</p>
         <div class="result-grid" id="result-grid"></div>
         <div class="admin-actions">
+          <button class="btn-main" id="auto-reveal-button" type="button" onclick="autoRevealResult()">자동 뒤집기</button>
           <button class="btn-main" id="save-image-button" type="button" onclick="downloadResultImage()">결과 이미지 저장</button>
           <button class="btn" type="button" onclick="resetParticipant()">새 코드 입력</button>
         </div>
@@ -557,6 +567,9 @@ let activeInvite = null;
 let activeCode = '';
 let participantDraft = null;
 let drawState = null;
+let activeResultSubmission = null;
+let revealedResultIndexes = new Set();
+let resultAutoRevealing = false;
 let publicExternalUrl = '';
 let activeSubmissionId = '';
 let activeAdminTab = 'page';
@@ -1218,6 +1231,7 @@ function renderConsent(invite){
   const settings = invite.settings || {};
   const spread = getSpread(invite);
   document.getElementById('entry-status').textContent = '';
+  document.getElementById('entry-panel').classList.add('hidden');
   document.getElementById('consent-panel').classList.remove('hidden');
   document.getElementById('reading-title').textContent = invite.readingTitle || '리딩 접수';
   document.getElementById('reading-summary').textContent = `${spread.label} · ${invite.spreadCount}장 · 참여코드는 ${settingValue(settings, 'singleUse', 'single_use', true) === false ? '재사용 가능' : '1회용'}입니다.`;
@@ -1287,8 +1301,9 @@ function startDraw(preferredMode){
     drawMode,
     submitting:false
   };
+  document.getElementById('consent-panel').classList.add('hidden');
   document.getElementById('draw-panel').classList.remove('hidden');
-  document.getElementById('draw-guide').textContent = '방식을 고르고 카드를 뽑아 주세요. 뽑은 뒤 방향을 바꿀 수 있습니다.';
+  document.getElementById('draw-guide').textContent = '방식을 고르고 카드를 뽑아 주세요. 결과는 접수 후에만 공개됩니다.';
   renderDraw();
   if (drawMode === 'auto') {
     autoPickCards();
@@ -1331,30 +1346,24 @@ function renderDrawReview(){
   }
   review.classList.remove('hidden');
   actions.classList.remove('hidden');
-  const showCardNames = settingValue(drawState.settings, 'showCardsToParticipant', 'show_cards_to_participant', true) !== false;
+  const lastIndex = drawState.picked.length - 1;
   review.innerHTML = drawState.picked.map((card,index) => `
     <div class="draw-picked ${card.animate ? 'fresh' : ''}">
       <div class="draw-picked-card">
         <div class="flip-inner">
           <div class="flip-back" aria-hidden="true"></div>
-          <div class="flip-front">
-            <span class="draw-symbol ${card.orientation === 'reversed' ? 'reversed' : ''}">${escapeHtml(cardSymbol(card))}</span>
-          </div>
         </div>
       </div>
       <small>${escapeHtml(card.position)}</small>
-      <strong>${showCardNames ? escapeHtml(cardKo(card)) : '선택된 카드'}</strong>
-      <div class="direction-row" aria-label="카드 방향">
-        <button class="direction-btn ${card.orientation === 'upright' ? 'active' : ''}" type="button" onclick="setCardOrientation(${index}, 'upright')">정방향</button>
-        <button class="direction-btn ${card.orientation === 'reversed' ? 'active' : ''}" type="button" onclick="setCardOrientation(${index}, 'reversed')">역방향</button>
-      </div>
-      <button class="btn btn-mini" type="button" onclick="unpickCard(${index})">${drawState.drawMode === 'auto' ? '다시 뽑기' : '다시 고르기'}</button>
+      <strong>선택 완료</strong>
+      <span class="picked-hidden-label">접수 후 공개</span>
+      ${index === lastIndex && !drawState.submitting ? `<button class="btn btn-mini" type="button" onclick="changeCurrentCard()">카드 바꾸기</button>` : ''}
     </div>
   `).join('');
   drawState.picked.forEach(card => { card.animate = false; });
   const complete = drawState.picked.length >= drawState.positions.length;
   confirmButton.disabled = !complete || drawState.submitting;
-  setStatus('draw-status', complete ? '카드와 방향을 확인한 뒤 접수해 주세요.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
+  setStatus('draw-status', complete ? '접수하면 결과를 확인할 수 있습니다.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
 }
 function setParticipantDrawMode(mode){
   if (!drawState) return;
@@ -1391,8 +1400,13 @@ function pickCard(index, silent=false){
 function reassignPickedPositions(){
   drawState.picked = drawState.picked.map((card,index) => ({ ...card, position:drawState.positions[index], animate:false }));
 }
+function changeCurrentCard(){
+  if (!drawState?.picked?.length || drawState.submitting) return;
+  unpickCard(drawState.picked.length - 1);
+}
 function unpickCard(index){
   if (!drawState || drawState.submitting) return;
+  if (index !== drawState.picked.length - 1) return;
   if (drawState.drawMode === 'auto') {
     const nextIndex = drawState.deck.findIndex(card => !card.used);
     if (nextIndex < 0) return;
@@ -1413,22 +1427,6 @@ function unpickCard(index){
   if (deckCard) deckCard.used = false;
   reassignPickedPositions();
   renderDraw();
-}
-function undoLastPick(){
-  if (!drawState?.picked?.length) return;
-  unpickCard(drawState.picked.length - 1);
-}
-function resetDraw(){
-  if (!drawState || drawState.submitting) return;
-  drawState.deck = deckForMode(drawState.drawMode);
-  drawState.picked = [];
-  renderDraw();
-  if (drawState.drawMode === 'auto') autoPickCards();
-}
-function setCardOrientation(index, orientation){
-  if (!drawState?.picked?.[index] || drawState.submitting) return;
-  drawState.picked[index].orientation = orientation === 'reversed' ? 'reversed' : 'upright';
-  renderDrawReview();
 }
 function confirmDraw(){
   if (!drawState || drawState.picked.length < drawState.positions.length) {
@@ -1497,20 +1495,71 @@ async function completeSubmission(){
 }
 function renderResult(submission){
   const settings = activeInvite.settings || {};
+  activeResultSubmission = submission;
+  revealedResultIndexes = new Set();
+  resultAutoRevealing = false;
   document.getElementById('draw-panel').classList.add('hidden');
   document.getElementById('result-panel').classList.remove('hidden');
-  document.getElementById('completion-message').textContent = settingValue(settings, 'completionMessage', 'completion_message', '카드가 접수되었습니다.');
-  document.getElementById('save-image-button').classList.toggle('hidden', settingValue(settings, 'enableResultImage', 'enable_result_image', true) === false);
-  document.getElementById('result-grid').innerHTML = submission.drawnCards.map(card => `
-    <div class="result-card">
-      <div class="card-face">${escapeHtml(cardSymbol(card))}</div>
-      <small>${escapeHtml(card.position)}</small>
-      <strong>${settingValue(settings, 'showCardsToParticipant', 'show_cards_to_participant', true) === false ? '선택된 카드' : escapeHtml(cardKo(card))}</strong>
-      <span>${settingValue(settings, 'showOrientationToParticipant', 'show_orientation_to_participant', true) === false ? '' : (card.orientation === 'reversed' ? '역방향' : '정방향')}</span>
-    </div>
-  `).join('');
-  setStatus('result-status',`접수일 ${dateText(submission.createdAt)} · 30일 후 삭제 기준`, 'ok');
+  document.getElementById('completion-message').textContent = settingValue(settings, 'completionMessage', 'completion_message', '카드가 접수되었습니다. 카드를 눌러 결과를 확인해 주세요.');
+  renderResultCards();
   document.getElementById('result-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function renderResultCards(){
+  if (!activeResultSubmission) return;
+  const settings = activeInvite.settings || {};
+  const cards = activeResultSubmission.drawnCards || [];
+  const showCardNames = settingValue(settings, 'showCardsToParticipant', 'show_cards_to_participant', true) !== false;
+  const showOrientation = settingValue(settings, 'showOrientationToParticipant', 'show_orientation_to_participant', true) !== false;
+  document.getElementById('result-grid').innerHTML = cards.map((card,index) => {
+    const revealed = revealedResultIndexes.has(index);
+    return `
+      <button class="result-card reveal-card ${revealed ? 'revealed' : ''}" type="button" onclick="revealResultCard(${index})" ${revealed ? 'disabled' : ''} aria-label="${escapeHtml(card.position)} 카드 열기">
+        <div class="flip-inner">
+          <div class="flip-back" aria-hidden="true"></div>
+          <div class="flip-front">
+            ${revealed ? `<div class="card-face"><span class="draw-symbol ${card.orientation === 'reversed' ? 'reversed' : ''}">${escapeHtml(cardSymbol(card))}</span></div>` : ''}
+          </div>
+        </div>
+        ${revealed ? `
+          <small>${escapeHtml(card.position)}</small>
+          <strong>${showCardNames ? escapeHtml(cardKo(card)) : '선택된 카드'}</strong>
+          <span>${showOrientation ? (card.orientation === 'reversed' ? '역방향' : '정방향') : ''}</span>
+        ` : `<span class="result-hidden-label">${escapeHtml(card.position)}</span>`}
+      </button>
+    `;
+  }).join('');
+  const allRevealed = cards.length > 0 && revealedResultIndexes.size >= cards.length;
+  const revealButton = document.getElementById('auto-reveal-button');
+  if (revealButton) {
+    revealButton.disabled = allRevealed || resultAutoRevealing;
+    revealButton.textContent = allRevealed ? '공개 완료' : '자동 뒤집기';
+  }
+  const saveButton = document.getElementById('save-image-button');
+  if (saveButton) {
+    saveButton.classList.toggle('hidden', settingValue(settings, 'enableResultImage', 'enable_result_image', true) === false);
+    saveButton.disabled = !allRevealed;
+  }
+  setStatus('result-status',`접수일 ${dateText(activeResultSubmission.createdAt || activeResultSubmission.created_at)} · ${revealedResultIndexes.size}/${cards.length}장 공개`, 'ok');
+}
+function revealResultCard(index){
+  if (!activeResultSubmission || revealedResultIndexes.has(index)) return;
+  revealedResultIndexes.add(index);
+  renderResultCards();
+}
+async function autoRevealResult(){
+  if (!activeResultSubmission || resultAutoRevealing) return;
+  resultAutoRevealing = true;
+  renderResultCards();
+  const cards = activeResultSubmission.drawnCards || [];
+  for (let i=0;i<cards.length;i++) {
+    if (!revealedResultIndexes.has(i)) {
+      revealedResultIndexes.add(i);
+      renderResultCards();
+      await new Promise(resolve => setTimeout(resolve, 520));
+    }
+  }
+  resultAutoRevealing = false;
+  renderResultCards();
 }
 function downloadResultImage(){
   if (!drawState?.picked?.length) return;
@@ -1559,11 +1608,15 @@ function resetParticipant(){
   activeCode = '';
   participantDraft = null;
   drawState = null;
+  activeResultSubmission = null;
+  revealedResultIndexes = new Set();
+  resultAutoRevealing = false;
   ['consent-panel','draw-panel','result-panel'].forEach(id => document.getElementById(id).classList.add('hidden'));
   ['draw-mode-row','slot-line','deck-grid','draw-review','result-grid'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = '';
   });
+  document.getElementById('entry-panel').classList.remove('hidden');
   document.getElementById('draw-actions')?.classList.add('hidden');
   document.getElementById('entry-code').value = '';
   setStatus('entry-status','');
