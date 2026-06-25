@@ -114,7 +114,7 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .step span{color:var(--muted);font-size:12px;line-height:1.6}
 .hidden{display:none!important}
 .deck-stage{margin-top:16px}
-.draw-mode-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
+.draw-mode-row{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
 .draw-mode-btn{
   min-height:42px;
   border:1px solid var(--line);
@@ -264,7 +264,6 @@ button:disabled{cursor:not-allowed;opacity:.55}
   .panel{padding:16px}
   .deck-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
   .deck-card{min-height:78px}
-  .draw-mode-row{grid-template-columns:1fr}
   .draw-review{grid-template-columns:1fr}
 }
 </style>
@@ -286,7 +285,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
       <h1>ARCANA</h1>
       <p class="lead">참여코드를 받은 사람만 카드를 뽑고 접수할 수 있는 페이지입니다. 타로는 미래를 확정하는 도구가 아니라, 질문을 정리해보는 참고용 콘텐츠입니다.</p>
       <div class="notice-row">
-        <span class="pill">참여코드 1회 사용</span>
+        <span class="pill">참여코드 접수</span>
         <span class="pill">30일 후 삭제 기준</span>
         <span class="pill">최소 정보 접수</span>
       </div>
@@ -336,7 +335,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <label class="checkline"><input type="checkbox" id="agree-fun"><span>타로는 진지한 미래 예측이 아니라 참고용·오락용 콘텐츠임을 확인했습니다.</span></label>
           <label class="checkline"><input type="checkbox" id="agree-privacy"><span>닉네임, 제목, 질문, 선택한 카드 정보만 접수 확인 목적으로 저장되며 30일 후 삭제되는 것에 동의합니다.</span></label>
           <label class="checkline"><input type="checkbox" id="agree-sensitive"><span>실명, 연락처, 주소, 계좌번호 같은 개인정보는 적지 않겠습니다.</span></label>
-          <label class="checkline"><input type="checkbox" id="agree-once"><span>참여코드는 기본 1회용이며, 접수 후 같은 코드로 다시 제출할 수 없음을 확인했습니다.</span></label>
+          <label class="checkline"><input type="checkbox" id="agree-once"><span>참여코드는 정해진 접수 횟수까지만 사용할 수 있음을 확인했습니다.</span></label>
         </div>
         <div class="admin-actions">
           <button class="btn-main" type="button" onclick="beginDraw()">동의하고 카드 뽑기</button>
@@ -435,7 +434,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <div class="field"><label>카드 장수</label><select id="admin-count" onchange="syncSpreadTypes()"><option>1</option><option selected>3</option><option>5</option><option>7</option><option>9</option><option>10</option></select></div>
           <div class="field"><label>배열</label><select id="admin-spread"></select></div>
           <div class="field"><label>만료일</label><input id="admin-expires" type="date"></div>
-          <div class="field"><label>카드 선택 방식</label><select id="admin-draw-mode"><option value="manual_select">직접 선택</option><option value="shuffle_select">섞기 후 선택</option><option value="auto">자동 뽑기</option></select></div>
+          <div class="field"><label>접수 가능 횟수</label><input id="admin-max-uses" type="number" min="1" max="999" step="1" value="1"></div>
           <label class="checkline"><input type="checkbox" id="admin-reversed" checked><span>정방향/역방향 사용</span></label>
           <label class="checkline"><input type="checkbox" id="admin-show-names" checked><span>참여자에게 카드 이름 표시</span></label>
           <label class="checkline"><input type="checkbox" id="admin-show-orientation" checked><span>참여자에게 정/역방향 표시</span></label>
@@ -443,7 +442,6 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <label class="checkline"><input type="checkbox" id="admin-result-image" checked><span>결과 이미지 저장 버튼 표시</span></label>
           <label class="checkline"><input type="checkbox" id="admin-reveal" checked><span>카드 뒤집기 연출 사용</span></label>
           <label class="checkline"><input type="checkbox" id="admin-question-image"><span>저장 이미지에 질문 포함</span></label>
-          <label class="checkline"><input type="checkbox" id="admin-single" checked><span>참여코드 1회용</span></label>
           <label class="checkline"><input type="checkbox" id="admin-require-nickname" checked><span>닉네임 필수</span></label>
           <label class="checkline"><input type="checkbox" id="admin-require-title" checked><span>제목 필수</span></label>
           <label class="checkline"><input type="checkbox" id="admin-require-question" checked><span>질문 필수</span></label>
@@ -720,6 +718,21 @@ function settingValue(settings, camelKey, snakeKey, fallback){
   if (settings[snakeKey] !== undefined) return settings[snakeKey];
   return fallback;
 }
+function clampUseLimit(value, fallback=1){
+  const number = Math.floor(Number(value));
+  if (!Number.isFinite(number) || number < 1) return fallback;
+  return Math.min(number, 999);
+}
+function maxSubmissionsFor(settings){
+  if (!settings) return 1;
+  if (settings.maxSubmissions !== undefined || settings.max_submissions !== undefined) {
+    return clampUseLimit(settingValue(settings, 'maxSubmissions', 'max_submissions', 1), 1);
+  }
+  return settingValue(settings, 'singleUse', 'single_use', true) === false ? 999 : 1;
+}
+function submissionCountForInvite(inviteId){
+  return getSubmissions().filter(item => String(item.inviteId) === String(inviteId)).length;
+}
 function cardKo(card){ return card?.nameKo || card?.name_ko || card?.cardId || card?.card_id || '선택된 카드'; }
 function cardEn(card){ return card?.nameEn || card?.name_en || ''; }
 function cardSymbol(card){ return card?.symbol || '✦'; }
@@ -842,6 +855,7 @@ function getSpread(invite){
 }
 function settingsFromAdmin(){
   const count = Number(document.getElementById('admin-count').value || 3);
+  const maxSubmissions = clampUseLimit(document.getElementById('admin-max-uses')?.value, 1);
   return {
     allowReversed:document.getElementById('admin-reversed').checked,
     allow_reversed:document.getElementById('admin-reversed').checked,
@@ -849,8 +863,6 @@ function settingsFromAdmin(){
     show_cards_to_participant:document.getElementById('admin-show-names').checked,
     showOrientationToParticipant:document.getElementById('admin-show-orientation').checked,
     show_orientation_to_participant:document.getElementById('admin-show-orientation').checked,
-    singleUse:document.getElementById('admin-single').checked,
-    single_use:document.getElementById('admin-single').checked,
     requireNickname:document.getElementById('admin-require-nickname').checked,
     require_nickname:document.getElementById('admin-require-nickname').checked,
     requireTitle:document.getElementById('admin-require-title').checked,
@@ -863,10 +875,14 @@ function settingsFromAdmin(){
     enable_result_image:document.getElementById('admin-result-image').checked,
     includeQuestionInImage:document.getElementById('admin-question-image').checked,
     include_question_in_image:document.getElementById('admin-question-image').checked,
-    drawMode:document.getElementById('admin-draw-mode').value,
-    draw_mode:document.getElementById('admin-draw-mode').value,
+    drawMode:'manual_select',
+    draw_mode:'manual_select',
     revealMode:document.getElementById('admin-reveal').checked ? 'flip' : 'static',
     reveal_mode:document.getElementById('admin-reveal').checked ? 'flip' : 'static',
+    maxSubmissions,
+    max_submissions:maxSubmissions,
+    singleUse:maxSubmissions <= 1,
+    single_use:maxSubmissions <= 1,
     completionMessage:document.getElementById('admin-completion').value.trim() || '카드가 접수되었습니다.',
     completion_message:document.getElementById('admin-completion').value.trim() || '카드가 접수되었습니다.',
     spreadCount:count
@@ -1045,9 +1061,11 @@ function renderAdmin(){
   document.getElementById('invite-list').innerHTML = invites.length ? invites.map(invite => {
     const disabled = invite.status !== 'open' ? ' · 사용됨' : '';
     const hasPlainCode = plainCodes.has(invite.id);
+    const usedCount = submissionCountForInvite(invite.id);
+    const maxUses = maxSubmissionsFor(invite.settings);
     return `<div class="admin-item">
       <strong>${escapeHtml(invite.label || invite.readingTitle)} <span style="color:var(--muted)">...${escapeHtml(invite.codeSuffix)}</span></strong>
-      <p>${invite.spreadCount}장 · ${escapeHtml(getSpread(invite).label)}${disabled}${invite.expiresAt ? ` · 만료 ${dateText(invite.expiresAt)}` : ''}</p>
+      <p>${invite.spreadCount}장 · ${escapeHtml(getSpread(invite).label)} · 접수 ${usedCount}/${maxUses}회${disabled}${invite.expiresAt ? ` · 만료 ${dateText(invite.expiresAt)}` : ''}</p>
       ${invite.internalNote ? `<p>${escapeHtml(truncateText(invite.internalNote, 120))}</p>` : ''}
       <div class="admin-actions">
         <button class="btn" type="button" onclick="copyInviteCode('${invite.id}')" ${hasPlainCode ? '' : 'disabled'}>코드 복사</button>
@@ -1222,7 +1240,8 @@ async function verifyInvite(){
   const invite = getInvites().find(item => item.codeHash === codeHash);
   if (!invite) { setStatus('entry-status','확인되지 않은 참여코드입니다.','bad'); return; }
   if (invite.expiresAt && invite.expiresAt < now()) { setStatus('entry-status','만료된 참여코드입니다.','bad'); return; }
-  if (settingValue(invite.settings, 'singleUse', 'single_use', true) !== false && invite.status !== 'open') { setStatus('entry-status','이미 사용된 참여코드입니다.','bad'); return; }
+  const maxUses = maxSubmissionsFor(invite.settings);
+  if (invite.status !== 'open' || submissionCountForInvite(invite.id) >= maxUses) { setStatus('entry-status','이미 사용된 참여코드입니다.','bad'); return; }
   activeInvite = invite;
   activeCode = code;
   renderConsent(invite);
@@ -1234,7 +1253,7 @@ function renderConsent(invite){
   document.getElementById('entry-panel').classList.add('hidden');
   document.getElementById('consent-panel').classList.remove('hidden');
   document.getElementById('reading-title').textContent = invite.readingTitle || '리딩 접수';
-  document.getElementById('reading-summary').textContent = `${spread.label} · ${invite.spreadCount}장 · 참여코드는 ${settingValue(settings, 'singleUse', 'single_use', true) === false ? '재사용 가능' : '1회용'}입니다.`;
+  document.getElementById('reading-summary').textContent = `${spread.label} · ${invite.spreadCount}장 · 접수 ${Math.min(submissionCountForInvite(invite.id), maxSubmissionsFor(settings))}/${maxSubmissionsFor(settings)}회`;
   const fields = [];
   fields.push(`<div class="field"><label>닉네임${settingValue(settings, 'requireNickname', 'require_nickname', true) ? ' *' : ''}</label><input id="participant-name" maxlength="${INPUT_LIMITS.participantName}" placeholder="실명 대신 닉네임"></div>`);
   fields.push(`<div class="field"><label>제목${settingValue(settings, 'requireTitle', 'require_title', true) ? ' *' : ''}</label><input id="participant-title" maxlength="${INPUT_LIMITS.title}" placeholder="예: 지금 마음에 남은 질문"></div>`);
@@ -1284,51 +1303,37 @@ function shuffleDeck(){
 function orderedDeck(){
   return TAROT_CARDS.map(card => ({ ...card, used:false }));
 }
-function normalizeDrawMode(mode){
-  return ['manual_select','shuffle_select','auto'].includes(mode) ? mode : 'manual_select';
-}
-function deckForMode(mode){
-  return mode === 'manual_select' ? orderedDeck() : shuffleDeck();
-}
 function startDraw(preferredMode){
   const spread = getSpread(activeInvite);
-  const drawMode = normalizeDrawMode(preferredMode || settingValue(activeInvite.settings, 'drawMode', 'draw_mode', 'manual_select'));
   drawState = {
-    deck:deckForMode(drawMode),
+    deck:shuffleDeck(),
     picked:[],
     positions:spread.positions,
     settings:activeInvite.settings || {},
-    drawMode,
+    drawMode:'manual_select',
     submitting:false
   };
   document.getElementById('consent-panel').classList.add('hidden');
   document.getElementById('draw-panel').classList.remove('hidden');
-  document.getElementById('draw-guide').textContent = '방식을 고르고 카드를 뽑아 주세요. 결과는 접수 후에만 공개됩니다.';
+  document.getElementById('draw-guide').textContent = '카드는 접수 후에만 공개됩니다. 뽑기 전에는 원하는 만큼 섞을 수 있습니다.';
   renderDraw();
-  if (drawMode === 'auto') {
-    autoPickCards();
-  }
   document.getElementById('draw-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
-function renderDrawModes(){
-  const modes = [
-    ['manual_select','직접 고르기'],
-    ['shuffle_select','섞어서 고르기'],
-    ['auto','자동 뽑기']
-  ];
-  document.getElementById('draw-mode-row').innerHTML = modes.map(([mode,label]) => `
-    <button class="draw-mode-btn ${drawState.drawMode === mode ? 'active' : ''}" type="button" onclick="setParticipantDrawMode('${mode}')">${label}</button>
-  `).join('');
+function renderDrawTools(){
+  const disabled = drawState.picked.length > 0 || drawState.submitting;
+  document.getElementById('draw-mode-row').innerHTML = `
+    <button class="draw-mode-btn" type="button" onclick="shuffleDrawDeck()" ${disabled ? 'disabled' : ''}>카드 섞기</button>
+  `;
 }
 function renderDraw(){
   if (!drawState) return;
-  renderDrawModes();
+  renderDrawTools();
   const slots = drawState.positions.map((pos,index) => `<span class="slot ${drawState.picked[index] ? 'done' : ''}">${escapeHtml(pos)}</span>`).join('');
   document.getElementById('slot-line').innerHTML = slots;
   const deckGrid = document.getElementById('deck-grid');
-  const canPick = drawState.picked.length < drawState.positions.length && drawState.drawMode !== 'auto' && !drawState.submitting;
-  deckGrid.classList.toggle('hidden', drawState.drawMode === 'auto');
-  deckGrid.innerHTML = drawState.drawMode === 'auto' ? '' : drawState.deck.slice(0,36).map((card,index) => `
+  const canPick = drawState.picked.length < drawState.positions.length && !drawState.submitting;
+  deckGrid.classList.remove('hidden');
+  deckGrid.innerHTML = drawState.deck.slice(0,36).map((card,index) => `
     <button class="deck-card" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${!canPick || card.used ? 'disabled' : ''}></button>
   `).join('');
   renderDrawReview();
@@ -1341,7 +1346,7 @@ function renderDrawReview(){
     review.classList.add('hidden');
     review.innerHTML = '';
     actions.classList.add('hidden');
-    setStatus('draw-status', drawState?.drawMode === 'auto' ? '자동 뽑기를 선택했습니다.' : '');
+    setStatus('draw-status', '');
     return;
   }
   review.classList.remove('hidden');
@@ -1365,25 +1370,10 @@ function renderDrawReview(){
   confirmButton.disabled = !complete || drawState.submitting;
   setStatus('draw-status', complete ? '접수하면 결과를 확인할 수 있습니다.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
 }
-function setParticipantDrawMode(mode){
+function shuffleDrawDeck(){
   if (!drawState) return;
-  const nextMode = normalizeDrawMode(mode);
-  if (drawState.drawMode === nextMode) return;
-  drawState.drawMode = nextMode;
-  drawState.deck = deckForMode(nextMode);
-  drawState.picked = [];
-  drawState.submitting = false;
-  renderDraw();
-  if (nextMode === 'auto') autoPickCards();
-}
-function autoPickCards(){
-  if (!drawState) return;
+  if (drawState.picked.length || drawState.submitting) return;
   drawState.deck = shuffleDeck();
-  drawState.picked = [];
-  for (let i=0;i<drawState.positions.length;i++) {
-    pickCard(i, true);
-  }
-  drawState.picked.forEach(card => { card.animate = true; });
   renderDraw();
 }
 function pickCard(index, silent=false){
@@ -1407,21 +1397,6 @@ function changeCurrentCard(){
 function unpickCard(index){
   if (!drawState || drawState.submitting) return;
   if (index !== drawState.picked.length - 1) return;
-  if (drawState.drawMode === 'auto') {
-    const nextIndex = drawState.deck.findIndex(card => !card.used);
-    if (nextIndex < 0) return;
-    const nextCard = drawState.deck[nextIndex];
-    nextCard.used = true;
-    drawState.picked[index] = {
-      ...nextCard,
-      deckIndex:nextIndex,
-      position:drawState.positions[index],
-      orientation:Math.random() > .5 ? 'reversed' : 'upright',
-      animate:true
-    };
-    renderDraw();
-    return;
-  }
   const [removed] = drawState.picked.splice(index, 1);
   const deckCard = removed ? (drawState.deck[removed.deckIndex] || drawState.deck.find(card => card.id === removed.id)) : null;
   if (deckCard) deckCard.used = false;
@@ -1472,7 +1447,8 @@ async function completeSubmission(){
         body:JSON.stringify({ code:activeCode, ...participantDraft, drawnCards:submission.drawnCards })
       });
       const saved = data.submission || submission;
-      activeInvite.status = settingValue(settings, 'singleUse', 'single_use', true) !== false ? 'used' : activeInvite.status;
+      const maxUses = maxSubmissionsFor(settings);
+      activeInvite.status = submissionCountForInvite(activeInvite.id) + 1 >= maxUses ? 'used' : activeInvite.status;
       setStatus('draw-status','');
       renderResult(saved);
       return;
@@ -1486,7 +1462,8 @@ async function completeSubmission(){
     }
   }
   setSubmissions([submission, ...getSubmissions()]);
-  if (settingValue(settings, 'singleUse', 'single_use', true) !== false) {
+  const maxUses = maxSubmissionsFor(settings);
+  if (submissionCountForInvite(activeInvite.id) >= maxUses) {
     const invites = getInvites().map(item => item.id === activeInvite.id ? { ...item, status:'used', usedAt:now(), updatedAt:now() } : item);
     setInvites(invites);
     activeInvite.status = 'used';
@@ -1663,6 +1640,8 @@ function seedDemoInvite(){
         require_question:true,
         allowTopicSelect:true,
         allow_topic_select:true,
+        maxSubmissions:999,
+        max_submissions:999,
         singleUse:false,
         single_use:false,
         completion_message:'카드가 접수되었습니다.',

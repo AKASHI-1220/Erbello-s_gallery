@@ -1093,14 +1093,21 @@ function cleanTarotPublicSettingsBody(body) {
   };
 }
 
+function clampUseLimit(value, fallback = 1) {
+  const number = Math.floor(Number(value));
+  if (!Number.isFinite(number) || number < 1) return fallback;
+  return Math.min(number, 999);
+}
+
 function cleanTarotSettings(value, spreadCount) {
   const source = value && typeof value === 'object' ? value : {};
   const get = (camel, snake, fallback) => source[camel] !== undefined ? source[camel] : (source[snake] !== undefined ? source[snake] : fallback);
   const bool = (camel, snake, fallback) => get(camel, snake, fallback) !== false;
-  const drawModeRaw = String(get('drawMode', 'draw_mode', 'manual_select'));
-  const drawMode = ['manual_select', 'shuffle_select', 'auto'].includes(drawModeRaw) ? drawModeRaw : 'manual_select';
+  const drawMode = 'manual_select';
   const revealMode = String(get('revealMode', 'reveal_mode', 'flip')) === 'static' ? 'static' : 'flip';
   const completionMessage = cleanText(get('completionMessage', 'completion_message', '카드가 접수되었습니다.'), 200) || '카드가 접수되었습니다.';
+  const legacySingleUse = get('singleUse', 'single_use', true) !== false;
+  const maxSubmissions = clampUseLimit(get('maxSubmissions', 'max_submissions', legacySingleUse ? 1 : 999));
   return {
     allowReversed:bool('allowReversed', 'allow_reversed', true),
     allow_reversed:bool('allowReversed', 'allow_reversed', true),
@@ -1124,8 +1131,10 @@ function cleanTarotSettings(value, spreadCount) {
     require_question:bool('requireQuestion', 'require_question', true),
     allowTopicSelect:bool('allowTopicSelect', 'allow_topic_select', true),
     allow_topic_select:bool('allowTopicSelect', 'allow_topic_select', true),
-    singleUse:bool('singleUse', 'single_use', true),
-    single_use:bool('singleUse', 'single_use', true),
+    maxSubmissions,
+    max_submissions:maxSubmissions,
+    singleUse:maxSubmissions <= 1,
+    single_use:maxSubmissions <= 1,
     completionMessage,
     completion_message:completionMessage,
     spreadCount
@@ -1246,7 +1255,16 @@ function safeTarotSubmission(submission) {
   };
 }
 
-function assertInviteUsable(invite) {
+function maxSubmissionsForInvite(invite) {
+  const settings = invite && invite.settings ? invite.settings : {};
+  if (settings.maxSubmissions !== undefined || settings.max_submissions !== undefined) {
+    return clampUseLimit(settings.maxSubmissions !== undefined ? settings.maxSubmissions : settings.max_submissions, 1);
+  }
+  const singleUse = settings.singleUse !== undefined ? settings.singleUse : settings.single_use;
+  return singleUse === false ? 999 : 1;
+}
+
+function assertInviteUsable(invite, usedCount = 0) {
   if (!invite) {
     const err = new Error('invalid_invite_code');
     err.statusCode = 404;
@@ -1257,9 +1275,7 @@ function assertInviteUsable(invite) {
     err.statusCode = 400;
     throw err;
   }
-  const settings = invite.settings || {};
-  const singleUse = settings.singleUse !== undefined ? settings.singleUse : settings.single_use;
-  if (singleUse !== false && invite.status !== 'open') {
+  if (invite.status !== 'open' || Number(usedCount || 0) >= maxSubmissionsForInvite(invite)) {
     const err = new Error('used_invite_code');
     err.statusCode = 400;
     throw err;
@@ -1838,7 +1854,8 @@ app.post('/api/tarot/validate', interactionLimit, async (req, res) => {
     const code = normalizeTarotCode(req.body && req.body.code);
     if (!code) return res.status(400).json({ error:'invalid_invite_code' });
     const invite = await store.validateTarotInvite(hashTarotCode(code));
-    assertInviteUsable(invite);
+    const usedCount = invite ? await store.countTarotSubmissionsForInvite(invite.id) : 0;
+    assertInviteUsable(invite, usedCount);
     res.json({ ok:true, invite:safeTarotInvite(invite) });
   } catch (error) {
     sendTarotError(res, error);
@@ -1851,7 +1868,8 @@ app.post('/api/tarot/submit', interactionLimit, async (req, res) => {
     if (!code) return res.status(400).json({ error:'invalid_invite_code' });
     const codeHash = hashTarotCode(code);
     const invite = await store.validateTarotInvite(codeHash);
-    assertInviteUsable(invite);
+    const usedCount = invite ? await store.countTarotSubmissionsForInvite(invite.id) : 0;
+    assertInviteUsable(invite, usedCount);
     const payload = cleanTarotSubmissionBody(req.body || {});
     if (payload.drawnCards.length !== Number(invite.spreadCount || 0)) {
       return res.status(400).json({ error:'invalid_drawn_cards' });
