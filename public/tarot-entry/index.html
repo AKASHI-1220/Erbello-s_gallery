@@ -114,7 +114,7 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .step span{color:var(--muted);font-size:12px;line-height:1.6}
 .hidden{display:none!important}
 .deck-stage{margin-top:16px}
-.draw-mode-row{display:grid;grid-template-columns:1fr;gap:8px;margin-top:14px}
+.draw-mode-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
 .draw-mode-btn{
   min-height:42px;
   border:1px solid var(--line);
@@ -147,6 +147,17 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .draw-review{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:12px;margin-top:16px}
 .draw-picked{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
 .draw-picked-card{min-height:164px;perspective:900px;margin-bottom:10px}
+.draw-picked-card.direction-toggle{
+  display:block;
+  width:100%;
+  border:0;
+  padding:0;
+  background:transparent;
+  cursor:pointer;
+}
+.draw-picked-card.direction-toggle:disabled{cursor:not-allowed;opacity:1}
+.draw-picked-card.direction-toggle .flip-inner{transition:transform .28s ease}
+.draw-picked.turned .draw-picked-card.direction-toggle .flip-inner{transform:rotate(180deg)}
 .flip-inner{position:relative;width:100%;height:164px;transform-style:preserve-3d}
 .draw-picked.fresh{animation:cardSettle .24s ease both}
 .flip-back,.flip-front{
@@ -262,6 +273,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
   .topbar{align-items:flex-start;flex-direction:column}
   h1{letter-spacing:4px}
   .panel{padding:16px}
+  .draw-mode-row{grid-template-columns:1fr}
   .deck-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
   .deck-card{min-height:78px}
   .draw-review{grid-template-columns:1fr}
@@ -656,8 +668,18 @@ async function loadRemoteAdminData(){
   if (!useServerApi() || !adminToken()) return false;
   const data = await apiJson('/api/admin/tarot', { headers:adminHeaders() });
   if (data.settings) writeJson(STORE_KEYS.public, data.settings);
-  setInvites(Array.isArray(data.invites) ? data.invites : []);
-  setSubmissions(Array.isArray(data.submissions) ? data.submissions : []);
+  const submissions = Array.isArray(data.submissions) ? data.submissions : [];
+  const countByInvite = submissions.reduce((map, item) => {
+    const id = String(item.inviteId || item.invite_id || '');
+    if (id) map.set(id, (map.get(id) || 0) + 1);
+    return map;
+  }, new Map());
+  const invites = (Array.isArray(data.invites) ? data.invites : []).map(invite => ({
+    ...invite,
+    usedCount:Math.max(Number(invite.usedCount || invite.used_count || 0), countByInvite.get(String(invite.id)) || 0)
+  }));
+  setInvites(invites);
+  setSubmissions(submissions);
   return true;
 }
 async function loginAdmin(){
@@ -730,8 +752,21 @@ function maxSubmissionsFor(settings){
   }
   return settingValue(settings, 'singleUse', 'single_use', true) === false ? 999 : 1;
 }
+function localSubmissionCountForInvite(inviteId, submissions=getSubmissions()){
+  const id = String(inviteId || '');
+  return submissions.filter(item => String(item.inviteId || item.invite_id || '') === id).length;
+}
+function usedCountForInvite(invite, submissions=getSubmissions()){
+  const localCount = localSubmissionCountForInvite(invite?.id, submissions);
+  const serverCount = Number(invite?.usedCount ?? invite?.used_count);
+  return Number.isFinite(serverCount) && serverCount >= 0 ? Math.max(serverCount, localCount) : localCount;
+}
 function submissionCountForInvite(inviteId){
-  return getSubmissions().filter(item => String(item.inviteId) === String(inviteId)).length;
+  return localSubmissionCountForInvite(inviteId);
+}
+function setInviteUsage(inviteId, count){
+  const id = String(inviteId || '');
+  setInvites(getInvites().map(item => String(item.id) === id ? { ...item, usedCount:Math.max(0, Number(count || 0)) } : item));
 }
 function cardKo(card){ return card?.nameKo || card?.name_ko || card?.cardId || card?.card_id || '선택된 카드'; }
 function cardEn(card){ return card?.nameEn || card?.name_en || ''; }
@@ -1058,10 +1093,11 @@ function switchAdminTab(tab){
 }
 function renderAdmin(){
   const invites = getInvites();
+  const allSubmissions = getSubmissions();
   document.getElementById('invite-list').innerHTML = invites.length ? invites.map(invite => {
     const disabled = invite.status !== 'open' ? ' · 사용됨' : '';
     const hasPlainCode = plainCodes.has(invite.id);
-    const usedCount = submissionCountForInvite(invite.id);
+    const usedCount = usedCountForInvite(invite, allSubmissions);
     const maxUses = maxSubmissionsFor(invite.settings);
     return `<div class="admin-item">
       <strong>${escapeHtml(invite.label || invite.readingTitle)} <span style="color:var(--muted)">...${escapeHtml(invite.codeSuffix)}</span></strong>
@@ -1080,7 +1116,7 @@ function renderAdmin(){
   const status = document.getElementById('filter-status')?.value || '';
   const topic = document.getElementById('filter-topic')?.value || '';
   const query = normalizeText(document.getElementById('filter-search')?.value || '', 80).toLowerCase();
-  const submissions = getSubmissions().filter(item => {
+  const submissions = allSubmissions.filter(item => {
     if (status && item.status !== status) return false;
     if (topic && item.topic !== topic) return false;
     if (!query) return true;
@@ -1208,9 +1244,14 @@ function askDelete(type,id){
     }
     if (type === 'invite') {
       setInvites(getInvites().filter(item => item.id !== id));
-      setSubmissions(getSubmissions().filter(item => item.inviteId !== id));
+      setSubmissions(getSubmissions().filter(item => String(item.inviteId || item.invite_id || '') !== String(id)));
     } else {
-      setSubmissions(getSubmissions().filter(item => item.id !== id));
+      const removed = getSubmissions().find(item => item.id === id);
+      const nextSubmissions = getSubmissions().filter(item => item.id !== id);
+      setSubmissions(nextSubmissions);
+      if (removed?.inviteId || removed?.invite_id) {
+        setInviteUsage(removed.inviteId || removed.invite_id, localSubmissionCountForInvite(removed.inviteId || removed.invite_id, nextSubmissions));
+      }
     }
     closeDeleteModal();
     renderAdmin();
@@ -1241,7 +1282,7 @@ async function verifyInvite(){
   if (!invite) { setStatus('entry-status','확인되지 않은 참여코드입니다.','bad'); return; }
   if (invite.expiresAt && invite.expiresAt < now()) { setStatus('entry-status','만료된 참여코드입니다.','bad'); return; }
   const maxUses = maxSubmissionsFor(invite.settings);
-  if (invite.status !== 'open' || submissionCountForInvite(invite.id) >= maxUses) { setStatus('entry-status','이미 사용된 참여코드입니다.','bad'); return; }
+  if (invite.status !== 'open' || usedCountForInvite(invite) >= maxUses) { setStatus('entry-status','이미 사용된 참여코드입니다.','bad'); return; }
   activeInvite = invite;
   activeCode = code;
   renderConsent(invite);
@@ -1253,7 +1294,7 @@ function renderConsent(invite){
   document.getElementById('entry-panel').classList.add('hidden');
   document.getElementById('consent-panel').classList.remove('hidden');
   document.getElementById('reading-title').textContent = invite.readingTitle || '리딩 접수';
-  document.getElementById('reading-summary').textContent = `${spread.label} · ${invite.spreadCount}장 · 접수 ${Math.min(submissionCountForInvite(invite.id), maxSubmissionsFor(settings))}/${maxSubmissionsFor(settings)}회`;
+  document.getElementById('reading-summary').textContent = `${spread.label} · ${invite.spreadCount}장 · 접수 ${Math.min(usedCountForInvite(invite), maxSubmissionsFor(settings))}/${maxSubmissionsFor(settings)}회`;
   const fields = [];
   fields.push(`<div class="field"><label>닉네임${settingValue(settings, 'requireNickname', 'require_nickname', true) ? ' *' : ''}</label><input id="participant-name" maxlength="${INPUT_LIMITS.participantName}" placeholder="실명 대신 닉네임"></div>`);
   fields.push(`<div class="field"><label>제목${settingValue(settings, 'requireTitle', 'require_title', true) ? ' *' : ''}</label><input id="participant-title" maxlength="${INPUT_LIMITS.title}" placeholder="예: 지금 마음에 남은 질문"></div>`);
@@ -1303,25 +1344,32 @@ function shuffleDeck(){
 function orderedDeck(){
   return TAROT_CARDS.map(card => ({ ...card, used:false }));
 }
+function normalizeDrawMode(mode){
+  return String(mode) === 'auto' ? 'auto' : 'manual_select';
+}
 function startDraw(preferredMode){
   const spread = getSpread(activeInvite);
+  const drawMode = normalizeDrawMode(preferredMode || 'manual_select');
   drawState = {
     deck:shuffleDeck(),
     picked:[],
     positions:spread.positions,
     settings:activeInvite.settings || {},
-    drawMode:'manual_select',
+    drawMode,
     submitting:false
   };
   document.getElementById('consent-panel').classList.add('hidden');
   document.getElementById('draw-panel').classList.remove('hidden');
   document.getElementById('draw-guide').textContent = '카드는 접수 후에만 공개됩니다. 뽑기 전에는 원하는 만큼 섞을 수 있습니다.';
   renderDraw();
+  if (drawMode === 'auto') autoPickCards();
   document.getElementById('draw-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 function renderDrawTools(){
   const disabled = drawState.picked.length > 0 || drawState.submitting;
   document.getElementById('draw-mode-row').innerHTML = `
+    <button class="draw-mode-btn ${drawState.drawMode === 'manual_select' ? 'active' : ''}" type="button" onclick="setParticipantDrawMode('manual_select')" ${disabled ? 'disabled' : ''}>직접 고르기</button>
+    <button class="draw-mode-btn ${drawState.drawMode === 'auto' ? 'active' : ''}" type="button" onclick="setParticipantDrawMode('auto')" ${disabled ? 'disabled' : ''}>자동 뽑기</button>
     <button class="draw-mode-btn" type="button" onclick="shuffleDrawDeck()" ${disabled ? 'disabled' : ''}>카드 섞기</button>
   `;
 }
@@ -1332,7 +1380,7 @@ function renderDraw(){
   document.getElementById('slot-line').innerHTML = slots;
   const deckGrid = document.getElementById('deck-grid');
   const canPick = drawState.picked.length < drawState.positions.length && !drawState.submitting;
-  deckGrid.classList.remove('hidden');
+  deckGrid.classList.toggle('hidden', drawState.drawMode === 'auto' && drawState.picked.length >= drawState.positions.length);
   deckGrid.innerHTML = drawState.deck.slice(0,36).map((card,index) => `
     <button class="deck-card" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${!canPick || card.used ? 'disabled' : ''}></button>
   `).join('');
@@ -1352,28 +1400,46 @@ function renderDrawReview(){
   review.classList.remove('hidden');
   actions.classList.remove('hidden');
   const lastIndex = drawState.picked.length - 1;
+  const complete = drawState.picked.length >= drawState.positions.length;
   review.innerHTML = drawState.picked.map((card,index) => `
-    <div class="draw-picked ${card.animate ? 'fresh' : ''}">
-      <div class="draw-picked-card">
+    <div class="draw-picked ${card.animate ? 'fresh' : ''} ${card.turned ? 'turned' : ''}">
+      <button class="draw-picked-card direction-toggle" type="button" onclick="togglePickedOrientation(${index})" ${(!complete || drawState.submitting) ? 'disabled' : ''} aria-label="${escapeHtml(card.position)} 카드 방향 바꾸기">
         <div class="flip-inner">
           <div class="flip-back" aria-hidden="true"></div>
         </div>
-      </div>
+      </button>
       <small>${escapeHtml(card.position)}</small>
       <strong>선택 완료</strong>
-      <span class="picked-hidden-label">접수 후 공개</span>
+      <span class="picked-hidden-label">${complete ? '방향 바꾸기 가능 · 접수 후 공개' : '접수 후 공개'}</span>
       ${index === lastIndex && !drawState.submitting ? `<button class="btn btn-mini" type="button" onclick="changeCurrentCard()">카드 바꾸기</button>` : ''}
     </div>
   `).join('');
   drawState.picked.forEach(card => { card.animate = false; });
-  const complete = drawState.picked.length >= drawState.positions.length;
   confirmButton.disabled = !complete || drawState.submitting;
-  setStatus('draw-status', complete ? '접수하면 결과를 확인할 수 있습니다.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
+  setStatus('draw-status', complete ? '접수 전까지 카드를 눌러 방향을 바꿀 수 있습니다.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
+}
+function setParticipantDrawMode(mode){
+  if (!drawState || drawState.picked.length || drawState.submitting) return;
+  drawState.drawMode = normalizeDrawMode(mode);
+  drawState.deck = shuffleDeck();
+  drawState.picked = [];
+  renderDraw();
+  if (drawState.drawMode === 'auto') autoPickCards();
 }
 function shuffleDrawDeck(){
   if (!drawState) return;
   if (drawState.picked.length || drawState.submitting) return;
   drawState.deck = shuffleDeck();
+  renderDraw();
+}
+function autoPickCards(){
+  if (!drawState || drawState.submitting) return;
+  drawState.deck = shuffleDeck();
+  drawState.picked = [];
+  for (let i=0;i<drawState.positions.length;i++) {
+    pickCard(i, true);
+  }
+  drawState.picked.forEach(card => { card.animate = true; });
   renderDraw();
 }
 function pickCard(index, silent=false){
@@ -1382,13 +1448,22 @@ function pickCard(index, silent=false){
   if (!card || card.used || drawState.picked.length >= drawState.positions.length) return;
   card.used = true;
   const orientation = Math.random() > .5 ? 'reversed' : 'upright';
-  drawState.picked.push({ ...card, deckIndex:index, position:drawState.positions[drawState.picked.length], orientation, animate:!silent });
+  drawState.picked.push({ ...card, deckIndex:index, position:drawState.positions[drawState.picked.length], orientation, turned:false, animate:!silent });
   if (!silent) {
     renderDraw();
   }
 }
 function reassignPickedPositions(){
   drawState.picked = drawState.picked.map((card,index) => ({ ...card, position:drawState.positions[index], animate:false }));
+}
+function togglePickedOrientation(index){
+  if (!drawState || drawState.submitting) return;
+  if (drawState.picked.length < drawState.positions.length) return;
+  const card = drawState.picked[index];
+  if (!card) return;
+  card.orientation = card.orientation === 'reversed' ? 'upright' : 'reversed';
+  card.turned = !card.turned;
+  renderDrawReview();
 }
 function changeCurrentCard(){
   if (!drawState?.picked?.length || drawState.submitting) return;
@@ -1448,7 +1523,10 @@ async function completeSubmission(){
       });
       const saved = data.submission || submission;
       const maxUses = maxSubmissionsFor(settings);
-      activeInvite.status = submissionCountForInvite(activeInvite.id) + 1 >= maxUses ? 'used' : activeInvite.status;
+      setSubmissions([saved, ...getSubmissions().filter(item => item.id !== saved.id)]);
+      const nextUsedCount = usedCountForInvite(activeInvite);
+      activeInvite = { ...activeInvite, usedCount:nextUsedCount, status:nextUsedCount >= maxUses ? 'used' : activeInvite.status };
+      setInviteUsage(activeInvite.id, nextUsedCount);
       setStatus('draw-status','');
       renderResult(saved);
       return;

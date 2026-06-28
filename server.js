@@ -1227,7 +1227,9 @@ function safeTarotInvite(invite, options = {}) {
     expiresAt:item.expiresAt || item.expires_at || null,
     usedAt:item.usedAt || item.used_at || null,
     createdAt:item.createdAt || item.created_at || null,
-    updatedAt:item.updatedAt || item.updated_at || null
+    updatedAt:item.updatedAt || item.updated_at || null,
+    usedCount:Number(item.usedCount || item.used_count || 0),
+    maxSubmissions:maxSubmissionsForInvite(item)
   };
   if (options.admin) safe.internalNote = String(item.internalNote || item.internal_note || '');
   return safe;
@@ -1856,7 +1858,7 @@ app.post('/api/tarot/validate', interactionLimit, async (req, res) => {
     const invite = await store.validateTarotInvite(hashTarotCode(code));
     const usedCount = invite ? await store.countTarotSubmissionsForInvite(invite.id) : 0;
     assertInviteUsable(invite, usedCount);
-    res.json({ ok:true, invite:safeTarotInvite(invite) });
+    res.json({ ok:true, invite:safeTarotInvite({ ...invite, usedCount }) });
   } catch (error) {
     sendTarotError(res, error);
   }
@@ -1875,7 +1877,11 @@ app.post('/api/tarot/submit', interactionLimit, async (req, res) => {
       return res.status(400).json({ error:'invalid_drawn_cards' });
     }
     const submission = await store.submitTarotReading({ codeHash, ...payload });
-    res.status(201).json({ ok:true, submission:safeTarotSubmission(submission) });
+    res.status(201).json({
+      ok:true,
+      submission:safeTarotSubmission(submission),
+      invite:safeTarotInvite({ ...invite, usedCount:usedCount + 1 })
+    });
   } catch (error) {
     sendTarotError(res, error);
   }
@@ -1892,7 +1898,10 @@ app.get('/api/admin/tarot', checkAdmin, async (_req, res) => {
       ok:true,
       mode:store.mode,
       settings,
-      invites:(invites || []).map(invite => safeTarotInvite(invite, { admin:true })),
+      invites:(invites || []).map(invite => {
+        const usedCount = (submissions || []).filter(item => String(item.inviteId || item.invite_id || '') === String(invite.id)).length;
+        return safeTarotInvite({ ...invite, usedCount }, { admin:true });
+      }),
       submissions:(submissions || []).map(safeTarotSubmission)
     });
   } catch (error) {
