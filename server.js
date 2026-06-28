@@ -1018,19 +1018,26 @@ const TAROT_SPREADS = {
   1:[
     { id:'one', label:'한 장 리딩', positions:['핵심'] },
     { id:'today', label:'오늘의 흐름', positions:['오늘의 흐름'] },
-    { id:'advice', label:'질문 조언', positions:['조언'] }
+    { id:'advice', label:'질문 조언', positions:['조언'] },
+    { id:'symbol', label:'상징 한 장', positions:['상징'] }
   ],
   3:[
     { id:'flow', label:'현재 / 흐름 / 조언', positions:['현재','흐름','조언'] },
     { id:'past', label:'과거 / 현재 / 미래', positions:['과거','현재','미래'] },
-    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] }
+    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] },
+    { id:'character3', label:'겉모습 / 속마음 / 다음 장면', positions:['겉모습','속마음','다음 장면'] },
+    { id:'favorite3', label:'끌리는 이유 / 지금 마음 / 조언', positions:['끌리는 이유','지금 마음','조언'] }
   ],
   5:[
     { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'] },
-    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] }
+    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] },
+    { id:'character5', label:'현재 서사 / 상처 / 욕망 / 변수 / 다음 장면', positions:['현재 서사','상처','욕망','변수','다음 장면'] },
+    { id:'dream5', label:'나의 역할 / 대상 / 관계 온도 / 갈등 / 다음 장면', positions:['나의 역할','대상','관계 온도','갈등','다음 장면'] }
   ],
   7:[
-    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] }
+    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] },
+    { id:'relation7', label:'관계 흐름 7장', positions:['과거','현재','가까운 미래','A의 욕구','B의 욕구','문제','조언'] },
+    { id:'character7', label:'캐릭터 서사 7장', positions:['겉모습','숨은 면','결핍','욕망','관계 변수','선택','다음 장면'] }
   ],
   9:[
     { id:'deep9', label:'전체 흐름형 9장 배열', positions:['현재','원인','겉으로 보이는 일','숨은 마음','흐름','변수','조언','가까운 결과','전체 결론'] },
@@ -1099,6 +1106,57 @@ function clampUseLimit(value, fallback = 1) {
   return Math.min(number, 999);
 }
 
+const TAROT_READING_TYPES = [
+  ['general', '일반'],
+  ['relationship', '관계'],
+  ['oc', '자캐'],
+  ['oc_relationship', '자캐관계'],
+  ['favorite', '최애'],
+  ['dream', '드림']
+];
+const TAROT_READING_TYPE_IDS = TAROT_READING_TYPES.map(([id]) => id);
+const TAROT_READING_TYPE_LABELS = Object.fromEntries(TAROT_READING_TYPES);
+
+function normalizeReadingTypeId(value) {
+  const id = String(value || '').trim();
+  return TAROT_READING_TYPE_IDS.includes(id) ? id : 'general';
+}
+
+function normalizeAllowedReadingTypes(value) {
+  const raw = Array.isArray(value) ? value : String(value || '').split(',');
+  const list = raw.map(normalizeReadingTypeId).filter((id, index, arr) => id && arr.indexOf(id) === index);
+  return list.length ? list : [...TAROT_READING_TYPE_IDS];
+}
+
+function cleanTarotQuestionContext(value) {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const readingType = normalizeReadingTypeId(source.readingType || source.reading_type);
+  const fieldsSource = source.fields && typeof source.fields === 'object' && !Array.isArray(source.fields) ? source.fields : {};
+  const fields = {};
+  Object.entries(fieldsSource).forEach(([key, raw]) => {
+    const cleanKey = String(key || '').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 40);
+    const cleanValue = cleanText(raw, 260);
+    if (cleanKey && cleanValue) fields[cleanKey] = cleanValue;
+  });
+  const label = cleanText(source.readingTypeLabel || source.reading_type_label || TAROT_READING_TYPE_LABELS[readingType], 40) || TAROT_READING_TYPE_LABELS[readingType];
+  const subTopic = cleanText(source.subTopic || source.sub_topic, 24);
+  return {
+    readingType,
+    reading_type:readingType,
+    readingTypeLabel:label,
+    reading_type_label:label,
+    subTopic,
+    sub_topic:subTopic,
+    fields
+  };
+}
+
+function tarotQuestionContextText(context) {
+  const ctx = cleanTarotQuestionContext(context);
+  const fields = Object.values(ctx.fields || {}).join(' ');
+  return `${ctx.readingTypeLabel || ''} ${ctx.subTopic || ''} ${fields}`.trim();
+}
+
 function cleanTarotSettings(value, spreadCount) {
   const source = value && typeof value === 'object' ? value : {};
   const get = (camel, snake, fallback) => source[camel] !== undefined ? source[camel] : (source[snake] !== undefined ? source[snake] : fallback);
@@ -1109,6 +1167,7 @@ function cleanTarotSettings(value, spreadCount) {
   const legacySingleUse = get('singleUse', 'single_use', true) !== false;
   const maxSubmissions = clampUseLimit(get('maxSubmissions', 'max_submissions', legacySingleUse ? 1 : 999));
   const adminCode = normalizeTarotCode(get('adminCode', 'admin_code', ''));
+  const allowedReadingTypes = normalizeAllowedReadingTypes(get('allowedReadingTypes', 'allowed_reading_types', TAROT_READING_TYPE_IDS));
   return {
     allowReversed:bool('allowReversed', 'allow_reversed', true),
     allow_reversed:bool('allowReversed', 'allow_reversed', true),
@@ -1132,6 +1191,8 @@ function cleanTarotSettings(value, spreadCount) {
     require_question:bool('requireQuestion', 'require_question', true),
     allowTopicSelect:bool('allowTopicSelect', 'allow_topic_select', true),
     allow_topic_select:bool('allowTopicSelect', 'allow_topic_select', true),
+    allowedReadingTypes,
+    allowed_reading_types:allowedReadingTypes,
     maxSubmissions,
     max_submissions:maxSubmissions,
     singleUse:maxSubmissions <= 1,
@@ -1175,7 +1236,8 @@ function cleanTarotSubmissionBody(body) {
   const title = cleanText(source.title, 50);
   const topic = cleanText(source.topic, 24);
   const question = cleanText(source.question, 400);
-  if (hasRestrictedPersonalInfo(`${participantName} ${title} ${topic} ${question}`)) {
+  const questionContext = cleanTarotQuestionContext(source.questionContext || source.question_context);
+  if (hasRestrictedPersonalInfo(`${participantName} ${title} ${topic} ${question} ${tarotQuestionContextText(questionContext)}`)) {
     const err = new Error('restricted_personal_info');
     err.statusCode = 400;
     throw err;
@@ -1185,6 +1247,8 @@ function cleanTarotSubmissionBody(body) {
     title,
     topic,
     question,
+    questionContext,
+    question_context:questionContext,
     drawnCards:normalizeTarotDrawnCards(source.drawnCards || source.drawn_cards)
   };
 }
@@ -1256,6 +1320,7 @@ function safeTarotSubmission(submission) {
     title:String(item.title || ''),
     topic:String(item.topic || ''),
     question:String(item.question || ''),
+    questionContext:cleanTarotQuestionContext(item.questionContext || item.question_context),
     spreadCount:Number(item.spreadCount || item.spread_count || 3),
     spreadType:String(item.spreadType || item.spread_type || ''),
     drawnCards:Array.isArray(item.drawnCards) ? item.drawnCards : (Array.isArray(item.drawn_cards) ? item.drawn_cards : []),
@@ -1885,6 +1950,10 @@ app.post('/api/tarot/submit', interactionLimit, async (req, res) => {
     const usedCount = invite ? await store.countTarotSubmissionsForInvite(invite.id) : 0;
     assertInviteUsable(invite, usedCount);
     const payload = cleanTarotSubmissionBody(req.body || {});
+    const allowedReadingTypes = normalizeAllowedReadingTypes(invite && invite.settings ? (invite.settings.allowedReadingTypes || invite.settings.allowed_reading_types) : TAROT_READING_TYPE_IDS);
+    if (!allowedReadingTypes.includes(payload.questionContext.readingType)) {
+      return res.status(400).json({ error:'invalid_reading_type' });
+    }
     if (payload.drawnCards.length !== Number(invite.spreadCount || 0)) {
       return res.status(400).json({ error:'invalid_drawn_cards' });
     }

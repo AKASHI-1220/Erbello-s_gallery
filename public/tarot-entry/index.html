@@ -102,6 +102,26 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .field textarea{min-height:92px;resize:vertical}
 .field input:focus,.field textarea:focus,.field select:focus{border-color:rgba(217,184,111,.5);box-shadow:0 0 0 2px rgba(217,184,111,.08)}
 .field select option{background:#171820;color:#f4ead4}
+.type-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.type-check{
+  min-height:42px;
+  border:1px solid var(--line2);
+  border-radius:8px;
+  padding:10px;
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  display:flex;
+  gap:8px;
+  align-items:center;
+  line-height:1.35;
+}
+.type-check input{accent-color:#c69d4d}
+.type-check span{font-size:13px}
+.context-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.context-grid .field.wide{grid-column:1/-1}
+.context-summary{display:grid;gap:7px;margin-top:9px}
+.context-chip{border:1px solid var(--line2);border-radius:8px;padding:9px 10px;background:rgba(255,255,255,.03);color:var(--muted);font-size:12px;line-height:1.55}
+.context-chip strong{color:var(--gold2);font-weight:700;margin-right:6px}
 .checklist{display:grid;gap:9px;margin-top:14px}
 .checkline{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;color:var(--muted);font-size:13px;line-height:1.65}
 .checkline input{width:16px;height:16px;margin-top:3px;accent-color:#c69d4d}
@@ -322,6 +342,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
   .deck-grid{grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
   .deck-card{min-height:78px}
   .draw-review{grid-template-columns:1fr}
+  .type-check-grid,.context-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -488,6 +509,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <div class="field"><label>리딩 제목</label><input id="admin-title" value="개인 타로 리딩"></div>
           <div class="field"><label>참여코드 라벨</label><input id="admin-label" placeholder="예: 6월 개인 리딩"></div>
           <div class="field"><label>내부 메모</label><textarea id="admin-internal-note" placeholder="관리자만 보는 메모"></textarea></div>
+          <div class="field"><label>허용 리딩 종류</label><div class="type-check-grid" id="admin-reading-types"></div></div>
           <div class="field"><label>카드 장수</label><select id="admin-count" onchange="syncSpreadTypes()"><option>1</option><option selected>3</option><option>5</option><option>7</option><option>9</option><option>10</option></select></div>
           <div class="field"><label>배열</label><select id="admin-spread"></select></div>
           <div class="field"><label>만료일</label><input id="admin-expires" type="date"></div>
@@ -517,8 +539,8 @@ button:disabled{cursor:not-allowed;opacity:.55}
         <h3>접수 결과</h3>
         <div class="admin-filters">
           <div class="field"><label>상태</label><select id="filter-status" onchange="renderAdmin()"><option value="">전체</option><option value="received">접수</option><option value="reading">해석 중</option><option value="completed">완료</option></select></div>
-          <div class="field"><label>주제</label><select id="filter-topic" onchange="renderAdmin()"><option value="">전체</option><option>연애</option><option>관계</option><option>진로</option><option>금전</option><option>가족</option><option>오늘의 흐름</option><option>자유질문</option></select></div>
-          <div class="field" style="grid-column:1/-1"><label>검색</label><input id="filter-search" placeholder="닉네임, 제목, 질문" oninput="renderAdmin()"></div>
+          <div class="field"><label>리딩 종류</label><select id="filter-reading-type" onchange="renderAdmin()"><option value="">전체</option></select></div>
+          <div class="field" style="grid-column:1/-1"><label>검색</label><input id="filter-search" placeholder="닉네임, 제목, 질문, 리딩 정보" oninput="renderAdmin()"></div>
         </div>
         <div class="admin-list" id="submission-list"></div>
       </section>
@@ -561,23 +583,63 @@ const STORE_KEYS = {
 const ADMIN_ENTRY_CODE = String(globalThis.__ARCANA_ADMIN_ENTRY_CODE__ || '1220').trim() || '1220';
 
 const TOPICS = ['연애','관계','진로','금전','가족','오늘의 흐름','자유질문'];
+const READING_TYPES = [
+  { id:'general', label:'일반', topic:'일반', questionLabel:'질문', questionPlaceholder:'지금 보고 싶은 질문을 적어 주세요.', fields:[] },
+  { id:'relationship', label:'관계', topic:'관계', questionLabel:'관계 질문', questionPlaceholder:'지금 보고 싶은 관계의 흐름을 적어 주세요.', fields:[
+    { key:'target', label:'상대/대상', placeholder:'예: 친구, 연인, 관계 대상', required:true },
+    { key:'current', label:'현재 관계', placeholder:'지금의 거리감이나 상황', wide:true }
+  ] },
+  { id:'oc', label:'자캐', topic:'자캐', questionLabel:'보고 싶은 서사', questionPlaceholder:'캐릭터에게서 보고 싶은 장면이나 고민을 적어 주세요.', fields:[
+    { key:'characterName', label:'캐릭터 이름', placeholder:'캐릭터 이름', required:true },
+    { key:'world', label:'세계관', placeholder:'장르나 배경' },
+    { key:'keywords', label:'키워드', placeholder:'성격, 상징, 분위기', wide:true },
+    { key:'focus', label:'보고 싶은 부분', placeholder:'서사, 상처, 선택, 관계 등', wide:true }
+  ] },
+  { id:'oc_relationship', label:'자캐관계', topic:'자캐관계', questionLabel:'관계 질문', questionPlaceholder:'두 캐릭터 사이에서 보고 싶은 흐름을 적어 주세요.', fields:[
+    { key:'characterA', label:'A 캐릭터', placeholder:'첫 번째 캐릭터', required:true },
+    { key:'characterB', label:'B 캐릭터', placeholder:'두 번째 캐릭터', required:true },
+    { key:'world', label:'세계관', placeholder:'장르나 배경' },
+    { key:'relation', label:'관계 메모', placeholder:'현재 관계, 갈등, 원하는 분위기', wide:true }
+  ] },
+  { id:'favorite', label:'최애', topic:'최애', questionLabel:'덕질 질문', questionPlaceholder:'요즘 마음이나 보고 싶은 덕질 흐름을 적어 주세요.', fields:[
+    { key:'favoriteName', label:'최애 이름', placeholder:'이름이나 애칭', required:true },
+    { key:'fandom', label:'작품/그룹', placeholder:'작품, 장르, 그룹명' },
+    { key:'mood', label:'요즘 마음', placeholder:'설렘, 불안, 애정 포인트', wide:true },
+    { key:'focus', label:'보고 싶은 부분', placeholder:'오래 즐길 방법, 마음 정리 등', wide:true }
+  ] },
+  { id:'dream', label:'드림·상상관계', topic:'드림', questionLabel:'장면 질문', questionPlaceholder:'상상 관계에서 보고 싶은 장면이나 흐름을 적어 주세요.', fields:[
+    { key:'selfRole', label:'나/드림주', placeholder:'이름이나 역할' },
+    { key:'targetName', label:'상대/대상', placeholder:'상대 이름이나 대상', required:true },
+    { key:'setting', label:'관계 설정', placeholder:'관계, 배경, 분위기', wide:true },
+    { key:'focus', label:'보고 싶은 부분', placeholder:'장면, 갈등, 다음 흐름', wide:true }
+  ] }
+];
+const DEFAULT_READING_TYPE = 'general';
+const READING_TYPE_IDS = READING_TYPES.map(item => item.id);
 const SPREADS = {
   1:[
     { id:'one', label:'한 장 리딩', positions:['핵심'] },
     { id:'today', label:'오늘의 흐름', positions:['오늘의 흐름'] },
-    { id:'advice', label:'질문 조언', positions:['조언'] }
+    { id:'advice', label:'질문 조언', positions:['조언'] },
+    { id:'symbol', label:'상징 한 장', positions:['상징'] }
   ],
   3:[
     { id:'flow', label:'현재 / 흐름 / 조언', positions:['현재','흐름','조언'] },
     { id:'past', label:'과거 / 현재 / 미래', positions:['과거','현재','미래'] },
-    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] }
+    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] },
+    { id:'character3', label:'겉모습 / 속마음 / 다음 장면', positions:['겉모습','속마음','다음 장면'] },
+    { id:'favorite3', label:'끌리는 이유 / 지금 마음 / 조언', positions:['끌리는 이유','지금 마음','조언'] }
   ],
   5:[
     { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'] },
-    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] }
+    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] },
+    { id:'character5', label:'현재 서사 / 상처 / 욕망 / 변수 / 다음 장면', positions:['현재 서사','상처','욕망','변수','다음 장면'] },
+    { id:'dream5', label:'나의 역할 / 대상 / 관계 온도 / 갈등 / 다음 장면', positions:['나의 역할','대상','관계 온도','갈등','다음 장면'] }
   ],
   7:[
-    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] }
+    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] },
+    { id:'relation7', label:'관계 흐름 7장', positions:['과거','현재','가까운 미래','A의 욕구','B의 욕구','문제','조언'] },
+    { id:'character7', label:'캐릭터 서사 7장', positions:['겉모습','숨은 면','결핍','욕망','관계 변수','선택','다음 장면'] }
   ],
   9:[
     { id:'deep9', label:'전체 흐름형 9장 배열', positions:['현재','원인','겉으로 보이는 일','숨은 마음','흐름','변수','조언','가까운 결과','전체 결론'] },
@@ -634,6 +696,8 @@ const INPUT_LIMITS = {
   title:50,
   topic:24,
   question:400,
+  context:160,
+  contextLong:260,
   adminLabel:80,
   readingTitle:80,
   publicText:500
@@ -642,6 +706,7 @@ const ERROR_MESSAGES = {
   invalid_invite_code:'확인되지 않은 참여코드입니다.',
   expired_invite_code:'만료된 참여코드입니다.',
   used_invite_code:'이미 사용된 참여코드입니다.',
+  invalid_reading_type:'선택할 수 없는 리딩 종류입니다.',
   invalid_drawn_cards:'카드 접수 정보가 올바르지 않습니다.',
   duplicate_drawn_cards:'같은 카드가 중복 선택되었습니다.',
   restricted_personal_info:'연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.',
@@ -771,6 +836,12 @@ function normalizeLongText(value, max=2000){
 function normalizeCode(value){
   return String(value || '').trim().toUpperCase().replace(/\s+/g, '');
 }
+function copyText(value){
+  try {
+    const result = navigator.clipboard?.writeText(String(value || ''));
+    if (result && typeof result.catch === 'function') result.catch(() => {});
+  } catch(_) {}
+}
 function hasRestrictedPersonalInfo(value){
   const text = String(value || '');
   return /(010[-.\s]?\d{3,4}[-.\s]?\d{4}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|주민등록|주민번호|여권번호|운전면허|계좌번호|카카오톡\s*ID|카톡\s*ID|인스타\s*ID|주소\s*:)/i.test(text);
@@ -784,6 +855,92 @@ function settingValue(settings, camelKey, snakeKey, fallback){
   if (settings[camelKey] !== undefined) return settings[camelKey];
   if (settings[snakeKey] !== undefined) return settings[snakeKey];
   return fallback;
+}
+function readingTypeById(id){
+  return READING_TYPES.find(item => item.id === id) || READING_TYPES[0];
+}
+function normalizeReadingTypeId(id){
+  const value = String(id || '').trim();
+  return READING_TYPE_IDS.includes(value) ? value : DEFAULT_READING_TYPE;
+}
+function normalizeAllowedReadingTypes(value){
+  const raw = Array.isArray(value) ? value : String(value || '').split(',');
+  const next = raw.map(normalizeReadingTypeId).filter((id, index, list) => id && list.indexOf(id) === index);
+  return next.length ? next : [...READING_TYPE_IDS];
+}
+function allowedReadingTypesFor(settings){
+  return normalizeAllowedReadingTypes(settingValue(settings || {}, 'allowedReadingTypes', 'allowed_reading_types', READING_TYPE_IDS));
+}
+function readingTypeLabel(id){
+  return readingTypeById(normalizeReadingTypeId(id)).label;
+}
+function questionContextOf(item){
+  const raw = item?.questionContext || item?.question_context || {};
+  const src = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+  const typeId = normalizeReadingTypeId(src.readingType || src.reading_type || item?.readingType || item?.reading_type || '');
+  const type = readingTypeById(typeId);
+  const fields = src.fields && typeof src.fields === 'object' && !Array.isArray(src.fields) ? src.fields : {};
+  return {
+    readingType:type.id,
+    reading_type:type.id,
+    readingTypeLabel:normalizeText(src.readingTypeLabel || src.reading_type_label || type.label, 40) || type.label,
+    reading_type_label:normalizeText(src.readingTypeLabel || src.reading_type_label || type.label, 40) || type.label,
+    subTopic:normalizeText(src.subTopic || src.sub_topic || '', INPUT_LIMITS.topic),
+    sub_topic:normalizeText(src.subTopic || src.sub_topic || '', INPUT_LIMITS.topic),
+    fields
+  };
+}
+function hasStoredQuestionContext(item){
+  const raw = item?.questionContext || item?.question_context;
+  return Boolean(raw && typeof raw === 'object' && !Array.isArray(raw) && (raw.readingType || raw.reading_type || raw.subTopic || raw.sub_topic || Object.keys(raw.fields || {}).length));
+}
+function readingTypeIdForSubmission(item){
+  const context = questionContextOf(item);
+  if (context.readingType && context.readingType !== DEFAULT_READING_TYPE) return context.readingType;
+  const legacyTopic = normalizeText(item?.topic || '', 40);
+  const matched = READING_TYPES.find(type => type.label === legacyTopic || type.topic === legacyTopic);
+  return matched ? matched.id : context.readingType;
+}
+function readingTypeLabelForSubmission(item){
+  if (!hasStoredQuestionContext(item) && item?.topic) return normalizeText(item.topic, 40);
+  return readingTypeLabel(readingTypeIdForSubmission(item));
+}
+function contextLines(context){
+  const ctx = questionContextOf({ questionContext:context });
+  const type = readingTypeById(ctx.readingType);
+  const lines = [];
+  if (ctx.subTopic) lines.push(['세부 주제', ctx.subTopic]);
+  type.fields.forEach(field => {
+    const value = normalizeText(ctx.fields?.[field.key] || '', field.wide ? INPUT_LIMITS.contextLong : INPUT_LIMITS.context);
+    if (value) lines.push([field.label, value]);
+  });
+  return lines;
+}
+function contextPlainText(context){
+  const ctx = questionContextOf({ questionContext:context });
+  const lines = [[ '리딩 종류', readingTypeLabel(ctx.readingType) ], ...contextLines(ctx)];
+  return lines.map(([label, value]) => `${label}: ${value}`).join('\n');
+}
+function renderAdminReadingTypeChecks(){
+  const box = document.getElementById('admin-reading-types');
+  if (!box) return;
+  box.innerHTML = READING_TYPES.map(type => `
+    <label class="type-check">
+      <input type="checkbox" name="admin-reading-type" value="${type.id}" checked>
+      <span>${escapeHtml(type.label)}</span>
+    </label>
+  `).join('');
+}
+function renderReadingTypeFilter(){
+  const select = document.getElementById('filter-reading-type');
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">전체</option>${READING_TYPES.map(type => `<option value="${type.id}">${escapeHtml(type.label)}</option>`).join('')}`;
+  select.value = READING_TYPE_IDS.includes(current) ? current : '';
+}
+function selectedAdminReadingTypes(){
+  const checked = [...document.querySelectorAll('input[name="admin-reading-type"]:checked')].map(input => input.value);
+  return normalizeAllowedReadingTypes(checked);
 }
 function clampUseLimit(value, fallback=1){
   const number = Math.floor(Number(value));
@@ -898,6 +1055,8 @@ async function showAdmin(){
     return;
   }
   syncSpreadTypes();
+  renderAdminReadingTypeChecks();
+  renderReadingTypeFilter();
   try {
     await loadRemoteAdminData();
   } catch(error) {
@@ -951,6 +1110,8 @@ function settingsFromAdmin(){
     require_question:document.getElementById('admin-require-question').checked,
     allowTopicSelect:document.getElementById('admin-allow-topic').checked,
     allow_topic_select:document.getElementById('admin-allow-topic').checked,
+    allowedReadingTypes:selectedAdminReadingTypes(),
+    allowed_reading_types:selectedAdminReadingTypes(),
     enableResultImage:document.getElementById('admin-result-image').checked,
     enable_result_image:document.getElementById('admin-result-image').checked,
     includeQuestionInImage:document.getElementById('admin-question-image').checked,
@@ -1009,7 +1170,7 @@ async function createInvite(){
       setInvites([invite, ...getInvites().filter(item => item.id !== invite.id)]);
       plainCodes.set(invite.id, issuedCode);
       setStatus('admin-create-status', `생성됨: ${issuedCode}`, 'ok');
-      navigator.clipboard?.writeText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${issuedCode}\n참여 링크: ${baseEntryUrl()}`);
+      copyText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${issuedCode}\n참여 링크: ${baseEntryUrl()}`);
       renderAdmin();
       return;
     } catch(error) {
@@ -1039,7 +1200,7 @@ async function createInvite(){
   plainCodes.set(invite.id, code);
   const link = baseEntryUrl();
   setStatus('admin-create-status', `생성됨: ${code}`, 'ok');
-  navigator.clipboard?.writeText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${link}`);
+  copyText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${link}`);
   renderAdmin();
 }
 async function savePublicSettings(){
@@ -1143,14 +1304,16 @@ function switchAdminTab(tab){
 function renderAdmin(){
   const invites = getInvites();
   const allSubmissions = getSubmissions();
+  renderReadingTypeFilter();
   document.getElementById('invite-list').innerHTML = invites.length ? invites.map(invite => {
     const disabled = invite.status !== 'open' ? ' · 사용됨' : '';
     const fullCode = inviteCodeForAdmin(invite);
     const usedCount = usedCountForInvite(invite, allSubmissions);
     const maxUses = maxSubmissionsFor(invite.settings);
+    const allowedTypes = allowedReadingTypesFor(invite.settings).map(readingTypeLabel).join(', ');
     return `<div class="admin-item">
       <strong>${escapeHtml(invite.label || invite.readingTitle)} <span style="color:var(--muted)">...${escapeHtml(invite.codeSuffix)}</span></strong>
-      <p>${invite.spreadCount}장 · ${escapeHtml(getSpread(invite).label)} · 접수 ${usedCount}/${maxUses}회${disabled}${invite.expiresAt ? ` · 만료 ${dateText(invite.expiresAt)}` : ''}</p>
+      <p>${invite.spreadCount}장 · ${escapeHtml(getSpread(invite).label)} · ${escapeHtml(allowedTypes)} · 접수 ${usedCount}/${maxUses}회${disabled}${invite.expiresAt ? ` · 만료 ${dateText(invite.expiresAt)}` : ''}</p>
       ${fullCode ? `<p class="admin-code-line">${escapeHtml(fullCode)}</p>` : ''}
       ${invite.internalNote ? `<p>${escapeHtml(truncateText(invite.internalNote, 120))}</p>` : ''}
       <div class="admin-actions">
@@ -1164,18 +1327,18 @@ function renderAdmin(){
   }).join('') : '<p>아직 만든 코드가 없습니다.</p>';
 
   const status = document.getElementById('filter-status')?.value || '';
-  const topic = document.getElementById('filter-topic')?.value || '';
+  const readingType = document.getElementById('filter-reading-type')?.value || '';
   const query = normalizeText(document.getElementById('filter-search')?.value || '', 80).toLowerCase();
   const submissions = allSubmissions.filter(item => {
     if (status && item.status !== status) return false;
-    if (topic && item.topic !== topic) return false;
+    if (readingType && readingTypeIdForSubmission(item) !== readingType) return false;
     if (!query) return true;
-    return `${item.participantName || ''} ${item.title || ''} ${item.question || ''}`.toLowerCase().includes(query);
+    return `${item.participantName || ''} ${item.title || ''} ${item.topic || ''} ${item.question || ''} ${contextPlainText(item.questionContext || item.question_context)}`.toLowerCase().includes(query);
   });
   document.getElementById('submission-list').innerHTML = submissions.length ? submissions.map(item => `
     <div class="admin-item">
       <strong>${escapeHtml(item.title || item.participantName || '무제 접수')}</strong>
-      <p>${escapeHtml(item.participantName || '-')} · ${escapeHtml(item.topic || '-')} · ${dateText(item.createdAt)} · ${escapeHtml(item.status)}</p>
+      <p>${escapeHtml(item.participantName || '-')} · ${escapeHtml(readingTypeLabelForSubmission(item))} · ${dateText(item.createdAt)} · ${escapeHtml(item.status)}</p>
       <p>${escapeHtml(truncateText(item.question || '', 160))}</p>
       <div class="admin-actions">
         <button class="btn" type="button" onclick="openSubmissionDetail('${item.id}')">상세</button>
@@ -1193,17 +1356,17 @@ function copyInviteCode(id){
   const invite = getInvites().find(item => item.id === id);
   const code = inviteCodeForAdmin(invite);
   if (!code) return;
-  navigator.clipboard?.writeText(code);
+  copyText(code);
 }
 function copyInviteSuffix(id){
   const invite = getInvites().find(item => item.id === id);
   if (!invite) return;
-  navigator.clipboard?.writeText(`****${invite.codeSuffix}`);
+  copyText(`****${invite.codeSuffix}`);
 }
 function copyInviteLink(id){
   const invite = getInvites().find(item => item.id === id);
   const code = inviteCodeForAdmin(invite);
-  navigator.clipboard?.writeText(code ? currentUrlWithCode(code) : baseEntryUrl());
+  copyText(code ? currentUrlWithCode(code) : baseEntryUrl());
 }
 function copyInviteNotice(id){
   const invite = getInvites().find(item => item.id === id);
@@ -1212,22 +1375,28 @@ function copyInviteNotice(id){
   const text = code
     ? `아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${baseEntryUrl()}`
     : `아래 링크에서 전달받은 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여 링크: ${baseEntryUrl()}\n코드 끝자리: ****${invite.codeSuffix}`;
-  navigator.clipboard?.writeText(text);
+  copyText(text);
 }
 function copyInterpretation(id){
   const item = getSubmissions().find(s => s.id === id);
   if (!item) return;
   const cards = item.drawnCards.map(card => `${card.position}: ${cardKo(card)} ${card.orientation === 'reversed' ? '역방향' : '정방향'}`).join('\n');
+  const context = contextPlainText(item.questionContext || item.question_context);
+  const contextBlock = context ? `\n\n${context}` : '';
   const interpretation = item.interpretation ? `\n\n해석:\n${item.interpretation}` : '\n\n해석:\n';
-  navigator.clipboard?.writeText(`${item.title || '타로 리딩'}\n\n${cards}${interpretation}`);
+  copyText(`${item.title || '타로 리딩'}${contextBlock}\n\n${cards}${interpretation}`);
 }
 function openSubmissionDetail(id){
   const item = getSubmissions().find(s => s.id === id);
   if (!item) return;
   activeSubmissionId = id;
   const cards = item.drawnCards.map(card => `<li>${escapeHtml(card.position)} · ${escapeHtml(cardKo(card))} · ${card.orientation === 'reversed' ? '역방향' : '정방향'}</li>`).join('');
+  const context = questionContextOf(item);
+  const contextHtml = contextLines(context).map(([label, value]) => `<div class="context-chip"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</div>`).join('');
+  const subTopic = context.subTopic ? ` · ${escapeHtml(context.subTopic)}` : '';
   document.getElementById('submission-detail').innerHTML = `
-    <div class="step"><strong>${escapeHtml(item.title || '무제 접수')}</strong><span>${escapeHtml(item.participantName || '-')} · ${escapeHtml(item.topic || '-')} · ${dateText(item.createdAt)}</span></div>
+    <div class="step"><strong>${escapeHtml(item.title || '무제 접수')}</strong><span>${escapeHtml(item.participantName || '-')} · ${escapeHtml(readingTypeLabelForSubmission(item))}${subTopic} · ${dateText(item.createdAt)}</span></div>
+    ${contextHtml ? `<div class="context-summary">${contextHtml}</div>` : ''}
     <div class="step"><strong>질문</strong><span>${escapeHtml(item.question || '-')}</span></div>
     <div class="step"><strong>선택 카드</strong><span><ul style="margin-left:18px;line-height:1.8">${cards}</ul></span></div>
     <div class="field"><label>상태</label><select id="detail-status"><option value="received">접수</option><option value="reading">해석 중</option><option value="completed">완료</option></select></div>
@@ -1346,6 +1515,7 @@ async function verifyInvite(){
 function renderConsent(invite){
   const settings = invite.settings || {};
   const spread = getSpread(invite);
+  const allowedTypes = allowedReadingTypesFor(settings);
   document.getElementById('entry-status').textContent = '';
   document.getElementById('entry-panel').classList.add('hidden');
   document.getElementById('consent-panel').classList.remove('hidden');
@@ -1354,17 +1524,62 @@ function renderConsent(invite){
   const fields = [];
   fields.push(`<div class="field"><label>닉네임${settingValue(settings, 'requireNickname', 'require_nickname', true) ? ' *' : ''}</label><input id="participant-name" maxlength="${INPUT_LIMITS.participantName}" placeholder="실명 대신 닉네임"></div>`);
   fields.push(`<div class="field"><label>제목${settingValue(settings, 'requireTitle', 'require_title', true) ? ' *' : ''}</label><input id="participant-title" maxlength="${INPUT_LIMITS.title}" placeholder="예: 지금 마음에 남은 질문"></div>`);
+  fields.push(`<div class="field"><label>리딩 종류</label><select id="participant-reading-type" onchange="renderReadingContextFields()" ${allowedTypes.length === 1 ? 'disabled' : ''}>${allowedTypes.map(id => `<option value="${id}">${escapeHtml(readingTypeLabel(id))}</option>`).join('')}</select></div>`);
   if (settingValue(settings, 'allowTopicSelect', 'allow_topic_select', true)) {
-    fields.push(`<div class="field"><label>주제</label><select id="participant-topic">${TOPICS.map(topic => `<option>${topic}</option>`).join('')}</select></div>`);
+    fields.push(`<div class="field"><label>세부 주제</label><select id="participant-subtopic">${TOPICS.map(topic => `<option>${topic}</option>`).join('')}</select></div>`);
   }
-  fields.push(`<div class="field"><label>질문${settingValue(settings, 'requireQuestion', 'require_question', true) ? ' *' : ''}</label><textarea id="participant-question" maxlength="${INPUT_LIMITS.question}" placeholder="연락처나 주소 없이 질문만 남겨주세요."></textarea></div>`);
+  fields.push(`<div class="context-grid" id="reading-context-fields"></div>`);
+  fields.push(`<div class="field"><label id="participant-question-label">질문${settingValue(settings, 'requireQuestion', 'require_question', true) ? ' *' : ''}</label><textarea id="participant-question" maxlength="${INPUT_LIMITS.question}" placeholder="연락처나 주소 없이 질문만 남겨주세요."></textarea></div>`);
   document.getElementById('participant-fields').innerHTML = fields.join('');
+  renderReadingContextFields();
   document.getElementById('consent-panel').scrollIntoView({ behavior:'smooth', block:'start' });
+}
+function renderReadingContextFields(){
+  const select = document.getElementById('participant-reading-type');
+  const type = readingTypeById(normalizeReadingTypeId(select?.value));
+  const box = document.getElementById('reading-context-fields');
+  const question = document.getElementById('participant-question');
+  const questionLabel = document.getElementById('participant-question-label');
+  if (questionLabel && activeInvite) {
+    const required = settingValue(activeInvite.settings || {}, 'requireQuestion', 'require_question', true) ? ' *' : '';
+    questionLabel.textContent = `${type.questionLabel || '질문'}${required}`;
+  }
+  if (question) question.placeholder = type.questionPlaceholder || '연락처나 주소 없이 질문만 남겨주세요.';
+  if (!box) return;
+  box.innerHTML = type.fields.map(field => {
+    const required = field.required ? ' *' : '';
+    const max = field.wide ? INPUT_LIMITS.contextLong : INPUT_LIMITS.context;
+    const id = `context-${field.key}`;
+    const attrs = `id="${id}" data-context-key="${field.key}" maxlength="${max}" placeholder="${escapeHtml(field.placeholder || '')}"`;
+    const control = field.wide ? `<textarea ${attrs}></textarea>` : `<input ${attrs}>`;
+    return `<div class="field ${field.wide ? 'wide' : ''}"><label>${escapeHtml(field.label)}${required}</label>${control}</div>`;
+  }).join('');
 }
 function requireValue(id, enabled, label, max=200){
   const value = normalizeText(document.getElementById(id)?.value, max);
   if (enabled && !value) throw new Error(`${label}을 입력해 주세요.`);
   return value;
+}
+function readReadingContext(){
+  const typeId = normalizeReadingTypeId(document.getElementById('participant-reading-type')?.value);
+  const type = readingTypeById(typeId);
+  const fields = {};
+  type.fields.forEach(field => {
+    const raw = document.querySelector(`[data-context-key="${field.key}"]`)?.value || '';
+    const value = field.wide ? normalizeLongText(raw, INPUT_LIMITS.contextLong) : normalizeText(raw, INPUT_LIMITS.context);
+    if (field.required && !value) throw new Error(`${field.label}을 입력해 주세요.`);
+    if (value) fields[field.key] = value;
+  });
+  const subTopic = normalizeText(document.getElementById('participant-subtopic')?.value || '', INPUT_LIMITS.topic);
+  return {
+    readingType:type.id,
+    reading_type:type.id,
+    readingTypeLabel:type.label,
+    reading_type_label:type.label,
+    subTopic,
+    sub_topic:subTopic,
+    fields
+  };
 }
 function beginDraw(){
   if (!activeInvite) return;
@@ -1376,10 +1591,16 @@ function beginDraw(){
     participantDraft = {
       participantName:requireValue('participant-name', settingValue(settings, 'requireNickname', 'require_nickname', true), '닉네임', INPUT_LIMITS.participantName),
       title:requireValue('participant-title', settingValue(settings, 'requireTitle', 'require_title', true), '제목', INPUT_LIMITS.title),
-      topic:normalizeText(document.getElementById('participant-topic')?.value || '', INPUT_LIMITS.topic),
+      questionContext:readReadingContext(),
+      question_context:null,
+      topic:'',
       question:requireValue('participant-question', settingValue(settings, 'requireQuestion', 'require_question', true), '질문', INPUT_LIMITS.question)
     };
-    if (hasRestrictedPersonalInfo(`${participantDraft.participantName} ${participantDraft.title} ${participantDraft.question}`)) {
+    participantDraft.question_context = participantDraft.questionContext;
+    participantDraft.topic = readingTypeLabel(participantDraft.questionContext.readingType);
+    const allowed = allowedReadingTypesFor(settings);
+    if (!allowed.includes(participantDraft.questionContext.readingType)) throw new Error('선택할 수 없는 리딩 종류입니다.');
+    if (hasRestrictedPersonalInfo(`${participantDraft.participantName} ${participantDraft.title} ${participantDraft.question} ${contextPlainText(participantDraft.questionContext)}`)) {
       throw new Error('연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.');
     }
   } catch(error) {
@@ -1561,6 +1782,8 @@ async function completeSubmission(){
     title:participantDraft.title,
     topic:participantDraft.topic,
     question:participantDraft.question,
+    questionContext:participantDraft.questionContext,
+    question_context:participantDraft.questionContext,
     spreadCount:activeInvite.spreadCount,
     spreadType:activeInvite.spreadType,
     drawnCards:drawState.picked.map(card => ({
@@ -1741,7 +1964,7 @@ function resetParticipant(){
   document.getElementById('entry-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 function copyParticipantLink(){
-  navigator.clipboard?.writeText(baseEntryUrl());
+  copyText(baseEntryUrl());
 }
 function seedDemoInvite(){
   if (getInvites().length) return;
@@ -1780,6 +2003,8 @@ function seedDemoInvite(){
         require_question:true,
         allowTopicSelect:true,
         allow_topic_select:true,
+        allowedReadingTypes:[...READING_TYPE_IDS],
+        allowed_reading_types:[...READING_TYPE_IDS],
         maxSubmissions:999,
         max_submissions:999,
         singleUse:false,
