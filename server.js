@@ -1108,6 +1108,7 @@ function cleanTarotSettings(value, spreadCount) {
   const completionMessage = cleanText(get('completionMessage', 'completion_message', '카드가 접수되었습니다.'), 200) || '카드가 접수되었습니다.';
   const legacySingleUse = get('singleUse', 'single_use', true) !== false;
   const maxSubmissions = clampUseLimit(get('maxSubmissions', 'max_submissions', legacySingleUse ? 1 : 999));
+  const adminCode = normalizeTarotCode(get('adminCode', 'admin_code', ''));
   return {
     allowReversed:bool('allowReversed', 'allow_reversed', true),
     allow_reversed:bool('allowReversed', 'allow_reversed', true),
@@ -1137,6 +1138,8 @@ function cleanTarotSettings(value, spreadCount) {
     single_use:maxSubmissions <= 1,
     completionMessage,
     completion_message:completionMessage,
+    adminCode,
+    admin_code:adminCode,
     spreadCount
   };
 }
@@ -1214,6 +1217,12 @@ function normalizeTarotDrawnCards(value) {
 
 function safeTarotInvite(invite, options = {}) {
   const item = invite || {};
+  const settings = item.settings && typeof item.settings === 'object' ? { ...item.settings } : {};
+  const adminCode = normalizeTarotCode(settings.adminCode || settings.admin_code || item.adminCode || item.admin_code || '');
+  if (!options.admin) {
+    delete settings.adminCode;
+    delete settings.admin_code;
+  }
   const safe = {
     id:String(item.id || ''),
     codeSuffix:String(item.codeSuffix || item.code_suffix || ''),
@@ -1222,7 +1231,7 @@ function safeTarotInvite(invite, options = {}) {
     spreadCount:Number(item.spreadCount || item.spread_count || 3),
     spreadType:String(item.spreadType || item.spread_type || ''),
     spreadPositions:Array.isArray(item.spreadPositions) ? item.spreadPositions : (Array.isArray(item.spread_positions) ? item.spread_positions : []),
-    settings:item.settings && typeof item.settings === 'object' ? item.settings : {},
+    settings,
     status:String(item.status || 'open'),
     expiresAt:item.expiresAt || item.expires_at || null,
     usedAt:item.usedAt || item.used_at || null,
@@ -1231,7 +1240,10 @@ function safeTarotInvite(invite, options = {}) {
     usedCount:Number(item.usedCount || item.used_count || 0),
     maxSubmissions:maxSubmissionsForInvite(item)
   };
-  if (options.admin) safe.internalNote = String(item.internalNote || item.internal_note || '');
+  if (options.admin) {
+    safe.internalNote = String(item.internalNote || item.internal_note || '');
+    if (adminCode) safe.adminCode = adminCode;
+  }
   return safe;
 }
 
@@ -1922,6 +1934,7 @@ app.post('/api/admin/tarot/invites', checkAdmin, async (req, res) => {
   try {
     const code = makeTarotCode();
     const payload = cleanTarotInviteBody(req.body || {});
+    payload.settings = { ...(payload.settings || {}), adminCode:code, admin_code:code };
     const invite = await store.createTarotInvite({
       ...payload,
       codeHash:hashTarotCode(code),

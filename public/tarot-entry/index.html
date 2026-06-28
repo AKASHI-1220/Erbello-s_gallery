@@ -132,6 +132,7 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .slot{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font-size:12px;background:rgba(0,0,0,.22)}
 .slot.done{color:var(--ok);border-color:rgba(169,220,203,.35)}
 .deck-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:9px}
+.deck-grid.shuffling{perspective:900px}
 .deck-card{
   min-height:92px;
   border:1px solid rgba(217,184,111,.24);
@@ -141,9 +142,29 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
     url('assets/card-back-premium.png') center/cover no-repeat;
   box-shadow:0 8px 22px rgba(0,0,0,.26);
   transition:.18s ease;
+  will-change:transform,opacity,filter;
 }
 .deck-card:hover{transform:translateY(-3px);border-color:rgba(217,184,111,.55)}
 .deck-card:disabled{opacity:.35;transform:none;cursor:not-allowed}
+.deck-grid.shuffling .deck-card{
+  pointer-events:none;
+  animation:deckShuffle .72s cubic-bezier(.2,.7,.18,1) both;
+  border-color:rgba(217,184,111,.5);
+  box-shadow:0 14px 34px rgba(0,0,0,.38),0 0 22px rgba(217,184,111,.08);
+}
+.deck-grid.shuffling .shuffle-card-0{--sx:-24px;--sy:8px;--sr:-9deg;--sd:0ms}
+.deck-grid.shuffling .shuffle-card-1{--sx:18px;--sy:-13px;--sr:7deg;--sd:18ms}
+.deck-grid.shuffling .shuffle-card-2{--sx:-10px;--sy:-20px;--sr:12deg;--sd:34ms}
+.deck-grid.shuffling .shuffle-card-3{--sx:28px;--sy:6px;--sr:-13deg;--sd:50ms}
+.deck-grid.shuffling .shuffle-card-4{--sx:-18px;--sy:18px;--sr:8deg;--sd:66ms}
+.deck-grid.shuffling .shuffle-card-5{--sx:10px;--sy:22px;--sr:-7deg;--sd:82ms}
+.deck-grid.shuffling .shuffle-card-6{--sx:-30px;--sy:-5px;--sr:14deg;--sd:98ms}
+.deck-grid.shuffling .shuffle-card-7{--sx:24px;--sy:-18px;--sr:-10deg;--sd:114ms}
+.deck-grid.shuffling .shuffle-card-8{--sx:-8px;--sy:25px;--sr:6deg;--sd:130ms}
+.deck-grid.shuffling .shuffle-card-9{--sx:32px;--sy:12px;--sr:11deg;--sd:146ms}
+.deck-grid.shuffling .shuffle-card-10{--sx:-22px;--sy:-16px;--sr:-12deg;--sd:162ms}
+.deck-grid.shuffling .shuffle-card-11{--sx:12px;--sy:-24px;--sr:9deg;--sd:178ms}
+.deck-grid.shuffling .deck-card{animation-delay:var(--sd,0ms)}
 .draw-review{display:grid;grid-template-columns:repeat(auto-fit,minmax(152px,1fr));gap:12px;margin-top:16px}
 .draw-picked{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
 .draw-picked-card{min-height:164px;perspective:900px;margin-bottom:10px}
@@ -194,9 +215,19 @@ button:disabled{cursor:not-allowed;opacity:.55}
   0%{opacity:.4;transform:translateY(10px) scale(.98)}
   100%{opacity:1;transform:translateY(0) scale(1)}
 }
+@keyframes deckShuffle{
+  0%{transform:translate(0,0) rotate(0deg) scale(1);filter:brightness(1)}
+  36%{transform:translate(var(--sx),var(--sy)) rotate(var(--sr)) scale(1.04);filter:brightness(1.18)}
+  72%{transform:translate(calc(var(--sx) * -.35),calc(var(--sy) * -.35)) rotate(calc(var(--sr) * -.42)) scale(.99)}
+  100%{transform:translate(0,0) rotate(0deg) scale(1);filter:brightness(1)}
+}
 @keyframes cardFlip{
   0%{transform:rotateY(0deg)}
   100%{transform:rotateY(180deg)}
+}
+@media(prefers-reduced-motion:reduce){
+  .deck-grid.shuffling .deck-card{animation:none}
+  .deck-card,.draw-picked-card.direction-toggle .flip-inner{transition:none}
 }
 .result-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:12px;margin-top:16px}
 .result-card{
@@ -244,6 +275,20 @@ button:disabled{cursor:not-allowed;opacity:.55}
 .admin-list{display:grid;gap:9px;margin-top:14px}
 .admin-item{border:1px solid var(--line2);border-radius:8px;padding:12px;background:rgba(255,255,255,.03)}
 .admin-item strong{display:block;color:var(--gold2);margin-bottom:5px}
+.admin-code-line{
+  display:inline-block;
+  max-width:100%;
+  margin-top:4px;
+  padding:6px 8px;
+  border:1px solid rgba(217,184,111,.18);
+  border-radius:8px;
+  background:rgba(0,0,0,.22);
+  color:var(--text);
+  font-family:ui-monospace,SFMono-Regular,Consolas,monospace;
+  font-size:12px;
+  letter-spacing:.4px;
+  overflow-wrap:anywhere;
+}
 .admin-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .admin-filters{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
 .admin-detail{display:grid;gap:12px;margin-top:14px}
@@ -923,6 +968,10 @@ function settingsFromAdmin(){
     spreadCount:count
   };
 }
+function settingsWithAdminCode(settings, code){
+  const cleanCode = normalizeCode(code);
+  return cleanCode ? { ...settings, adminCode:cleanCode, admin_code:cleanCode } : settings;
+}
 function syncSpreadTypes(){
   const count = Number(document.getElementById('admin-count')?.value || 3);
   const select = document.getElementById('admin-spread');
@@ -940,7 +989,7 @@ async function createInvite(){
     readingTitle:normalizeText(document.getElementById('admin-title').value, INPUT_LIMITS.readingTitle) || '개인 타로 리딩',
     spreadCount:count,
     spreadType:spread.id,
-    settings:settingsFromAdmin(),
+    settings:settingsWithAdminCode(settingsFromAdmin(), code),
     expiresAt:expires ? new Date(`${expires}T23:59:59`).getTime() : null
   };
   if (useServerApi() && !adminToken()) {
@@ -959,7 +1008,7 @@ async function createInvite(){
       const issuedCode = data.code;
       setInvites([invite, ...getInvites().filter(item => item.id !== invite.id)]);
       plainCodes.set(invite.id, issuedCode);
-      setStatus('admin-create-status', `생성됨: ${issuedCode} · 코드는 지금 한 번만 보여요.`, 'ok');
+      setStatus('admin-create-status', `생성됨: ${issuedCode}`, 'ok');
       navigator.clipboard?.writeText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${issuedCode}\n참여 링크: ${baseEntryUrl()}`);
       renderAdmin();
       return;
@@ -989,7 +1038,7 @@ async function createInvite(){
   setInvites(invites);
   plainCodes.set(invite.id, code);
   const link = baseEntryUrl();
-  setStatus('admin-create-status', `생성됨: ${code} · 원본 코드는 저장하지 않습니다.`, 'ok');
+  setStatus('admin-create-status', `생성됨: ${code}`, 'ok');
   navigator.clipboard?.writeText(`아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${link}`);
   renderAdmin();
 }
@@ -1096,15 +1145,16 @@ function renderAdmin(){
   const allSubmissions = getSubmissions();
   document.getElementById('invite-list').innerHTML = invites.length ? invites.map(invite => {
     const disabled = invite.status !== 'open' ? ' · 사용됨' : '';
-    const hasPlainCode = plainCodes.has(invite.id);
+    const fullCode = inviteCodeForAdmin(invite);
     const usedCount = usedCountForInvite(invite, allSubmissions);
     const maxUses = maxSubmissionsFor(invite.settings);
     return `<div class="admin-item">
       <strong>${escapeHtml(invite.label || invite.readingTitle)} <span style="color:var(--muted)">...${escapeHtml(invite.codeSuffix)}</span></strong>
       <p>${invite.spreadCount}장 · ${escapeHtml(getSpread(invite).label)} · 접수 ${usedCount}/${maxUses}회${disabled}${invite.expiresAt ? ` · 만료 ${dateText(invite.expiresAt)}` : ''}</p>
+      ${fullCode ? `<p class="admin-code-line">${escapeHtml(fullCode)}</p>` : ''}
       ${invite.internalNote ? `<p>${escapeHtml(truncateText(invite.internalNote, 120))}</p>` : ''}
       <div class="admin-actions">
-        <button class="btn" type="button" onclick="copyInviteCode('${invite.id}')" ${hasPlainCode ? '' : 'disabled'}>코드 복사</button>
+        <button class="btn" type="button" onclick="copyInviteCode('${invite.id}')" ${fullCode ? '' : 'disabled'}>코드 복사</button>
         <button class="btn" type="button" onclick="copyInviteSuffix('${invite.id}')">끝자리 복사</button>
         <button class="btn" type="button" onclick="copyInviteLink('${invite.id}')">참여 링크 복사</button>
         <button class="btn" type="button" onclick="copyInviteNotice('${invite.id}')">안내문 복사</button>
@@ -1135,8 +1185,13 @@ function renderAdmin(){
     </div>
   `).join('') : '<p>아직 접수 결과가 없습니다.</p>';
 }
+function inviteCodeForAdmin(invite){
+  if (!invite) return '';
+  return normalizeCode(plainCodes.get(invite.id) || invite.adminCode || invite.admin_code || settingValue(invite.settings || {}, 'adminCode', 'admin_code', ''));
+}
 function copyInviteCode(id){
-  const code = plainCodes.get(id);
+  const invite = getInvites().find(item => item.id === id);
+  const code = inviteCodeForAdmin(invite);
   if (!code) return;
   navigator.clipboard?.writeText(code);
 }
@@ -1146,13 +1201,14 @@ function copyInviteSuffix(id){
   navigator.clipboard?.writeText(`****${invite.codeSuffix}`);
 }
 function copyInviteLink(id){
-  const code = plainCodes.get(id);
+  const invite = getInvites().find(item => item.id === id);
+  const code = inviteCodeForAdmin(invite);
   navigator.clipboard?.writeText(code ? currentUrlWithCode(code) : baseEntryUrl());
 }
 function copyInviteNotice(id){
   const invite = getInvites().find(item => item.id === id);
   if (!invite) return;
-  const code = plainCodes.get(id);
+  const code = inviteCodeForAdmin(invite);
   const text = code
     ? `아래 링크에서 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여코드: ${code}\n참여 링크: ${baseEntryUrl()}`
     : `아래 링크에서 전달받은 참여코드를 입력하고 카드를 뽑아주세요.\n\n참여 링크: ${baseEntryUrl()}\n코드 끝자리: ****${invite.codeSuffix}`;
@@ -1356,6 +1412,7 @@ function startDraw(preferredMode){
     positions:spread.positions,
     settings:activeInvite.settings || {},
     drawMode,
+    shuffling:false,
     submitting:false
   };
   document.getElementById('consent-panel').classList.add('hidden');
@@ -1366,7 +1423,7 @@ function startDraw(preferredMode){
   document.getElementById('draw-panel').scrollIntoView({ behavior:'smooth', block:'start' });
 }
 function renderDrawTools(){
-  const disabled = drawState.picked.length > 0 || drawState.submitting;
+  const disabled = drawState.picked.length > 0 || drawState.submitting || drawState.shuffling;
   document.getElementById('draw-mode-row').innerHTML = `
     <button class="draw-mode-btn ${drawState.drawMode === 'manual_select' ? 'active' : ''}" type="button" onclick="setParticipantDrawMode('manual_select')" ${disabled ? 'disabled' : ''}>직접 고르기</button>
     <button class="draw-mode-btn ${drawState.drawMode === 'auto' ? 'active' : ''}" type="button" onclick="setParticipantDrawMode('auto')" ${disabled ? 'disabled' : ''}>자동 뽑기</button>
@@ -1379,10 +1436,11 @@ function renderDraw(){
   const slots = drawState.positions.map((pos,index) => `<span class="slot ${drawState.picked[index] ? 'done' : ''}">${escapeHtml(pos)}</span>`).join('');
   document.getElementById('slot-line').innerHTML = slots;
   const deckGrid = document.getElementById('deck-grid');
-  const canPick = drawState.picked.length < drawState.positions.length && !drawState.submitting;
+  const canPick = drawState.picked.length < drawState.positions.length && !drawState.submitting && !drawState.shuffling;
   deckGrid.classList.toggle('hidden', drawState.drawMode === 'auto' && drawState.picked.length >= drawState.positions.length);
+  deckGrid.classList.toggle('shuffling', Boolean(drawState.shuffling));
   deckGrid.innerHTML = drawState.deck.slice(0,36).map((card,index) => `
-    <button class="deck-card" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${!canPick || card.used ? 'disabled' : ''}></button>
+    <button class="deck-card shuffle-card-${index % 12}" type="button" aria-label="카드 선택 ${index+1}" onclick="pickCard(${index})" ${!canPick || card.used ? 'disabled' : ''}></button>
   `).join('');
   renderDrawReview();
 }
@@ -1410,7 +1468,6 @@ function renderDrawReview(){
       </button>
       <small>${escapeHtml(card.position)}</small>
       <strong>선택 완료</strong>
-      <span class="picked-hidden-label">${complete ? '방향 바꾸기 가능 · 접수 후 공개' : '접수 후 공개'}</span>
       ${index === lastIndex && !drawState.submitting ? `<button class="btn btn-mini" type="button" onclick="changeCurrentCard()">카드 바꾸기</button>` : ''}
     </div>
   `).join('');
@@ -1419,21 +1476,26 @@ function renderDrawReview(){
   setStatus('draw-status', complete ? '접수 전까지 카드를 눌러 방향을 바꿀 수 있습니다.' : `${drawState.picked.length}/${drawState.positions.length}장 선택`);
 }
 function setParticipantDrawMode(mode){
-  if (!drawState || drawState.picked.length || drawState.submitting) return;
+  if (!drawState || drawState.picked.length || drawState.submitting || drawState.shuffling) return;
   drawState.drawMode = normalizeDrawMode(mode);
   drawState.deck = shuffleDeck();
   drawState.picked = [];
   renderDraw();
   if (drawState.drawMode === 'auto') autoPickCards();
 }
-function shuffleDrawDeck(){
+async function shuffleDrawDeck(){
   if (!drawState) return;
-  if (drawState.picked.length || drawState.submitting) return;
+  if (drawState.picked.length || drawState.submitting || drawState.shuffling) return;
+  drawState.shuffling = true;
+  renderDraw();
+  await new Promise(resolve => setTimeout(resolve, 720));
+  if (!drawState) return;
   drawState.deck = shuffleDeck();
+  drawState.shuffling = false;
   renderDraw();
 }
 function autoPickCards(){
-  if (!drawState || drawState.submitting) return;
+  if (!drawState || drawState.submitting || drawState.shuffling) return;
   drawState.deck = shuffleDeck();
   drawState.picked = [];
   for (let i=0;i<drawState.positions.length;i++) {
@@ -1443,7 +1505,7 @@ function autoPickCards(){
   renderDraw();
 }
 function pickCard(index, silent=false){
-  if (!drawState || drawState.submitting) return;
+  if (!drawState || drawState.submitting || drawState.shuffling) return;
   const card = drawState.deck[index];
   if (!card || card.used || drawState.picked.length >= drawState.positions.length) return;
   card.used = true;
