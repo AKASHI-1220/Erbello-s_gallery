@@ -104,19 +104,29 @@ h1{font-family:'Cinzel',serif;font-size:clamp(42px,7vw,76px);line-height:1;lette
 .field select option{background:#171820;color:#f4ead4}
 .type-check-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .type-check{
-  min-height:42px;
+  min-height:46px;
   border:1px solid var(--line2);
   border-radius:8px;
-  padding:10px;
+  padding:11px 12px;
   background:rgba(255,255,255,.03);
-  color:var(--muted);
-  display:flex;
+  color:var(--text);
+  display:grid;
+  grid-template-columns:18px minmax(0,1fr);
   gap:8px;
   align-items:center;
   line-height:1.35;
+  text-align:left;
 }
-.type-check input{accent-color:#c69d4d}
-.type-check span{font-size:13px}
+.field .type-check input[type="checkbox"]{
+  width:16px;
+  height:16px;
+  min-width:16px;
+  margin:0;
+  padding:0;
+  accent-color:#c69d4d;
+}
+.type-check span{min-width:0;font-size:13px;overflow-wrap:normal;word-break:keep-all;text-align:left}
+.type-check:hover{border-color:rgba(217,184,111,.38);background:rgba(217,184,111,.055)}
 .context-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .context-grid .field.wide{grid-column:1/-1}
 .context-summary{display:grid;gap:7px;margin-top:9px}
@@ -520,7 +530,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <label class="checkline"><input type="checkbox" id="admin-allow-topic" checked><span>리딩 주제 선택 허용</span></label>
           <label class="checkline"><input type="checkbox" id="admin-result-image" checked><span>결과 이미지 저장 버튼 표시</span></label>
           <label class="checkline"><input type="checkbox" id="admin-reveal" checked><span>카드 뒤집기 연출 사용</span></label>
-          <label class="checkline"><input type="checkbox" id="admin-question-image"><span>저장 이미지에 질문 포함</span></label>
+          <label class="checkline"><input type="checkbox" id="admin-question-image" checked><span>저장 이미지에 질문 포함</span></label>
           <label class="checkline"><input type="checkbox" id="admin-require-nickname" checked><span>닉네임 필수</span></label>
           <label class="checkline"><input type="checkbox" id="admin-require-title" checked><span>제목 필수</span></label>
           <label class="checkline"><input type="checkbox" id="admin-require-question" checked><span>질문 필수</span></label>
@@ -618,35 +628,36 @@ const DEFAULT_READING_TYPE = 'general';
 const READING_TYPE_IDS = READING_TYPES.map(item => item.id);
 const SPREADS = {
   1:[
-    { id:'one', label:'한 장 리딩', positions:['핵심'] },
-    { id:'today', label:'오늘의 흐름', positions:['오늘의 흐름'] },
-    { id:'advice', label:'질문 조언', positions:['조언'] },
-    { id:'symbol', label:'상징 한 장', positions:['상징'] }
+    { id:'one', label:'한 장 리딩', positions:['핵심'], types:['general'] },
+    { id:'today', label:'오늘의 흐름', positions:['오늘의 흐름'], types:['general'] },
+    { id:'advice', label:'질문 조언', positions:['조언'], types:['general'] },
+    { id:'symbol', label:'상징 한 장', positions:['상징'], types:['general','oc','favorite','dream'] }
   ],
   3:[
-    { id:'flow', label:'현재 / 흐름 / 조언', positions:['현재','흐름','조언'] },
-    { id:'past', label:'과거 / 현재 / 미래', positions:['과거','현재','미래'] },
-    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'] },
-    { id:'character3', label:'겉모습 / 속마음 / 다음 장면', positions:['겉모습','속마음','다음 장면'] },
-    { id:'favorite3', label:'끌리는 이유 / 지금 마음 / 조언', positions:['끌리는 이유','지금 마음','조언'] }
+    { id:'flow', label:'현재 / 흐름 / 조언', positions:['현재','흐름','조언'], types:['general'] },
+    { id:'past', label:'과거 / 현재 / 미래', positions:['과거','현재','미래'], types:['general'] },
+    { id:'relationship', label:'나 / 상대 / 관계', positions:['나','상대','관계'], types:['relationship','oc_relationship','dream'] },
+    { id:'character3', label:'겉모습 / 속마음 / 다음 장면', positions:['겉모습','속마음','다음 장면'], types:['oc','oc_relationship'] },
+    { id:'favorite3', label:'끌리는 이유 / 지금 마음 / 조언', positions:['끌리는 이유','지금 마음','조언'], types:['favorite','dream'] }
   ],
   5:[
-    { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'] },
-    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] },
-    { id:'character5', label:'현재 서사 / 상처 / 욕망 / 변수 / 다음 장면', positions:['현재 서사','상처','욕망','변수','다음 장면'] },
-    { id:'dream5', label:'나의 역할 / 대상 / 관계 온도 / 갈등 / 다음 장면', positions:['나의 역할','대상','관계 온도','갈등','다음 장면'] }
+    { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'], types:['general'] },
+    { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'], types:['relationship','oc_relationship','dream'] },
+    { id:'character5', label:'현재 서사 / 상처 / 욕망 / 변수 / 다음 장면', positions:['현재 서사','상처','욕망','변수','다음 장면'], types:['oc','oc_relationship'] },
+    { id:'favorite5', label:'이미지 / 내 마음 / 기대 / 불안 / 조언', positions:['이미지','내 마음','기대','불안','조언'], types:['favorite','dream'] },
+    { id:'dream5', label:'나의 역할 / 대상 / 관계 온도 / 갈등 / 다음 장면', positions:['나의 역할','대상','관계 온도','갈등','다음 장면'], types:['dream'] }
   ],
   7:[
-    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'] },
-    { id:'relation7', label:'관계 흐름 7장', positions:['과거','현재','가까운 미래','A의 욕구','B의 욕구','문제','조언'] },
-    { id:'character7', label:'캐릭터 서사 7장', positions:['겉모습','숨은 면','결핍','욕망','관계 변수','선택','다음 장면'] }
+    { id:'deep7', label:'7장 확장 리딩', positions:['현재','숨은 원인','상대 또는 환경','장애물','조언','가까운 미래','결과'], types:['general'] },
+    { id:'relation7', label:'관계 흐름 7장', positions:['과거','현재','가까운 미래','A의 욕구','B의 욕구','문제','조언'], types:['relationship','oc_relationship','dream'] },
+    { id:'character7', label:'캐릭터 서사 7장', positions:['겉모습','숨은 면','결핍','욕망','관계 변수','선택','다음 장면'], types:['oc','oc_relationship'] }
   ],
   9:[
-    { id:'deep9', label:'전체 흐름형 9장 배열', positions:['현재','원인','겉으로 보이는 일','숨은 마음','흐름','변수','조언','가까운 결과','전체 결론'] },
-    { id:'relation9', label:'관계/상황 확장 리딩', positions:['나','상대','관계','장애물','기대','두려움','조언','가능성','결과'] }
+    { id:'deep9', label:'전체 흐름형 9장 배열', positions:['현재','원인','겉으로 보이는 일','숨은 마음','흐름','변수','조언','가까운 결과','전체 결론'], types:['general'] },
+    { id:'relation9', label:'관계/상황 확장 리딩', positions:['나','상대','관계','장애물','기대','두려움','조언','가능성','결과'], types:['relationship','oc_relationship','dream'] }
   ],
   10:[
-    { id:'celtic', label:'켈틱크로스형 10장 배열', positions:['현재','도전','숨은 기반','과거','가능성','가까운 미래','나의 태도','환경','바람과 두려움','결과'] }
+    { id:'celtic', label:'켈틱크로스형 10장 배열', positions:['현재','도전','숨은 기반','과거','가능성','가까운 미래','나의 태도','환경','바람과 두려움','결과'], types:['general'] }
   ]
 };
 
@@ -926,7 +937,7 @@ function renderAdminReadingTypeChecks(){
   if (!box) return;
   box.innerHTML = READING_TYPES.map(type => `
     <label class="type-check">
-      <input type="checkbox" name="admin-reading-type" value="${type.id}" checked>
+      <input type="checkbox" name="admin-reading-type" value="${type.id}" ${type.id === DEFAULT_READING_TYPE ? 'checked' : ''} onchange="syncSpreadTypes()">
       <span>${escapeHtml(type.label)}</span>
     </label>
   `).join('');
@@ -940,7 +951,23 @@ function renderReadingTypeFilter(){
 }
 function selectedAdminReadingTypes(){
   const checked = [...document.querySelectorAll('input[name="admin-reading-type"]:checked')].map(input => input.value);
-  return normalizeAllowedReadingTypes(checked);
+  if (checked.length) return normalizeAllowedReadingTypes(checked);
+  const fallback = document.querySelector(`input[name="admin-reading-type"][value="${DEFAULT_READING_TYPE}"]`);
+  if (fallback) fallback.checked = true;
+  return [DEFAULT_READING_TYPE];
+}
+function spreadMatchesTypes(spread, allowedTypes){
+  const types = Array.isArray(spread?.types) && spread.types.length ? spread.types : [DEFAULT_READING_TYPE];
+  return types.some(type => allowedTypes.includes(type));
+}
+function spreadsForCount(count, allowedTypes=selectedAdminReadingTypes()){
+  const spreads = SPREADS[count] || [];
+  const filtered = spreads.filter(spread => spreadMatchesTypes(spread, allowedTypes));
+  return filtered.length ? filtered : spreads;
+}
+function firstCountForTypes(allowedTypes){
+  const counts = Object.keys(SPREADS).map(Number).sort((a, b) => a - b);
+  return counts.find(count => spreadsForCount(count, allowedTypes).some(spread => spreadMatchesTypes(spread, allowedTypes))) || 3;
 }
 function clampUseLimit(value, fallback=1){
   const number = Math.floor(Number(value));
@@ -1134,15 +1161,25 @@ function settingsWithAdminCode(settings, code){
   return cleanCode ? { ...settings, adminCode:cleanCode, admin_code:cleanCode } : settings;
 }
 function syncSpreadTypes(){
-  const count = Number(document.getElementById('admin-count')?.value || 3);
+  const countSelect = document.getElementById('admin-count');
+  let count = Number(countSelect?.value || 3);
   const select = document.getElementById('admin-spread');
   if (!select) return;
-  select.innerHTML = (SPREADS[count] || SPREADS[3]).map(spread => `<option value="${spread.id}">${escapeHtml(spread.label)}</option>`).join('');
+  const allowedTypes = selectedAdminReadingTypes();
+  let spreads = spreadsForCount(count, allowedTypes).filter(spread => spreadMatchesTypes(spread, allowedTypes));
+  if (!spreads.length && countSelect) {
+    count = firstCountForTypes(allowedTypes);
+    countSelect.value = String(count);
+    spreads = spreadsForCount(count, allowedTypes).filter(spread => spreadMatchesTypes(spread, allowedTypes));
+  }
+  select.innerHTML = (spreads.length ? spreads : (SPREADS[count] || SPREADS[3])).map(spread => `<option value="${spread.id}">${escapeHtml(spread.label)}</option>`).join('');
 }
 async function createInvite(){
   const code = makeCode();
   const count = Number(document.getElementById('admin-count').value || 3);
-  const spread = (SPREADS[count] || SPREADS[3]).find(item => item.id === document.getElementById('admin-spread').value) || SPREADS[count][0];
+  const allowedTypes = selectedAdminReadingTypes();
+  const spreadOptions = spreadsForCount(count, allowedTypes);
+  const spread = spreadOptions.find(item => item.id === document.getElementById('admin-spread').value) || spreadOptions[0] || (SPREADS[count] || SPREADS[3])[0];
   const expires = document.getElementById('admin-expires').value;
   const payload = {
     label:normalizeText(document.getElementById('admin-label').value, INPUT_LIMITS.adminLabel),
@@ -1933,7 +1970,7 @@ function downloadResultImage(){
     ctx.fillStyle = '#a99c89';
     ctx.fillText(card.orientation === 'reversed' ? '역방향' : '정방향', x + 16, y + 186);
   });
-  if (settingValue(settings, 'includeQuestionInImage', 'include_question_in_image', false) && participantDraft?.question) {
+  if (settingValue(settings, 'includeQuestionInImage', 'include_question_in_image', true) && participantDraft?.question) {
     ctx.fillStyle = '#a99c89';
     ctx.font = '18px serif';
     ctx.fillText(`질문: ${truncateText(participantDraft.question, 72)}`, 58, 718);
@@ -1989,8 +2026,8 @@ function seedDemoInvite(){
         show_orientation_to_participant:true,
         enableResultImage:true,
         enable_result_image:true,
-        includeQuestionInImage:false,
-        include_question_in_image:false,
+        includeQuestionInImage:true,
+        include_question_in_image:true,
         revealMode:'flip',
         reveal_mode:'flip',
         drawMode:'manual_select',

@@ -1032,6 +1032,7 @@ const TAROT_SPREADS = {
     { id:'situation', label:'상황 / 원인 / 흐름 / 조언 / 결과', positions:['상황','원인','흐름','조언','결과'] },
     { id:'relation5', label:'나 / 상대 / 문제 / 가능성 / 조언', positions:['나','상대','문제','가능성','조언'] },
     { id:'character5', label:'현재 서사 / 상처 / 욕망 / 변수 / 다음 장면', positions:['현재 서사','상처','욕망','변수','다음 장면'] },
+    { id:'favorite5', label:'이미지 / 내 마음 / 기대 / 불안 / 조언', positions:['이미지','내 마음','기대','불안','조언'] },
     { id:'dream5', label:'나의 역할 / 대상 / 관계 온도 / 갈등 / 다음 장면', positions:['나의 역할','대상','관계 온도','갈등','다음 장면'] }
   ],
   7:[
@@ -1177,8 +1178,8 @@ function cleanTarotSettings(value, spreadCount) {
     show_orientation_to_participant:bool('showOrientationToParticipant', 'show_orientation_to_participant', true),
     enableResultImage:bool('enableResultImage', 'enable_result_image', true),
     enable_result_image:bool('enableResultImage', 'enable_result_image', true),
-    includeQuestionInImage:get('includeQuestionInImage', 'include_question_in_image', false) === true,
-    include_question_in_image:get('includeQuestionInImage', 'include_question_in_image', false) === true,
+    includeQuestionInImage:get('includeQuestionInImage', 'include_question_in_image', true) !== false,
+    include_question_in_image:get('includeQuestionInImage', 'include_question_in_image', true) !== false,
     revealMode,
     reveal_mode:revealMode,
     drawMode,
