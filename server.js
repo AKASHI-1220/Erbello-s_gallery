@@ -159,6 +159,19 @@ function splitPostAttachments(value) {
   return { body, attachments };
 }
 
+function postAttachmentDownloadUrl(file) {
+  const rawUrl = String(file && file.url || '').trim();
+  const filename = cleanFilename(file && file.name || 'attachment') || 'attachment';
+  try {
+    const url = new URL(rawUrl);
+    if (url.protocol !== 'https:') return '';
+    url.searchParams.set('download', filename);
+    return url.toString();
+  } catch (_) {
+    return '';
+  }
+}
+
 function normalizeVisibility(value, fallback = 'private') {
   const text = String(value || '').toLowerCase().trim();
   return text === 'public' ? 'public' : fallback;
@@ -940,7 +953,12 @@ function renderProjectDetailPage(req, artifact) {
   const tagHtml = tags.map(tag => `<span>${escHtml(tag)}</span>`).join('');
   const galleryHtml = gallery.length ? `<div class="detail-gallery">${gallery.map(src => `<img src="${escAttr(src)}" alt="" loading="lazy">`).join('')}</div>` : '';
   const attachmentHtml = postAttachmentData.length
-    ? `<section class="detail-panel detail-attachments-panel"><p class="section-kicker">FILES</p><h2>첨부 파일</h2><div class="detail-attachments">${postAttachmentData.map(file => `<a class="detail-attachment" href="${escAttr(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${escHtml(file.name || 'attachment')}</strong><small>${escHtml(file.mime || 'file')}${file.size ? ` · ${escHtml(formatBytes(file.size))}` : ''}</small><span aria-hidden="true">↗</span></a>`).join('')}</div></section>`
+    ? `<section class="detail-panel detail-attachments-panel"><p class="section-kicker">FILES</p><h2>첨부 파일 <small>${postAttachmentData.length}</small></h2><div class="detail-attachments">${postAttachmentData.map(file => {
+      const downloadUrl = postAttachmentDownloadUrl(file);
+      if (!downloadUrl) return '';
+      const filename = cleanFilename(file.name || 'attachment') || 'attachment';
+      return `<a class="detail-attachment" href="${escAttr(downloadUrl)}" download="${escAttr(filename)}" rel="noopener noreferrer" aria-label="${escAttr(`${filename} 다운로드`)}"><strong>${escHtml(filename)}</strong><small>${escHtml(file.mime || 'file')}${file.size ? ` · ${escHtml(formatBytes(file.size))}` : ''}</small><span aria-hidden="true">↓</span></a>`;
+    }).join('')}</div></section>`
     : '';
   const detailLength = summaryPlain.length;
   const allowDetailAds = detailLength >= 500;
@@ -1851,8 +1869,71 @@ function interactionSummary(config, interactions, isAdmin) {
   };
 }
 
-app.get('/api/status', (_req, res) => {
-  res.json({ ok: true, storage: store.mode, adminConfigured: Boolean(getAdminHash()) });
+function isTemporaryStoreError(error) {
+  const text = [
+    error && error.message,
+    error && error.code,
+    error && error.cause && error.cause.message,
+    error && error.cause && error.cause.code
+  ].filter(Boolean).join(' ').toLowerCase();
+  return /fetch failed|network|timeout|timed out|econn|enotfound|socket|unavailable|inactive|paused|connection/.test(text);
+}
+
+function sendStoreFailure(res, error, options = {}) {
+  const temporary = isTemporaryStoreError(error);
+  const code = temporary ? 'DATASTORE_UNAVAILABLE' : (options.code || 'DATASTORE_REQUEST_FAILED');
+  const status = temporary ? 503 : 500;
+  console.error(`${options.label || 'Data store'} failed:`, error && error.message ? error.message : error);
+  if (temporary) res.set('Retry-After', '30');
+  return res.status(status).json({
+    code,
+    error:temporary
+      ? 'Project data is temporarily unavailable. Please try again shortly.'
+      : (options.message || 'Could not load the requested data.')
+  });
+}
+
+function sendHtmlStoreFailure(req, res, error, options = {}) {
+  const temporary = isTemporaryStoreError(error);
+  const status = temporary ? 503 : 500;
+  const title = temporary ? '프로젝트 데이터를 잠시 확인하지 못했어요.' : '페이지를 불러오지 못했어요.';
+  const description = temporary
+    ? '데이터가 삭제된 것은 아닙니다. 저장소 연결이 돌아오면 다시 정상적으로 표시됩니다.'
+    : '잠시 후 다시 시도해주세요.';
+  console.error(`${options.label || 'Page data'} failed:`, error && error.message ? error.message : error);
+  if (temporary) res.set('Retry-After', '30');
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.status(status).send(`<!doctype html><html lang="ko"><head>${baseHead({
+    title:`${title} · ERBELLO`,
+    description,
+    ads:false,
+    robots:'noindex,nofollow',
+    url:`${siteOrigin(req)}${req.path || '/'}`
+  })}</head><body data-scheme="white" data-color="pixel" class="detail-document">${themeBootstrap()}<main class="detail-shell"><a class="detail-brand" href="/"><img src="/assets/illust/erbello-typo5.png" alt="ERBELLO"><span>Project Gallery</span></a><section class="detail-panel"><p class="detail-kicker">ERBELLO / RETRY</p><h1>${escHtml(title)}</h1><p class="detail-desc">${escHtml(description)}</p><div class="detail-actions"><a class="btn primary" href="${escAttr(req.originalUrl || '/')}">다시 불러오기</a><a class="btn" href="/">홈으로</a></div></section></main></body></html>`);
+}
+
+app.get('/api/status', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
+  const database = await store.connectionStatus();
+  if (!database.ok) {
+    console.error('Database health check failed:', database.error || 'unknown error');
+    res.set('Retry-After', '30');
+    return res.status(503).json({
+      ok:false,
+      code:'DATASTORE_UNAVAILABLE',
+      storage:store.mode,
+      databaseOk:false,
+      artifactCount:null,
+      adminConfigured:Boolean(getAdminHash())
+    });
+  }
+  return res.json({
+    ok:true,
+    storage:store.mode,
+    databaseOk:true,
+    artifactCount:database.artifactCount,
+    adminConfigured:Boolean(getAdminHash())
+  });
 });
 
 app.get('/api/cron/ai-diary', (req, res) => handleAiCron(req, res, 'diary'));
@@ -2089,17 +2170,23 @@ app.get('/api/admin/system', checkAdmin, async (req, res) => {
 });
 
 app.get('/api/artifacts', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
     const isAdmin = isAdminRequest(req);
     const artifacts = await store.listArtifacts({ includePrivateDetails: isAdmin });
     const visible = isAdmin ? artifacts : artifacts.filter(artifact => !isScheduledFutureArtifact(artifact));
     res.json(visible.map((artifact) => isAdmin ? stripPrivateSecrets(artifact) : publicArtifactSummary(artifact)));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return sendStoreFailure(res, error, {
+      label:'Artifact list',
+      code:'ARTIFACT_LIST_FAILED',
+      message:'Could not load project data.'
+    });
   }
 });
 
 app.get('/api/pages', async (_req, res) => {
+  res.set('Cache-Control', 'no-store');
   try {
     const publicSlugs = new Set(['home', 'projects', 'posts', 'about', 'contact', 'privacy', 'terms']);
     const rows = await store.listPages();
@@ -2107,7 +2194,11 @@ app.get('/api/pages', async (_req, res) => {
       .filter(row => publicSlugs.has(String(row.slug || '').toLowerCase()))
       .map(publicPageRow));
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    return sendStoreFailure(res, error, {
+      label:'Site page list',
+      code:'PAGE_LIST_FAILED',
+      message:'Could not load page content.'
+    });
   }
 });
 
@@ -2117,6 +2208,7 @@ function uploadKindMeta(kind) {
   if (k === 'source') return { bucket: store.ARTIFACT_BUCKET, prefix: 'sources', isPublic: false };
   if (k === 'cover') return { bucket: store.MEDIA_BUCKET, prefix: 'covers', isPublic: true };
   if (k === 'gallery') return { bucket: store.MEDIA_BUCKET, prefix: 'gallery', isPublic: true };
+  if (k === 'post-inline') return { bucket: store.MEDIA_BUCKET, prefix: 'post-inline', isPublic: true };
   if (k === 'post-file') return { bucket: store.MEDIA_BUCKET, prefix: 'post-files', isPublic: true };
   const err = new Error('Invalid upload kind.');
   err.statusCode = 400;
@@ -2146,10 +2238,13 @@ function extensionFromMime(mime) {
 }
 
 function safeUploadName(name, mime = '') {
-  const cleaned = cleanFilename(name || 'upload').replace(/\s+/g, '-').replace(/[^a-z0-9._-]/gi, '').slice(0, 120) || 'upload';
-  if (/\.[a-z0-9]{1,8}$/i.test(cleaned)) return cleaned;
-  const ext = extensionFromMime(mime);
-  return ext ? `${cleaned}.${ext}` : cleaned;
+  const original = cleanFilename(name || 'upload');
+  const match = original.match(/\.([a-z0-9]{1,8})$/i);
+  const originalExt = match ? match[1].toLowerCase() : '';
+  const originalBase = originalExt ? original.slice(0, -(originalExt.length + 1)) : original;
+  const base = originalBase.replace(/\s+/g, '-').replace(/[^a-z0-9._-]/gi, '').replace(/^[._-]+|[._-]+$/g, '').slice(0, 100) || 'upload';
+  const ext = originalExt || extensionFromMime(mime);
+  return ext ? `${base}.${ext}` : base;
 }
 
 app.post('/api/admin/uploads/sign', checkAdmin, async (req, res) => {
@@ -2332,7 +2427,7 @@ app.get('/project/:id', async (req, res) => {
     }
     res.send(renderProjectDetailPage(req, artifact));
   } catch (error) {
-    res.status(500).send(`<!doctype html><html><body><pre>${escHtml(error.message)}</pre></body></html>`);
+    return sendHtmlStoreFailure(req, res, error, { label:'Project detail' });
   }
 });
 
@@ -2367,7 +2462,9 @@ app.get('/sitemap.xml', async (req, res) => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.map(item => `  <url><loc>${origin}${item.url}</loc>${item.lastmod ? `<lastmod>${item.lastmod}</lastmod>` : ''}</url>`).join('\n')}\n</urlset>`;
     res.type('application/xml').send(xml);
   } catch (error) {
-    res.status(500).type('text/plain').send(error.message || 'sitemap error');
+    console.error('Sitemap data failed:', error && error.message ? error.message : error);
+    if (isTemporaryStoreError(error)) res.set('Retry-After', '30');
+    res.status(isTemporaryStoreError(error) ? 503 : 500).type('text/plain').send('Sitemap is temporarily unavailable.');
   }
 });
 
@@ -2453,7 +2550,7 @@ app.get('/run/:id', async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.send(html);
   } catch (error) {
-    res.status(500).send(`<!doctype html><html><body><pre>${escHtml(error.message)}</pre></body></html>`);
+    return sendHtmlStoreFailure(req, res, error, { label:'Project run' });
   }
 });
 

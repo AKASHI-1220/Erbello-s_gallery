@@ -628,10 +628,17 @@
               <button id="fillDetailBtn" class="btn small" type="button" data-i18n="fillDetailDraft">상세 소개 초안 채우기</button>
             </div>
             <div class="field post-only-field post-file-tools">
-              <label for="postFileInput" data-i18n="postFilesLabel">첨부 파일</label>
-              <input id="postFileInput" type="file" multiple />
-              <div id="postFilePreview" class="post-file-preview"></div>
-              <p class="hint" data-i18n="postFilesHint">포스트에 함께 보여줄 파일을 첨부할 수 있습니다.</p>
+              <label data-i18n="postFilesLabel">첨부 파일</label>
+              <input id="postFileInput" type="file" multiple hidden />
+              <label id="postFileDropZone" class="post-file-drop-zone" for="postFileInput">
+                <span class="post-file-drop-icon" aria-hidden="true">+</span>
+                <span class="post-file-drop-copy">
+                  <strong data-i18n="postFileChoose">파일 선택 또는 끌어놓기</strong>
+                  <small data-i18n="postFilesHint">파일당 50MB 이하, 최대 12개까지 첨부할 수 있습니다.</small>
+                </span>
+              </label>
+              <div id="postFilePreview" class="post-file-preview empty"></div>
+              <p id="postFileStatus" class="hint post-file-status" aria-live="polite"></p>
             </div>
             <div id="postInteractionSettings" class="field post-only-field post-interaction-settings">
               <h3 data-i18n="postInteractionTitle">메시지 / 투표</h3>

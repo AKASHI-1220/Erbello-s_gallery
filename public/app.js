@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'ERBELLO Gallery v45 AI config legacy fallback';
+  const VERSION = 'ERBELLO Gallery v46 reliability and post files';
   const PREVIEW_MODE = document.body.dataset.preview === '1';
   const ownerModeRequested = new URLSearchParams(location.search).get('admin') === '1' || location.hash.includes('admin');
   const SCHEMES = ['black','white'];
@@ -82,6 +82,8 @@
   const ZIP_BROWSER_WARN_LIMIT = 200 * 1024 * 1024;
   const ZIP_ENTRY_LIMIT = 50 * 1024 * 1024;
   const INLINE_CODE_LIMIT = 900 * 1024;
+  const POST_FILE_LIMIT_BYTES = 50 * 1024 * 1024;
+  const POST_FILE_LIMIT_COUNT = 12;
   const gamsungSessionCovers = new Map();
   const SCHEME_META_COLORS = { black:'#050912', white:'#f8fafc' };
   const LOCALE = { ko:'ko-KR', en:'en-US', ja:'ja-JP', zh:'zh-CN' };
@@ -673,7 +675,93 @@
   };
   Object.keys(V40_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V40_I18N[lang]));
 
+  const POST_FILE_I18N = {
+    ko:{
+      postFileChoose:'파일 선택 또는 끌어놓기',
+      postFilesHint:'파일당 50MB 이하, 최대 12개까지 첨부할 수 있습니다.',
+      postFilePending:'저장할 때 업로드',
+      postFileStored:'업로드 완료',
+      postFileCount:'첨부 {count}/{limit}개',
+      postFileTooLarge:'50MB를 넘는 파일은 첨부할 수 없습니다.',
+      postFileCountLimit:'한 포스트에는 파일을 최대 12개까지 첨부할 수 있습니다.',
+      postFileDuplicate:'이미 같은 파일이 첨부되어 있습니다.',
+      postFileUploading:'첨부 파일 업로드 중',
+      postFileDownload:'다운로드'
+    },
+    en:{
+      postFileChoose:'Choose files or drop them here',
+      postFilesHint:'Up to 12 files, no more than 50MB each.',
+      postFilePending:'Uploads when saved',
+      postFileStored:'Uploaded',
+      postFileCount:'{count}/{limit} files',
+      postFileTooLarge:'Files over 50MB cannot be attached.',
+      postFileCountLimit:'A post can contain up to 12 attached files.',
+      postFileDuplicate:'The same file is already attached.',
+      postFileUploading:'Uploading attachment',
+      postFileDownload:'Download'
+    },
+    ja:{
+      postFileChoose:'ファイルを選択またはドロップ',
+      postFilesHint:'1ファイル50MB以下、最大12個まで添付できます。',
+      postFilePending:'保存時にアップロード',
+      postFileStored:'アップロード済み',
+      postFileCount:'添付 {count}/{limit}件',
+      postFileTooLarge:'50MBを超えるファイルは添付できません。',
+      postFileCountLimit:'1件の投稿に添付できるファイルは最大12個です。',
+      postFileDuplicate:'同じファイルがすでに添付されています。',
+      postFileUploading:'添付ファイルをアップロード中',
+      postFileDownload:'ダウンロード'
+    },
+    zh:{
+      postFileChoose:'选择文件或拖放到这里',
+      postFilesHint:'每个文件不超过50MB，最多可添加12个。',
+      postFilePending:'保存时上传',
+      postFileStored:'已上传',
+      postFileCount:'附件 {count}/{limit}个',
+      postFileTooLarge:'不能添加超过50MB的文件。',
+      postFileCountLimit:'每篇帖子最多可以添加12个附件。',
+      postFileDuplicate:'已添加相同文件。',
+      postFileUploading:'正在上传附件',
+      postFileDownload:'下载'
+    }
+  };
+  Object.keys(POST_FILE_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), POST_FILE_I18N[lang]));
+
+  const V46_I18N = {
+    ko:{
+      dataUnavailableTitle:'프로젝트 데이터를 잠시 불러오지 못했어요.',
+      dataUnavailableText:'데이터가 삭제된 것은 아닐 수 있습니다. 저장소가 일시 중지되었거나 네트워크 연결이 불안정할 때 이 화면이 표시됩니다.',
+      dataUnavailableAdminText:'관리자는 시스템 상태에서 DB 연결을 확인해주세요.',
+      reloadData:'다시 불러오기',
+      dataReloading:'프로젝트 데이터를 다시 확인하고 있어요.'
+    },
+    en:{
+      dataUnavailableTitle:'Project data is temporarily unavailable.',
+      dataUnavailableText:'This does not necessarily mean the data was deleted. The database may be paused or the network connection may be unstable.',
+      dataUnavailableAdminText:'Owners can check the database connection in System Status.',
+      reloadData:'Try again',
+      dataReloading:'Checking the project data again.'
+    },
+    ja:{
+      dataUnavailableTitle:'プロジェクトデータを一時的に読み込めません。',
+      dataUnavailableText:'データが削除されたとは限りません。データベースの一時停止や通信障害の際に表示されます。',
+      dataUnavailableAdminText:'管理者はシステム状態でDB接続を確認してください。',
+      reloadData:'再読み込み',
+      dataReloading:'プロジェクトデータを再確認しています。'
+    },
+    zh:{
+      dataUnavailableTitle:'暂时无法加载项目数据。',
+      dataUnavailableText:'这并不一定表示数据已被删除。数据库暂停或网络不稳定时可能出现此页面。',
+      dataUnavailableAdminText:'管理员可在系统状态中检查数据库连接。',
+      reloadData:'重新加载',
+      dataReloading:'正在重新检查项目数据。'
+    }
+  };
+  Object.keys(V46_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V46_I18N[lang]));
+
   let artifacts = [];
+  let artifactsLoaded = false;
+  let artifactLoadError = '';
   let pageRows = [];
   let currentRoute = initialRoute();
   let currentFilter = 'all';
@@ -701,6 +789,7 @@
   let aiPostingConfigCache = null;
   let toastTimer = null;
   let postSidebarDragIndex = null;
+  let themeMenuHome = null;
 
   function dict() { return I18N[currentLang] || I18N.ko; }
   function tr(key) { return (EXTRA_I18N[currentLang] && EXTRA_I18N[currentLang][key]) ?? dict()[key] ?? (EXTRA_I18N.ko && EXTRA_I18N.ko[key]) ?? I18N.ko[key] ?? key; }
@@ -1736,7 +1825,10 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     try { data = text ? JSON.parse(text) : null; } catch (_) { data = { error:text }; }
     if (!response.ok) {
       const fallback = response.status === 413 ? tr('zipTooLarge') : `Request failed: ${response.status}`;
-      throw new Error((data && data.error) || fallback);
+      const error = new Error((data && data.error) || fallback);
+      error.status = response.status;
+      error.code = data && data.code ? String(data.code) : '';
+      throw error;
     }
     return data;
   }
@@ -1747,6 +1839,57 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const units = ['B','KB','MB','GB'];
     const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
     return `${(bytes / (1024 ** index)).toFixed(index ? 1 : 0)} ${units[index]}`;
+  }
+
+  function postFilename(value) {
+    return String(value || 'attachment').replace(/[<>:"'`\\|?*\x00-\x1f]/g, '').trim().slice(0, 160) || 'attachment';
+  }
+
+  function postAttachmentDownloadUrl(file) {
+    const rawUrl = String(file && file.url || '').trim();
+    try {
+      const url = new URL(rawUrl);
+      if (url.protocol !== 'https:') return '';
+      url.searchParams.set('download', postFilename(file && file.name));
+      return url.toString();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  function postFileCountText(count) {
+    return String(tr('postFileCount')).replace('{count}', String(count)).replace('{limit}', String(POST_FILE_LIMIT_COUNT));
+  }
+
+  function samePostFile(a, b) {
+    return postFilename(a && a.name).toLowerCase() === postFilename(b && b.name).toLowerCase()
+      && Number(a && a.size || 0) === Number(b && b.size || 0);
+  }
+
+  function queuePostFiles(files) {
+    const incoming = Array.from(files || []);
+    if (!incoming.length) return;
+    const known = [...pendingPostAttachments, ...pendingPostFiles];
+    const accepted = [];
+    let message = '';
+    for (const file of incoming) {
+      if (Number(file.size || 0) > POST_FILE_LIMIT_BYTES) {
+        message ||= `${tr('postFileTooLarge')} ${postFilename(file.name)} (${formatBytes(file.size)})`;
+        continue;
+      }
+      if (known.some(item => samePostFile(item, file)) || accepted.some(item => samePostFile(item, file))) {
+        message ||= `${tr('postFileDuplicate')} ${postFilename(file.name)}`;
+        continue;
+      }
+      if (known.length + accepted.length >= POST_FILE_LIMIT_COUNT) {
+        message ||= tr('postFileCountLimit');
+        break;
+      }
+      accepted.push(file);
+    }
+    pendingPostFiles.push(...accepted);
+    renderPostFilePreviews();
+    if (message) toast(message);
   }
 
   function uploadMime(file) {
@@ -1999,18 +2142,31 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   function closeThemeMenu() {
+    const menu = $('themeMenu');
+    menu?.classList.remove('mobile-theme-portal');
+    if (menu && themeMenuHome && menu.parentNode !== themeMenuHome) themeMenuHome.appendChild(menu);
     $('themePicker')?.classList.remove('open');
     $('themeToggle')?.setAttribute('aria-expanded', 'false');
-    $('themeMenu')?.setAttribute('aria-hidden', 'true');
+    menu?.setAttribute('aria-hidden', 'true');
   }
 
   function toggleThemeMenu() {
     const picker = $('themePicker');
-    if (!picker) return;
+    const menu = $('themeMenu');
+    if (!picker || !menu) return;
     const open = !picker.classList.contains('open');
+    if (!open) {
+      closeThemeMenu();
+      return;
+    }
+    themeMenuHome ||= picker;
     picker.classList.toggle('open', open);
     $('themeToggle')?.setAttribute('aria-expanded', open ? 'true' : 'false');
-    $('themeMenu')?.setAttribute('aria-hidden', open ? 'false' : 'true');
+    menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if (window.matchMedia('(max-width:720px)').matches) {
+      document.body.appendChild(menu);
+      menu.classList.add('mobile-theme-portal');
+    }
   }
 
   function applyLanguage(lang) {
@@ -2422,6 +2578,20 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     return ownerModeRequested ? `<div class="empty"><div><h2>${esc(tr('emptyOwnerTitle'))}</h2><p>${esc(tr('emptyOwnerText'))}</p></div></div>` : `<div class="empty"><div><h2>${esc(tr('emptyPublicTitle'))}</h2><p>${esc(tr('emptyPublicText'))}</p></div></div>`;
   }
 
+  function dataUnavailableMarkup() {
+    const adminHint = isAdminOn() ? `<p class="data-status-admin">${esc(tr('dataUnavailableAdminText'))}</p>` : '';
+    return `<section class="data-status-error" role="status" aria-live="polite"><span class="data-status-icon" aria-hidden="true">!</span><div><h2>${esc(tr('dataUnavailableTitle'))}</h2><p>${esc(tr('dataUnavailableText'))}</p>${adminHint}<button class="btn primary" type="button" data-retry-artifacts>${esc(tr('reloadData'))}</button></div></section>`;
+  }
+
+  function bindArtifactRetry(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-retry-artifacts]').forEach((button) => button.addEventListener('click', async () => {
+      button.disabled = true;
+      button.textContent = tr('dataReloading');
+      await loadArtifacts();
+    }));
+  }
+
   function visualProfile(item) {
     const hay = `${item.title || ''} ${item.description || ''} ${item.type || ''} ${artifactTags(item).join(' ')}`.toLowerCase();
     const checks = [ ['visual-receipt','🧾',['receipt','영수증','收据','レシート']], ['visual-tarot','🔮',['tarot','타로','塔罗','タロット']], ['visual-typing','⌨️',['typing','타자','타이핑','打字','タイピング']], ['visual-pudding','🍮',['pudding','푸딩','布丁','プリン']], ['visual-note','📝',['note','memo','메모','ノート','备忘']], ['visual-box','🎁',['random','box','랜덤','박스','随机','ボックス']], ['visual-night','🌙',['night','sky','diary','밤하늘','夜空']], ['visual-cherry','🌸',['cherry','blossom','벚꽃','桜','樱花']], ['visual-ocean','🌊',['ocean','sea','바다','오션','海']] ];
@@ -2476,6 +2646,19 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function renderGrid() {
     const grid = currentRoute === 'posts' ? $('postsGrid') : $('grid');
     if (!grid) return;
+    if (artifactLoadError && !artifacts.length) {
+      if (currentRoute === 'posts') {
+        renderPostSidebar([]);
+        const reader = $('postReader');
+        if (reader) {
+          reader.innerHTML = dataUnavailableMarkup();
+          bindArtifactRetry(reader);
+        }
+      }
+      grid.innerHTML = dataUnavailableMarkup();
+      bindArtifactRetry(grid);
+      return;
+    }
     const allItems = filteredArtifacts();
     if (!allItems.length) { if (currentRoute === 'posts') renderPostSidebar([]); grid.innerHTML = emptyMessage(false); renderPostReader([]); return; }
     let items = allItems;
@@ -2506,6 +2689,11 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function renderFeaturedGrid() {
     const grid = $('featuredGrid');
     if (!grid) return;
+    if (artifactLoadError && !artifacts.length) {
+      grid.innerHTML = dataUnavailableMarkup();
+      bindArtifactRetry(grid);
+      return;
+    }
     const items = artifacts.filter(item => !isPostItem(item) && statusKey(item) !== 'draft' && !isSecretItem(item)).slice(0, 4);
     if (!items.length) { grid.innerHTML = emptyMessage(true); return; }
     grid.innerHTML = items.map((item) => cardMarkup(item, true)).join('');
@@ -2923,13 +3111,21 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     }
     const parts = splitPostContentText(item.detail_text || '');
     const body = postBodyMarkup(parts.body || item.description || '');
-    const attachments = (parts.attachments || []).map(file => `<a class="detail-attachment" href="${esc(file.url)}" target="_blank" rel="noopener noreferrer"><strong>${esc(file.name || 'attachment')}</strong><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><span>↗</span></a>`).join('');
+    const attachmentItems = (parts.attachments || []).map(file => {
+      const downloadUrl = postAttachmentDownloadUrl(file);
+      if (!downloadUrl) return '';
+      const filename = postFilename(file.name);
+      return `<a class="detail-attachment" href="${esc(downloadUrl)}" download="${esc(filename)}" rel="noopener noreferrer" aria-label="${esc(`${filename} ${tr('postFileDownload')}`)}"><strong>${esc(filename)}</strong><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><span aria-hidden="true">↓</span></a>`;
+    }).filter(Boolean).join('');
+    const attachments = attachmentItems
+      ? `<section class="post-reader-files" aria-label="${esc(tr('postFilesLabel'))}"><header class="post-reader-files-head"><div><span>FILES</span><h3>${esc(tr('postFilesLabel'))}</h3></div><strong>${parts.attachments.length}</strong></header><div class="detail-attachments">${attachmentItems}</div></section>`
+      : '';
     const status = statusKey(item);
     const adminStatus = isAdminOn() && status !== 'public' ? `<span class="post-reader-status">${esc(statusLabel(status))}</span>` : '';
     const scheduledStatus = isAdminOn() && isScheduledFutureItem(item) ? `<span class="post-reader-status scheduled-badge-admin">${esc(tr('postScheduledBadge'))}</span>` : '';
     const dividerFile = postDividerForItem(item);
     const divider = dividerFile ? `<img class="post-reader-divider-img" src="${esc(`${POST_ASSET_BASE}${dividerFile}`)}" alt="" loading="lazy" aria-hidden="true">` : '';
-    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}${scheduledStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments ? `<div class="detail-attachments post-reader-files">${attachments}</div>` : ''}${postInteractionMarkup(item, parts.widgets)}`;
+    node.innerHTML = `<header class="post-reader-head"><p class="post-reader-kicker">${esc(catLabel(typeKey(item.type)))}${sub ? ` · ${esc(sub)}` : ''}</p><h2>${esc(title)}${adminStatus}${scheduledStatus}</h2>${item.description ? `<p>${esc(item.description)}</p>` : ''}<div class="post-reader-meta"><span>${esc(fmtMonth(item.updated_at || item.created_at))}</span>${tags.map(tag => `<span>${esc(tag)}</span>`).join('')}</div></header>${divider}<div class="post-reader-body">${body}</div>${attachments}${postInteractionMarkup(item, parts.widgets)}`;
     bindPostInteractions(item.id);
   }
 
@@ -2980,9 +3176,26 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   }
 
   async function loadArtifacts() {
-    if (PREVIEW_MODE) { artifacts = getPreviewItems(); renderGrid(); renderFeaturedGrid(); return; }
-    try { artifacts = await api('/api/artifacts', { headers: isAdminOn() && adminToken ? { 'x-admin-token': adminToken } : {} }); }
-    catch (error) { console.error(error); artifacts = []; toast(tr('loadError')); }
+    if (PREVIEW_MODE) {
+      artifacts = getPreviewItems();
+      artifactsLoaded = true;
+      artifactLoadError = '';
+      renderGrid();
+      renderFeaturedGrid();
+      return;
+    }
+    try {
+      const rows = await api('/api/artifacts', { headers: isAdminOn() && adminToken ? { 'x-admin-token': adminToken } : {} });
+      if (!Array.isArray(rows)) throw new Error('Invalid project data response.');
+      artifacts = rows;
+      artifactsLoaded = true;
+      artifactLoadError = '';
+    } catch (error) {
+      console.error(error);
+      artifactLoadError = error && (error.code || error.message) ? String(error.code || error.message) : 'ARTIFACT_LOAD_FAILED';
+      if (!artifactsLoaded) artifacts = [];
+      toast(tr('loadError'));
+    }
     renderGrid(); renderFeaturedGrid();
   }
 
@@ -3378,14 +3591,21 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
   function renderPostFilePreviews() {
     const node = $('postFilePreview');
     if (!node) return;
-    const existing = pendingPostAttachments.map((file, index) => (
-      `<span class="post-file-chip"><a href="${esc(file.url)}" target="_blank" rel="noopener noreferrer">${esc(file.name || 'attachment')}</a><small>${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small><button type="button" data-remove-post-attachment="${index}" aria-label="remove">×</button></span>`
-    ));
+    const existing = pendingPostAttachments.map((file, index) => {
+      const filename = postFilename(file.name);
+      const downloadUrl = postAttachmentDownloadUrl(file);
+      const fileLabel = downloadUrl
+        ? `<a href="${esc(downloadUrl)}" download="${esc(filename)}" rel="noopener noreferrer">${esc(filename)}</a>`
+        : `<strong>${esc(filename)}</strong>`;
+      return `<span class="post-file-chip"><span class="post-file-chip-copy">${fileLabel}<small>${esc(tr('postFileStored'))} · ${esc(file.mime || 'file')}${file.size ? ` · ${esc(formatBytes(file.size))}` : ''}</small></span><button type="button" data-remove-post-attachment="${index}" aria-label="remove">×</button></span>`;
+    });
     const pending = pendingPostFiles.map((file, index) => (
-      `<span class="post-file-chip pending"><strong>${esc(file.name || 'file')}</strong><small>${esc(formatBytes(file.size || 0))}</small><button type="button" data-remove-post-file="${index}" aria-label="remove">×</button></span>`
+      `<span class="post-file-chip pending"><span class="post-file-chip-copy"><strong>${esc(postFilename(file.name || 'file'))}</strong><small>${esc(tr('postFilePending'))} · ${esc(formatBytes(file.size || 0))}</small></span><button type="button" data-remove-post-file="${index}" aria-label="remove">×</button></span>`
     ));
     node.innerHTML = [...existing, ...pending].join('');
     node.classList.toggle('empty', !existing.length && !pending.length);
+    const status = $('postFileStatus');
+    if (status) status.textContent = postFileCountText(existing.length + pending.length);
   }
 
   function renderImagePreviews() {
@@ -3613,8 +3833,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     }
     renderRoute();
     updateContentKindFields();
-    window.scrollTo({ top:0, behavior:'smooth' });
-    setTimeout(() => $('titleInput')?.focus(), 60);
+    window.scrollTo({ top:0, behavior:'auto' });
+    setTimeout(() => $('titleInput')?.focus({ preventScroll:true }), 60);
   }
 
   function closeEditorRoute(replace = false) {
@@ -3753,11 +3973,15 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if (isPost) {
         detail_text = await uploadPendingInlineImages(detail_text);
         const attachments = [...pendingPostAttachments];
-        for (const file of pendingPostFiles.slice(0, Math.max(0, 12 - attachments.length))) {
+        const filesToUpload = pendingPostFiles.slice(0, Math.max(0, POST_FILE_LIMIT_COUNT - attachments.length));
+        for (let index = 0; index < filesToUpload.length; index += 1) {
+          const file = filesToUpload[index];
+          if (Number(file.size || 0) > POST_FILE_LIMIT_BYTES) throw new Error(`${tr('postFileTooLarge')} ${postFilename(file.name)} (${formatBytes(file.size)})`);
+          toast(`${tr('postFileUploading')} ${index + 1}/${filesToUpload.length} · ${postFilename(file.name)}`);
           const uploaded = await uploadFileToStorage('post-file', file);
           if (uploaded && uploaded.publicUrl) {
             attachments.push({
-              name:uploaded.filename || file.name || 'attachment',
+              name:postFilename(file.name || uploaded.filename || 'attachment'),
               url:uploaded.publicUrl,
               mime:uploaded.mime || file.type || '',
               size:file.size || 0
@@ -4411,7 +4635,8 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('themeToggle')?.addEventListener('click', toggleThemeMenu);
     document.querySelectorAll('[data-scheme-choice]').forEach((button) => button.addEventListener('click', () => { applyTheme(button.dataset.schemeChoice || 'black', validColor(document.body.dataset.color)); }));
     document.querySelectorAll('[data-color-choice]').forEach((button) => button.addEventListener('click', () => { applyTheme(validScheme(document.body.dataset.scheme), button.dataset.colorChoice || 'crimson'); }));
-    document.addEventListener('click', (event) => { if (!event.target.closest('#themePicker')) closeThemeMenu(); });
+    document.addEventListener('click', (event) => { if (!event.target.closest('#themePicker, #themeMenu')) closeThemeMenu(); });
+    window.addEventListener('resize', closeThemeMenu);
     $('langSelect')?.addEventListener('change', (event) => applyLanguage(event.target.value));
     document.querySelectorAll('[data-route]').forEach((link) => link.addEventListener('click', (event) => { event.preventDefault(); goRoute(link.dataset.route || 'home'); }));
     window.addEventListener('popstate', () => { currentRoute = initialRoute(); if (currentRoute !== 'posts') selectedPostId = null; renderRoute(); });
@@ -4593,11 +4818,21 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     $('coverInput')?.addEventListener('change', (event) => handleCoverFile(event.target.files && event.target.files[0]));
     $('galleryInput')?.addEventListener('change', (event) => handleGalleryFiles(event.target.files));
     $('postFileInput')?.addEventListener('change', (event) => {
-      const list = Array.from(event.target.files || []);
-      pendingPostFiles = [...pendingPostFiles, ...list].slice(0, 12);
+      queuePostFiles(event.target.files);
       event.target.value = '';
-      renderPostFilePreviews();
     });
+    const postFileDropZone = $('postFileDropZone');
+    if (postFileDropZone) {
+      ['dragenter','dragover'].forEach((name) => postFileDropZone.addEventListener(name, (event) => {
+        event.preventDefault();
+        postFileDropZone.classList.add('drag');
+      }));
+      ['dragleave','drop'].forEach((name) => postFileDropZone.addEventListener(name, (event) => {
+        event.preventDefault();
+        postFileDropZone.classList.remove('drag');
+      }));
+      postFileDropZone.addEventListener('drop', (event) => queuePostFiles(event.dataTransfer && event.dataTransfer.files));
+    }
     $('postAssetLibrary')?.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-post-asset]');
       if (btn) insertPostAsset(btn.dataset.postAsset || '');
