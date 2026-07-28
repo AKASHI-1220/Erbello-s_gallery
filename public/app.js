@@ -759,6 +759,26 @@
   };
   Object.keys(V46_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), V46_I18N[lang]));
 
+  const PRIVATE_LOCK_RETURN_I18N = {
+    ko:{
+      privateReturnLabel:'갤러리로 돌아가기 버튼 표시',
+      privateReturnHint:'후원자 전용 링크처럼 갤러리 이동을 막고 싶다면 꺼주세요.'
+    },
+    en:{
+      privateReturnLabel:'Show Return to Gallery button',
+      privateReturnHint:'Turn this off for supporter-only links that should not lead back to the gallery.'
+    },
+    ja:{
+      privateReturnLabel:'ギャラリーに戻るボタンを表示',
+      privateReturnHint:'支援者限定リンクからギャラリーへ移動させたくない場合はオフにしてください。'
+    },
+    zh:{
+      privateReturnLabel:'显示返回画廊按钮',
+      privateReturnHint:'用于赞助者专属链接时，如不希望返回画廊，请关闭此项。'
+    }
+  };
+  Object.keys(PRIVATE_LOCK_RETURN_I18N).forEach(lang => Object.assign(EXTRA_I18N[lang] || (EXTRA_I18N[lang] = {}), PRIVATE_LOCK_RETURN_I18N[lang]));
+
   let artifacts = [];
   let artifactsLoaded = false;
   let artifactLoadError = '';
@@ -3792,6 +3812,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     fillPostWidgetConfig({});
     if ($('privateInput')) $('privateInput').checked = false;
     if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
+    if ($('privateReturnInput')) $('privateReturnInput').checked = true;
     updatePrivateFields();
     pendingSourceFile = null;
     pendingSourceStored = false;
@@ -3877,6 +3898,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       if ($('contentKindInput')) $('contentKindInput').value = isPost ? 'post' : 'project';
       if ($('privateInput')) $('privateInput').checked = statusKey(item) === 'private' || Boolean(item.is_private);
       if ($('privatePasswordInput')) $('privatePasswordInput').value = '';
+      if ($('privateReturnInput')) $('privateReturnInput').checked = item.show_gallery_return !== false;
       updatePrivateFields();
       pendingSourceFile = null;
       pendingSourceStored = Boolean(item.code_storage_path);
@@ -3921,6 +3943,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
     const status = $('statusInput') ? $('statusInput').value : (Boolean($('privateInput') && $('privateInput').checked) ? 'private' : 'public');
     const is_private = status === 'private' || Boolean($('privateInput') && $('privateInput').checked);
     const private_password = $('privatePasswordInput') ? $('privatePasswordInput').value.trim() : '';
+    const show_gallery_return = $('privateReturnInput') ? $('privateReturnInput').checked : true;
     $('artifactError').textContent = '';
     const hasPostBody = Boolean(detail_text || description || pendingCoverImage || pendingCoverFile || pendingGalleryImages.length || pendingGalleryFiles.length || pendingPostAttachments.length || pendingPostFiles.length);
     if (!title) { $('artifactError').textContent = tr('required'); return; }
@@ -3994,7 +4017,7 @@ Cookie 是保存在访问者浏览器中的小型信息，可能用于广告投�
       detail_text = detailWithPostMeta(detail_text, { scheduled_at });
 
       const payload = {
-        title, description, type, tags, status, format, source_kind: format, code, detail_text, cover_image, gallery_images, is_private, private_password,
+        title, description, type, tags, status, format, source_kind: format, code, detail_text, cover_image, gallery_images, is_private, private_password, show_gallery_return,
         code_storage_bucket: sourceUpload ? sourceUpload.bucket : '',
         code_storage_path: sourceUpload ? sourceUpload.path : '',
         code_storage_mime: sourceUpload ? sourceUpload.mime : '',

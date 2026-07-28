@@ -914,7 +914,10 @@ function publicArtifactSummary(artifact) {
 function renderPrivateLockPage(artifact) {
   const title = artifact && artifact.title || 'Untitled project';
   const id = escHtml(artifact && artifact.id || '');
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escHtml(title)} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / LOCKED</div><h1>${escHtml(title)}</h1><p>이 프로젝트는 비밀번호 확인 후에만 열 수 있습니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form><a class="lock-home" href="/">ERBELLO로 돌아가기</a></main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
+  const galleryReturn = artifact && artifact.show_gallery_return === false
+    ? ''
+    : '<a class="lock-home" href="/">ERBELLO로 돌아가기</a>';
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${escHtml(title)} · Locked</title><style>${require('fs').readFileSync(path.join(__dirname, 'public', 'app.css'), 'utf8').match(/\/\* v16 private project locks \*\/[\s\S]*$/)?.[0] || ''}</style></head><body class="lock-page"><main class="lock-box"><div class="lock-kicker">ERBELLO / LOCKED</div><h1>${escHtml(title)}</h1><p>이 프로젝트는 비밀번호 확인 후에만 열 수 있습니다.</p><form id="lockForm" class="lock-form"><input id="lockPassword" type="password" placeholder="비밀번호" autocomplete="current-password" autofocus /><button type="submit">열기</button><div id="lockError" class="lock-error"></div></form>${galleryReturn}</main><script>const form=document.getElementById('lockForm');form.addEventListener('submit',async(e)=>{e.preventDefault();const error=document.getElementById('lockError');error.textContent='';try{const r=await fetch('/api/artifacts/${id}/unlock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('lockPassword').value})});const data=await r.json().catch(()=>({}));if(!r.ok)throw new Error(data.error||'비밀번호가 맞지 않습니다.');location.href='/run/${id}?access='+encodeURIComponent(data.access);}catch(err){error.textContent=err.message||'비밀번호가 맞지 않습니다.';}});</script></body></html>`;
 }
 
 
@@ -1568,7 +1571,10 @@ function payloadFromBody(body, existing = null) {
   const requestedStatus = cleanStatus(body.status, cleanBool(body.is_private));
   const privateFields = privateFieldsFromBody({ ...body, is_private: requestedStatus === 'private' || cleanBool(body.is_private) }, existing);
   const status = requestedStatus === 'private' || privateFields.is_private ? 'private' : requestedStatus;
-  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: source_kind === 'post' ? false : (detectedJsx || source_kind === 'jsx'), code_storage_bucket, code_storage_path, code_storage_mime, source_filename, status, ...privateFields };
+  const show_gallery_return = Object.prototype.hasOwnProperty.call(body, 'show_gallery_return')
+    ? cleanBool(body.show_gallery_return)
+    : (existing ? existing.show_gallery_return !== false : true);
+  return { title, description, type, tags, source_kind, cover_image, gallery_images, detail_text, code, is_jsx: source_kind === 'post' ? false : (detectedJsx || source_kind === 'jsx'), code_storage_bucket, code_storage_path, code_storage_mime, source_filename, status, show_gallery_return, ...privateFields };
 }
 
 function hasPostContent(payload) {
