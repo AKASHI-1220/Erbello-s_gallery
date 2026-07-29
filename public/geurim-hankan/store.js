@@ -8,6 +8,7 @@
   var CODE_LENGTH = 6;
   var POLL_INTERVAL_MS = 4000;
   var REQUEST_TIMEOUT_MS = 12000;
+  var MAX_SAVED_ROOMS = 24;
   var REACTION_TYPES = ["heart", "sparkle", "laugh", "tear", "clap"];
 
   var listeners = new Set();
@@ -27,6 +28,7 @@
     },
   };
   var sessions = clientState.sessions;
+  var savedRooms = clientState.savedRooms;
   var snapshotCache = null;
 
   state.rooms[DEMO_CODE] = createDemoRoom(Date.now());
@@ -271,6 +273,95 @@
     };
   }
 
+  function normalizeSavedRoom(value, fallbackCode) {
+    if (!isObject(value)) return null;
+    var code = normalizeCode(value.code || fallbackCode);
+    if (
+      code === DEMO_CODE ||
+      !new RegExp("^[A-Z0-9]{" + CODE_LENGTH + "}$").test(code)
+    ) {
+      return null;
+    }
+    var lastVisitedAt = Number(value.lastVisitedAt);
+    return {
+      code: code,
+      name: safeText(value.name, "그림방 " + code).slice(0, 30),
+      schedule: normalizeSchedule(value.schedule, false),
+      memberCount: Math.max(0, Math.floor(Number(value.memberCount) || 0)),
+      lastVisitedAt:
+        Number.isFinite(lastVisitedAt) && lastVisitedAt >= 0
+          ? lastVisitedAt
+          : 0,
+      nickname: safeText(value.nickname, "방 멤버").slice(0, 12),
+      color:
+        typeof value.color === "string" && /^#[0-9A-F]{6}$/i.test(value.color)
+          ? value.color.toUpperCase()
+          : "#F36B5B",
+    };
+  }
+
+  function summaryFromRoom(room, session, fallbackProfile, lastVisitedAt) {
+    var fallback = fallbackProfile || {};
+    var member =
+      room &&
+      session &&
+      Array.isArray(room.members) &&
+      room.members.find(function findSavedMember(candidate) {
+        return candidate.id === session.memberId;
+      });
+    return normalizeSavedRoom(
+      {
+        code: room ? room.code : "",
+        name: room ? room.name : "",
+        schedule: room ? room.schedule : null,
+        memberCount: room && Array.isArray(room.members) ? room.members.length : 0,
+        lastVisitedAt: lastVisitedAt,
+        nickname:
+          (member && member.nickname) ||
+          (session && session.nickname) ||
+          fallback.nickname,
+        color:
+          (member && member.color) ||
+          (session && session.color) ||
+          fallback.color,
+      },
+      room ? room.code : "",
+    );
+  }
+
+  function sortSavedRoomValues(roomMap) {
+    return Object.keys(roomMap)
+      .map(function mapSummary(code) {
+        return roomMap[code];
+      })
+      .filter(Boolean)
+      .sort(function recentFirst(left, right) {
+        return (
+          right.lastVisitedAt - left.lastVisitedAt ||
+          left.name.localeCompare(right.name, "ko")
+        );
+      });
+  }
+
+  function trimLoadedRooms(result) {
+    var ordered = sortSavedRoomValues(result.savedRooms);
+    var keep = new Set(
+      ordered.slice(0, MAX_SAVED_ROOMS).map(function summaryCode(summary) {
+        return summary.code;
+      }),
+    );
+    if (result.activeRoom && result.activeRoom !== DEMO_CODE) {
+      keep.add(result.activeRoom);
+    }
+    Object.keys(result.savedRooms).forEach(function trimSummary(code) {
+      if (!keep.has(code)) {
+        delete result.savedRooms[code];
+        delete result.sessions[code];
+        delete result.drafts[code];
+      }
+    });
+  }
+
   function getLocalStorage() {
     try {
       return global.localStorage || null;
@@ -284,6 +375,7 @@
       profile: null,
       activeRoom: null,
       sessions: {},
+      savedRooms: {},
       drafts: {},
       cachedRoom: null,
     };
@@ -296,6 +388,7 @@
         profile: normalizeMember(parsed.profile),
         activeRoom: normalizeCode(parsed.activeRoom),
         sessions: {},
+        savedRooms: {},
         drafts: {},
         cachedRoom: normalizeRoom(parsed.cachedRoom, false),
       };
@@ -305,6 +398,18 @@
         var session = normalizeSession(rawSessions[rawCode]);
         if (code && session) result.sessions[code] = session;
       });
+      var rawSavedRooms = Array.isArray(parsed.savedRooms)
+        ? parsed.savedRooms
+        : isObject(parsed.savedRooms)
+          ? Object.keys(parsed.savedRooms).map(function savedRoomValue(code) {
+              var value = parsed.savedRooms[code];
+              return isObject(value) ? Object.assign({ code: code }, value) : value;
+            })
+          : [];
+      rawSavedRooms.forEach(function keepSavedRoom(value) {
+        var summary = normalizeSavedRoom(value, value && value.code);
+        if (summary) result.savedRooms[summary.code] = summary;
+      });
       var rawDrafts = isObject(parsed.drafts) ? parsed.drafts : {};
       Object.keys(rawDrafts).forEach(function keepDraft(rawCode) {
         var code = normalizeCode(rawCode);
@@ -312,11 +417,58 @@
         if (code && draft) result.drafts[code] = draft;
       });
       if (
+        result.cachedRoom &&
+        result.cachedRoom.code !== DEMO_CODE &&
+        result.sessions[result.cachedRoom.code]
+      ) {
+        var cachedCode = result.cachedRoom.code;
+        var cachedExisting = result.savedRooms[cachedCode];
+        result.savedRooms[cachedCode] =
+          summaryFromRoom(
+            result.cachedRoom,
+            result.sessions[cachedCode],
+            result.profile,
+            cachedExisting
+              ? cachedExisting.lastVisitedAt
+              : result.activeRoom === cachedCode
+                ? Date.now()
+                : 0,
+          ) || cachedExisting;
+      }
+      Object.keys(result.sessions).forEach(function migrateSessionOnly(code) {
+        if (code === DEMO_CODE) return;
+        if (!result.savedRooms[code]) {
+          var session = result.sessions[code];
+          result.savedRooms[code] = normalizeSavedRoom(
+            {
+              code: code,
+              name: "그림방 " + code,
+              schedule: { kind: "daily", time: "21:00" },
+              memberCount: 0,
+              lastVisitedAt: result.activeRoom === code ? Date.now() : 0,
+              nickname:
+                session.nickname ||
+                (result.profile && result.profile.nickname) ||
+                "방 멤버",
+              color:
+                session.color ||
+                (result.profile && result.profile.color) ||
+                "#F36B5B",
+            },
+            code,
+          );
+        }
+      });
+      Object.keys(result.savedRooms).forEach(function removeOrphanSummary(code) {
+        if (!result.sessions[code]) delete result.savedRooms[code];
+      });
+      if (
         result.activeRoom !== DEMO_CODE &&
         !result.sessions[result.activeRoom]
       ) {
         result.activeRoom = null;
       }
+      trimLoadedRooms(result);
       return result;
     } catch (error) {
       return fallback;
@@ -331,14 +483,70 @@
     return room;
   }
 
+  function pruneSavedRooms() {
+    Object.keys(savedRooms).forEach(function removeUnusableSummary(code) {
+      if (code === DEMO_CODE || !sessions[code]) delete savedRooms[code];
+    });
+    var ordered = sortSavedRoomValues(savedRooms);
+    if (
+      state.activeRoom &&
+      state.activeRoom !== DEMO_CODE &&
+      savedRooms[state.activeRoom]
+    ) {
+      ordered = ordered.filter(function keepOther(summary) {
+        return summary.code !== state.activeRoom;
+      });
+      ordered.unshift(savedRooms[state.activeRoom]);
+    }
+    var keep = new Set(
+      ordered.slice(0, MAX_SAVED_ROOMS).map(function keepCode(summary) {
+        return summary.code;
+      }),
+    );
+    Object.keys(savedRooms).forEach(function trimOldRoom(code) {
+      if (keep.has(code)) return;
+      delete savedRooms[code];
+      delete sessions[code];
+      delete state.drafts[code];
+      delete state.rooms[code];
+    });
+  }
+
+  function touchSavedRoom(room, profile, updateVisitedAt) {
+    if (!room || room.code === DEMO_CODE || !sessions[room.code]) return null;
+    var previous = savedRooms[room.code];
+    var lastVisitedAt =
+      updateVisitedAt === false && previous
+        ? previous.lastVisitedAt
+        : Date.now();
+    var summary = summaryFromRoom(
+      room,
+      sessions[room.code],
+      profile || state.profile,
+      lastVisitedAt,
+    );
+    if (!summary) return null;
+    savedRooms[room.code] = summary;
+    sessions[room.code].nickname = summary.nickname;
+    sessions[room.code].color = summary.color;
+    pruneSavedRooms();
+    return summary;
+  }
+
+  function getSavedRooms() {
+    return cloneJson(sortSavedRoomValues(savedRooms));
+  }
+
   function persistClientState() {
     var storage = getLocalStorage();
     if (!storage) return false;
+    pruneSavedRooms();
     var payload = {
       version: VERSION,
       profile: state.profile ? cloneJson(state.profile) : null,
       activeRoom: state.activeRoom,
       sessions: cloneJson(sessions),
+      savedRooms: cloneJson(savedRooms),
       drafts: cloneJson(state.drafts),
       cachedRoom: roomForStorage(),
     };
@@ -675,6 +883,7 @@
 
   function invalidateSession(code, type) {
     delete sessions[code];
+    delete savedRooms[code];
     delete state.rooms[code];
     if (state.activeRoom === code) {
       state.activeRoom = null;
@@ -716,6 +925,7 @@
     session.color = state.profile.color;
     state.activeRoom = room.code;
     state.meta.syncStatus = "online";
+    touchSavedRoom(room, state.profile, true);
     var persisted = persistClientState();
     emit(eventType, "remote", persisted);
     startPolling();
@@ -774,6 +984,8 @@
         }
       }
       delete sessions[code];
+      delete savedRooms[code];
+      persistClientState();
     }
     var payload = await request(
       "/rooms/" + encodeURIComponent(code) + "/join",
@@ -824,7 +1036,40 @@
     return room ? cloneJson(room) : null;
   }
 
-  async function refreshRoom(code) {
+  async function openSavedRoom(code) {
+    var normalized = assertCode(code);
+    if (normalized === DEMO_CODE) {
+      return openDemo({
+        nickname: state.profile ? state.profile.nickname : "해나",
+        color: state.profile ? state.profile.color : "#F36B5B",
+      });
+    }
+    var summary = savedRooms[normalized];
+    var session = sessions[normalized];
+    if (!summary || !session) {
+      fail("SAVED_ROOM_NOT_FOUND", "저장된 방 입장 정보를 찾을 수 없어요.");
+    }
+    try {
+      var payload = await request(
+        "/rooms/" + encodeURIComponent(normalized),
+        { token: session.token },
+      );
+      payload.session = {
+        memberId: session.memberId,
+        token: session.token,
+      };
+      return adoptRoom(
+        payload,
+        { nickname: summary.nickname, color: summary.color },
+        "room-opened",
+      );
+    } catch (error) {
+      if (isTerminalSessionError(error)) invalidateSession(normalized);
+      throw error;
+    }
+  }
+
+  async function refreshRoom(code, options) {
     var normalized = assertCode(code);
     if (normalized === DEMO_CODE) return getRoom(normalized);
     var session = assertSession(normalized);
@@ -852,6 +1097,11 @@
           });
         }
         state.meta.syncStatus = "online";
+        touchSavedRoom(
+          room,
+          state.activeRoom === normalized ? state.profile : null,
+          Boolean(options && options.updateVisitedAt),
+        );
         var persisted = persistClientState();
         if (changed) emit("room-refreshed", "remote", persisted);
         else refreshSnapshot();
@@ -928,6 +1178,7 @@
       replaceEntry(room, entry);
       delete state.drafts[room.code];
       state.meta.syncStatus = "online";
+      touchSavedRoom(room, state.profile, true);
       var persisted = persistClientState();
       emit("entry-published", "remote", persisted);
       return cloneJson(entry);
@@ -988,6 +1239,7 @@
       if (!updated) fail("INVALID_RESPONSE", "반응 정보를 받지 못했어요.");
       replaceEntry(room, updated);
       state.meta.syncStatus = "online";
+      touchSavedRoom(room, state.profile, true);
       var persisted = persistClientState();
       emit("reaction-toggled", "remote", persisted);
       return cloneJson(updated);
@@ -1127,7 +1379,7 @@
       return snapshotCache;
     }
     try {
-      await refreshRoom(code);
+      await refreshRoom(code, { updateVisitedAt: true });
     } catch (error) {
       if (isTerminalSessionError(error)) {
         invalidateSession(code, "session-expired");
@@ -1148,6 +1400,8 @@
     joinRoom: joinRoom,
     openDemo: openDemo,
     getRoom: getRoom,
+    getSavedRooms: getSavedRooms,
+    openSavedRoom: openSavedRoom,
     refreshRoom: refreshRoom,
     publishEntry: publishEntry,
     toggleReaction: toggleReaction,

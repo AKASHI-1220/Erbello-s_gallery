@@ -162,12 +162,132 @@
     if (colorInput) colorInput.checked = true;
   }
 
+  function formatLastVisited(value) {
+    var timestamp = Number(value);
+    if (!Number.isFinite(timestamp) || timestamp <= 0) return "";
+    var date = new Date(timestamp);
+    if (!Number.isFinite(date.getTime())) return "";
+    if (isToday(date)) return "오늘 " + formatTime(date);
+    return new Intl.DateTimeFormat("ko-KR", {
+      month: "long",
+      day: "numeric",
+    }).format(date);
+  }
+
+  function savedRooms() {
+    return typeof store.getSavedRooms === "function"
+      ? store.getSavedRooms()
+      : [];
+  }
+
+  function copyRoomCode(code) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(code)
+        .then(function copied() {
+          showToast("초대코드를 복사했어요");
+        })
+        .catch(function fallback() {
+          showToast("초대코드는 " + code + "예요");
+        });
+    } else {
+      showToast("초대코드는 " + code + "예요");
+    }
+  }
+
+  async function openSavedRoom(code, button) {
+    var originalLabel = button.textContent;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    button.textContent = "방을 여는 중…";
+    try {
+      var room = await store.openSavedRoom(code);
+      showRoom(room);
+    } catch (error) {
+      showToast(errorMessage(error, "방을 불러오지 못했어요."));
+    } finally {
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+      button.textContent = originalLabel;
+    }
+  }
+
+  function buildSavedRoomCard(room, index) {
+    var card = makeElement("article", "saved-room-card");
+    var top = makeElement("div", "saved-room-card__top");
+    var number = makeElement(
+      "span",
+      "saved-room-card__number",
+      String(index + 1).padStart(2, "0"),
+    );
+    var code = makeElement(
+      "code",
+      "saved-room-card__code",
+      room.code.slice(0, 3) + "—" + room.code.slice(3),
+    );
+    var main = makeElement("div", "saved-room-card__main");
+    var avatar = makeElement(
+      "span",
+      "saved-room-card__avatar",
+      initials(room.nickname || room.name),
+    );
+    var copy = makeElement("div", "saved-room-card__copy");
+    var title = makeElement("h3", "", room.name);
+    var meta = makeElement("p");
+    var visited = formatLastVisited(room.lastVisitedAt);
+    var actions = makeElement("div", "saved-room-card__actions");
+    var copyButton = makeElement("button", "saved-room-card__copy-button", "코드 복사");
+    var openButton = makeElement("button", "saved-room-card__open", "이어 그리기 →");
+
+    avatar.style.setProperty("--saved-room-color", room.color || COLORS[0]);
+    meta.append(
+      makeElement(
+        "span",
+        "",
+        Number(room.memberCount || 0) + "명 · " + scheduleLabel(room.schedule),
+      ),
+    );
+    if (visited) {
+      meta.append(makeElement("small", "", "최근 " + visited));
+    }
+    copy.append(title, meta);
+    main.append(avatar, copy);
+
+    copyButton.type = "button";
+    copyButton.setAttribute("aria-label", room.name + " 초대코드 복사");
+    copyButton.addEventListener("click", function copySavedCode() {
+      copyRoomCode(room.code);
+    });
+    openButton.type = "button";
+    openButton.setAttribute("aria-label", room.name + " 방 열기");
+    openButton.addEventListener("click", function openSaved() {
+      openSavedRoom(room.code, openButton);
+    });
+    actions.append(copyButton, openButton);
+    top.append(number, code);
+    card.append(top, main, actions);
+    return card;
+  }
+
+  function renderSavedRooms() {
+    var section = byId("savedRoomsSection");
+    var list = byId("savedRoomsList");
+    var rooms = savedRooms();
+    section.hidden = rooms.length === 0;
+    list.replaceChildren();
+    rooms.forEach(function addSavedRoom(room, index) {
+      list.appendChild(buildSavedRoomCard(room, index));
+    });
+  }
+
   function showLanding() {
     currentRoom = null;
     closeAllDialogs();
     byId("landingScreen").hidden = false;
     byId("roomScreen").hidden = true;
     document.title = "그림한칸 — 우리끼리 쓰는 그림일기";
+    renderSavedRooms();
+    global.scrollTo({ top: 0, behavior: "auto" });
   }
 
   function showRoom(room) {
@@ -557,19 +677,7 @@
 
   function copyInviteCode() {
     if (!currentRoom) return;
-    var code = currentRoom.code;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard
-        .writeText(code)
-        .then(function copied() {
-          showToast("초대코드를 복사했어요");
-        })
-        .catch(function fallback() {
-          showToast("초대코드는 " + code + "예요");
-        });
-    } else {
-      showToast("초대코드는 " + code + "예요");
-    }
+    copyRoomCode(currentRoom.code);
   }
 
   function updateFilterTabs() {
@@ -673,6 +781,7 @@
 
   function subscribeToStore() {
     return store.subscribe(function onStoreUpdate(snapshot, detail) {
+      renderSavedRooms();
       if (detail && (detail.type === "draft-saved" || detail.type === "draft-cleared")) {
         return;
       }
@@ -704,7 +813,10 @@
     renderHeroPreviews();
     subscribeToStore();
     var snapshot = store.getState();
-    if (snapshot.activeRoom && snapshot.rooms[snapshot.activeRoom]) {
+    var rooms = savedRooms();
+    if (rooms.length > 1) {
+      showLanding();
+    } else if (snapshot.activeRoom && snapshot.rooms[snapshot.activeRoom]) {
       showRoom(snapshot.rooms[snapshot.activeRoom]);
     } else {
       showLanding();

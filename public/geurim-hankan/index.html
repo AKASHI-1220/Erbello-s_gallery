@@ -34,6 +34,26 @@
         </header>
 
         <main>
+          <section
+            id="savedRoomsSection"
+            class="saved-rooms"
+            aria-labelledby="savedRoomsTitle"
+            hidden
+          >
+            <div class="saved-rooms__heading">
+              <div>
+                <p>RETURN TO YOUR BOARD</p>
+                <h2 id="savedRoomsTitle">내 방</h2>
+              </div>
+              <p>이 브라우저에서 참여한 방</p>
+            </div>
+            <div
+              id="savedRoomsList"
+              class="saved-rooms__list"
+              aria-live="polite"
+            ></div>
+          </section>
+
           <section class="hero lobby-hero" aria-labelledby="heroTitle">
             <div class="hero-copy">
               <p class="eyebrow"><span aria-hidden="true">●</span> 매일 또는 매시간 · 초대된 사람끼리</p>
@@ -119,7 +139,7 @@
           <aside class="room-sidebar">
             <div class="room-title-row">
               <div><p>우리의 그림방</p><h1 id="roomName">저녁산책단</h1></div>
-              <button class="round-button" id="leaveRoomButton" type="button" aria-label="방 나가기" title="방 나가기">←</button>
+              <button class="round-button" id="leaveRoomButton" type="button" aria-label="내 방 목록으로" title="내 방 목록으로">←</button>
             </div>
             <div class="member-summary">
               <div id="memberStack" class="avatar-stack" aria-label="방 멤버"></div>
