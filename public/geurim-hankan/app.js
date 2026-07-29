@@ -17,6 +17,7 @@
   var drawingPad = null;
   var toastTimer = 0;
   var draftTimer = 0;
+  var roomActionPending = false;
   var previewCleanups = [];
 
   function byId(id) {
@@ -102,6 +103,24 @@
 
   function errorMessage(error, fallback) {
     return error && typeof error.message === "string" ? error.message : fallback;
+  }
+
+  function normalizeRoomCodeInput(value) {
+    return String(value || "")
+      .toUpperCase()
+      .replace(/[\s\u2013\u2014-]+/g, "");
+  }
+
+  function clearPendingDraftTimer() {
+    global.clearTimeout(draftTimer);
+    draftTimer = 0;
+  }
+
+  function destroyDrawingPad() {
+    if (drawingPad && typeof drawingPad.destroy === "function") {
+      drawingPad.destroy();
+    }
+    drawingPad = null;
   }
 
   function openDialog(dialog) {
@@ -290,6 +309,15 @@
     global.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  function focusLandingContent() {
+    global.requestAnimationFrame(function focusLandingHeading() {
+      var target = savedRooms().length ? byId("savedRoomsTitle") : byId("heroTitle");
+      if (!target) return;
+      target.setAttribute("tabindex", "-1");
+      target.focus({ preventScroll: true });
+    });
+  }
+
   function showRoom(room) {
     if (!room) {
       showLanding();
@@ -316,7 +344,8 @@
     return (
       room.members.find(function findMember(member) {
         return member.id === entry.memberId;
-      }) || { id: entry.memberId, nickname: "방 멤버", color: "#8B817A" }
+      }) ||
+      entry.author || { id: entry.memberId, nickname: "방 멤버", color: "#8B817A" }
     );
   }
 
@@ -340,10 +369,19 @@
     var todayEntries = fresh.entries.filter(function onlyToday(entry) {
       return isToday(entry.createdAt);
     });
-    var postedMemberIds = new Set(
-      todayEntries.map(function memberId(entry) {
-        return entry.memberId;
+    var activeMemberIds = new Set(
+      fresh.members.map(function activeMemberId(member) {
+        return member.id;
       }),
+    );
+    var postedMemberIds = new Set(
+      todayEntries
+        .filter(function activeMemberEntry(entry) {
+          return activeMemberIds.has(entry.memberId);
+        })
+        .map(function memberId(entry) {
+          return entry.memberId;
+        }),
     );
 
     byId("roomName").textContent = fresh.name;
@@ -354,6 +392,21 @@
     byId("feedDate").textContent = formatLongDate();
     byId("composeDate").textContent = formatLongDate();
     byId("promptText").textContent = promptForSchedule(fresh.schedule);
+    byId("roomManageButton").hidden = Boolean(fresh.isDemo);
+    byId("membershipAction").hidden = Boolean(
+      !fresh.isDemo &&
+        fresh.permissions &&
+        fresh.permissions.canLeave === false,
+    );
+    byId("ownerDangerZone").hidden = Boolean(
+      fresh.isDemo ||
+        !fresh.permissions ||
+        !fresh.permissions.canDeleteRoom,
+    );
+    byId("dangerZoneDescription").textContent =
+      fresh.permissions && fresh.permissions.leaveRequiresDelete
+        ? "혼자 남은 방은 나가는 대신 완전히 삭제해야 해요. 모든 기록은 되돌릴 수 없어요."
+        : "멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.";
     byId("progressStrong").textContent =
       fresh.members.length + "명 중 " + postedMemberIds.size + "명";
     byId("progressBar").style.width =
@@ -370,14 +423,20 @@
     fresh.members.forEach(function addStatus(member) {
       var item = makeElement("span");
       var dot = makeElement("i", postedMemberIds.has(member.id) ? "is-done" : "");
-      var name = document.createTextNode(member.nickname);
+      var name = makeElement("span", "member-status-name");
+      name.appendChild(document.createTextNode(member.nickname));
+      var ownerBadge = member.isOwner
+        ? makeElement("b", "member-owner-badge", "방장")
+        : null;
       var state = makeElement(
         "small",
         "",
         postedMemberIds.has(member.id) ? "완료" : "기다리는 중",
       );
       dot.style.setProperty("--member-color", member.color);
-      item.append(dot, name, state);
+      if (ownerBadge) name.appendChild(ownerBadge);
+      item.append(dot, name);
+      item.appendChild(state);
       statuses.appendChild(item);
     });
 
@@ -680,6 +739,167 @@
     copyRoomCode(currentRoom.code);
   }
 
+  function setRoomActionPending(dialog, button, pending, pendingLabel) {
+    roomActionPending = pending;
+    if (dialog) dialog.setAttribute("aria-busy", String(pending));
+    if (!button) return;
+    if (!button.dataset.idleLabel) button.dataset.idleLabel = button.textContent;
+    button.disabled = pending;
+    button.textContent = pending
+      ? pendingLabel
+      : button.dataset.idleLabel;
+  }
+
+  function finishRoomExit(message) {
+    clearPendingDraftTimer();
+    destroyDrawingPad();
+    closeAllDialogs();
+    showLanding();
+    focusLandingContent();
+    showToast(message);
+  }
+
+  function openRoomManage() {
+    if (!currentRoom || currentRoom.isDemo || roomActionPending) return;
+    var fresh = store.getRoom(currentRoom.code);
+    if (!fresh) {
+      showLanding();
+      return;
+    }
+    currentRoom = fresh;
+    byId("manageRoomName").textContent = fresh.name;
+    byId("membershipAction").hidden = Boolean(
+      fresh.permissions && fresh.permissions.canLeave === false,
+    );
+    byId("ownerDangerZone").hidden = Boolean(
+      !fresh.permissions || !fresh.permissions.canDeleteRoom,
+    );
+    byId("dangerZoneDescription").textContent =
+      fresh.permissions && fresh.permissions.leaveRequiresDelete
+        ? "혼자 남은 방은 나가는 대신 완전히 삭제해야 해요. 모든 기록은 되돌릴 수 없어요."
+        : "멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.";
+    openDialog(byId("roomManageDialog"));
+  }
+
+  function openLeaveRoomConfirm() {
+    if (!currentRoom || roomActionPending) return;
+    byId("leaveRoomName").textContent = currentRoom.name;
+    byId("leaveRoomError").textContent = "";
+    closeDialog(byId("roomManageDialog"));
+    openDialog(byId("leaveRoomDialog"));
+  }
+
+  async function confirmLeaveMembership() {
+    if (!currentRoom || roomActionPending) return;
+    var room = currentRoom;
+    var dialog = byId("leaveRoomDialog");
+    var button = byId("confirmLeaveRoomButton");
+    var cancelButton = byId("leaveCancelButton");
+    var failed = false;
+    byId("leaveRoomError").textContent = "";
+    clearPendingDraftTimer();
+    cancelButton.disabled = true;
+    setRoomActionPending(dialog, button, true, "나가는 중…");
+
+    try {
+      var result = await store.leaveMembership(room.code);
+      var nextOwner = room.members.find(function findNextOwner(member) {
+        return member.id === result.newOwnerMemberId;
+      });
+      var message = "‘" + room.name + "’ 방에서 나왔어요";
+      if (result.ownershipTransferred) {
+        message += nextOwner
+          ? " · 방장은 " + nextOwner.nickname + "님에게 넘어갔어요"
+          : " · 다른 멤버에게 방장이 넘어갔어요";
+      }
+      finishRoomExit(message);
+    } catch (error) {
+      failed = true;
+      byId("leaveRoomError").textContent = errorMessage(
+        error,
+        "방에서 나가지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+      );
+    } finally {
+      cancelButton.disabled = false;
+      setRoomActionPending(dialog, button, false, "");
+    }
+    if (failed && currentRoom && dialog.open) button.focus();
+  }
+
+  function updateDeleteConfirmation() {
+    if (!currentRoom) return;
+    var input = byId("deleteConfirmInput");
+    var normalized = normalizeRoomCodeInput(input.value);
+    var matches = normalized === currentRoom.code;
+    var complete = normalized.length === currentRoom.code.length;
+    input.setAttribute("aria-invalid", String(complete && !matches));
+    byId("confirmDeleteRoomButton").disabled = roomActionPending || !matches;
+    if (matches) byId("deleteRoomError").textContent = "";
+  }
+
+  function openDeleteRoomConfirm() {
+    if (
+      !currentRoom ||
+      roomActionPending ||
+      !currentRoom.permissions ||
+      !currentRoom.permissions.canDeleteRoom
+    ) {
+      return;
+    }
+    byId("deleteRoomName").textContent = currentRoom.name;
+    byId("deleteExpectedCode").textContent = currentRoom.code;
+    byId("deleteConfirmInput").value = "";
+    byId("deleteConfirmInput").setAttribute("aria-invalid", "false");
+    byId("deleteRoomError").textContent = "";
+    byId("confirmDeleteRoomButton").disabled = true;
+    closeDialog(byId("roomManageDialog"));
+    openDialog(byId("deleteRoomDialog"));
+  }
+
+  async function handleDeleteRoom(event) {
+    event.preventDefault();
+    if (!currentRoom || roomActionPending) return;
+    var room = currentRoom;
+    var input = byId("deleteConfirmInput");
+    var confirmCode = normalizeRoomCodeInput(input.value);
+    if (confirmCode !== room.code) {
+      input.setAttribute("aria-invalid", "true");
+      byId("deleteRoomError").textContent = "초대코드가 일치하지 않아요.";
+      input.focus();
+      return;
+    }
+
+    var dialog = byId("deleteRoomDialog");
+    var form = byId("deleteRoomForm");
+    var button = byId("confirmDeleteRoomButton");
+    var cancelButton = byId("deleteCancelButton");
+    var failed = false;
+    byId("deleteRoomError").textContent = "";
+    clearPendingDraftTimer();
+    input.disabled = true;
+    cancelButton.disabled = true;
+    form.setAttribute("aria-busy", "true");
+    setRoomActionPending(dialog, button, true, "삭제하는 중…");
+
+    try {
+      await store.deleteRoom(room.code, confirmCode);
+      finishRoomExit("‘" + room.name + "’ 방을 완전히 삭제했어요");
+    } catch (error) {
+      failed = true;
+      byId("deleteRoomError").textContent = errorMessage(
+        error,
+        "방을 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+      );
+    } finally {
+      input.disabled = false;
+      cancelButton.disabled = false;
+      form.setAttribute("aria-busy", "false");
+      setRoomActionPending(dialog, button, false, "");
+      updateDeleteConfirmation();
+    }
+    if (failed && currentRoom && dialog.open) input.focus();
+  }
+
   function updateFilterTabs() {
     document.querySelectorAll("[data-filter]").forEach(function update(tab) {
       var selected = tab.dataset.filter === currentFilter;
@@ -727,6 +947,24 @@
     byId("inviteCodeButton").addEventListener("click", copyInviteCode);
     byId("copyInviteButton").addEventListener("click", copyInviteCode);
     byId("myEntryButton").addEventListener("click", openCompose);
+    byId("roomManageButton").addEventListener("click", openRoomManage);
+    byId("openLeaveConfirmButton").addEventListener(
+      "click",
+      openLeaveRoomConfirm,
+    );
+    byId("confirmLeaveRoomButton").addEventListener(
+      "click",
+      confirmLeaveMembership,
+    );
+    byId("openDeleteConfirmButton").addEventListener(
+      "click",
+      openDeleteRoomConfirm,
+    );
+    byId("deleteConfirmInput").addEventListener(
+      "input",
+      updateDeleteConfirmation,
+    );
+    byId("deleteRoomForm").addEventListener("submit", handleDeleteRoom);
 
     document.querySelectorAll("[data-open-compose]").forEach(function bindCompose(button) {
       button.addEventListener("click", openCompose);
@@ -740,7 +978,21 @@
 
     document.querySelectorAll("dialog").forEach(function bindBackdrop(dialog) {
       dialog.addEventListener("click", function closeOnBackdrop(event) {
+        if (
+          roomActionPending &&
+          (dialog.id === "leaveRoomDialog" || dialog.id === "deleteRoomDialog")
+        ) {
+          return;
+        }
         if (event.target === dialog) closeDialog(dialog);
+      });
+      dialog.addEventListener("cancel", function keepPendingDialogOpen(event) {
+        if (
+          roomActionPending &&
+          (dialog.id === "leaveRoomDialog" || dialog.id === "deleteRoomDialog")
+        ) {
+          event.preventDefault();
+        }
       });
     });
 

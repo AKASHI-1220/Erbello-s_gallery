@@ -178,6 +178,7 @@
       id: value.id,
       nickname: nickname,
       color: color,
+      isOwner: Boolean(value.isOwner),
     };
   }
 
@@ -208,6 +209,7 @@
         typeof value.memberId === "string" && value.memberId
           ? value.memberId
           : "unknown-member",
+      author: normalizeMember(value.author),
       caption: typeof value.caption === "string" ? value.caption.slice(0, 300) : "",
       strokes: Array.isArray(value.strokes) ? cloneJson(value.strokes) : [],
       createdAt: normalizeTimestamp(value.createdAt),
@@ -229,12 +231,22 @@
       return right.createdAt - left.createdAt;
     });
     var isDemo = Boolean(forceDemo || value.isDemo || code === DEMO_CODE);
+    var rawPermissions = isObject(value.permissions) ? value.permissions : {};
     return {
       code: code,
       name: safeText(value.name, "우리의 그림 한 칸").slice(0, 30),
       schedule: normalizeSchedule(value.schedule, false),
       members: members,
       entries: entries,
+      permissions: {
+        canLeave: isDemo ? false : rawPermissions.canLeave !== false,
+        canDeleteRoom: isDemo
+          ? false
+          : Boolean(rawPermissions.canDeleteRoom),
+        leaveRequiresDelete: isDemo
+          ? false
+          : Boolean(rawPermissions.leaveRequiresDelete),
+      },
       isLocalOnly: isDemo,
       isDemo: isDemo || undefined,
     };
@@ -882,25 +894,18 @@
   }
 
   function invalidateSession(code, type) {
-    delete sessions[code];
-    delete savedRooms[code];
-    delete state.rooms[code];
-    if (state.activeRoom === code) {
-      state.activeRoom = null;
-      stopPolling();
-    }
-    var persisted = persistClientState();
-    emit(type || "session-expired", "remote", persisted);
+    return forgetRoomAccess(code, type || "session-expired", "remote");
   }
 
   function isTerminalSessionError(error) {
     return Boolean(
       error &&
         (error.status === 401 ||
-          error.status === 403 ||
           error.status === 404 ||
           error.code === "NOT_A_MEMBER" ||
-          error.code === "ROOM_NOT_FOUND"),
+          error.code === "ROOM_NOT_FOUND" ||
+          error.code === "SESSION_REQUIRED" ||
+          error.code === "INVALID_SESSION"),
     );
   }
 
@@ -1259,6 +1264,103 @@
     return previous;
   }
 
+  function forgetRoomAccess(code, eventType, source) {
+    var normalized = normalizeCode(code);
+    if (!normalized || normalized === DEMO_CODE) {
+      if (normalized === DEMO_CODE && state.activeRoom === DEMO_CODE) {
+        return leaveRoom();
+      }
+      return null;
+    }
+    stopPolling();
+    writeEpochs[normalized] = (writeEpochs[normalized] || 0) + 1;
+    delete refreshRequests[normalized];
+    delete sessions[normalized];
+    delete savedRooms[normalized];
+    delete state.rooms[normalized];
+    delete state.drafts[normalized];
+    if (state.activeRoom === normalized) state.activeRoom = null;
+    var persisted = persistClientState();
+    emit(eventType || "room-access-forgotten", source || "local", persisted);
+    return normalized;
+  }
+
+  async function leaveMembership(code) {
+    var room = assertRoom(code);
+    if (room.code === DEMO_CODE) {
+      leaveRoom();
+      return { left: true };
+    }
+    if (room.permissions && room.permissions.canLeave === false) {
+      fail("LEAVE_NOT_ALLOWED", "이 방에서는 나갈 수 없어요.", 403);
+    }
+    var session = assertSession(room.code);
+    try {
+      var payload = await request(
+        "/rooms/" + encodeURIComponent(room.code) + "/members/me",
+        {
+          method: "DELETE",
+          token: session.token,
+        },
+      );
+      if (!payload || payload.left !== true) {
+        fail("INVALID_RESPONSE", "방 나가기 결과를 확인하지 못했어요.");
+      }
+      forgetRoomAccess(room.code, "room-membership-left", "remote");
+      return {
+        left: true,
+        ownershipTransferred: Boolean(payload.ownershipTransferred),
+        newOwnerMemberId:
+          typeof payload.newOwnerMemberId === "string"
+            ? payload.newOwnerMemberId
+            : null,
+      };
+    } catch (error) {
+      if (
+        isTerminalSessionError(error) &&
+        error.code !== "LAST_OWNER_MUST_DELETE"
+      ) {
+        forgetRoomAccess(room.code, "session-expired", "remote");
+      }
+      throw error;
+    }
+  }
+
+  async function deleteRoom(code, confirmCode) {
+    var room = assertRoom(code);
+    var normalizedConfirm = assertCode(confirmCode);
+    if (normalizedConfirm !== room.code) {
+      fail("INVALID_CONFIRM_CODE", "초대코드가 일치하지 않아요.");
+    }
+    if (room.code === DEMO_CODE) {
+      fail("DEMO_ROOM", "샘플 방은 삭제할 수 없어요.");
+    }
+    if (!room.permissions || !room.permissions.canDeleteRoom) {
+      fail("OWNER_REQUIRED", "방장만 방을 완전히 삭제할 수 있어요.", 403);
+    }
+    var session = assertSession(room.code);
+    try {
+      var payload = await request(
+        "/rooms/" + encodeURIComponent(room.code),
+        {
+          method: "DELETE",
+          token: session.token,
+          body: { confirmCode: normalizedConfirm },
+        },
+      );
+      if (!payload || payload.deleted !== true) {
+        fail("INVALID_RESPONSE", "방 삭제 결과를 확인하지 못했어요.");
+      }
+      forgetRoomAccess(room.code, "room-deleted", "remote");
+      return { deleted: true };
+    } catch (error) {
+      if (isTerminalSessionError(error)) {
+        forgetRoomAccess(room.code, "session-expired", "remote");
+      }
+      throw error;
+    }
+  }
+
   function getState() {
     return snapshotCache;
   }
@@ -1406,6 +1508,9 @@
     publishEntry: publishEntry,
     toggleReaction: toggleReaction,
     leaveRoom: leaveRoom,
+    goToRoomList: leaveRoom,
+    leaveMembership: leaveMembership,
+    deleteRoom: deleteRoom,
     subscribe: subscribe,
     getState: getState,
     getSnapshot: getSnapshot,

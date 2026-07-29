@@ -1119,6 +1119,23 @@ canvas {
   background: var(--member-color, var(--lime));
 }
 
+.member-status-name {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+}
+
+.member-owner-badge {
+  flex: none;
+  padding: 2px 4px;
+  border: 1px solid rgba(255, 255, 255, 0.58);
+  color: var(--white);
+  font-size: 6px;
+  font-weight: 900;
+  line-height: 1;
+}
+
 .member-statuses small {
   grid-column: 2;
   color: rgba(255, 255, 255, 0.62);
@@ -2144,6 +2161,171 @@ canvas {
   height: 100%;
 }
 
+/* Room management and destructive confirmations */
+
+.room-manage-button {
+  min-width: 102px;
+  min-height: 44px;
+}
+
+.manage-sheet,
+.confirm-sheet {
+  width: min(100%, 540px);
+  padding: 42px 38px 36px;
+}
+
+.manage-sheet h3,
+.confirm-sheet h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.manage-action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  padding: 22px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.manage-action p,
+.danger-zone p {
+  margin: 7px 0 0;
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 1.65;
+  word-break: keep-all;
+}
+
+.manage-action-button {
+  min-width: 116px;
+  background: var(--paper-raised);
+}
+
+.manage-action-button:hover:not(:disabled) {
+  background: var(--lime);
+}
+
+.danger-zone {
+  margin-top: 18px;
+  padding: 22px;
+  border: 1px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 5%, var(--paper-raised));
+}
+
+.danger-zone__label {
+  margin: 0 0 9px !important;
+  color: var(--danger) !important;
+  font-size: 9px !important;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.danger-zone .button {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.button-danger,
+.button-danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.button-danger {
+  background: var(--danger);
+  color: var(--white);
+}
+
+.button-danger:hover:not(:disabled) {
+  border-color: var(--ink);
+  background: var(--ink);
+}
+
+.button-danger-outline {
+  background: transparent;
+}
+
+.button-danger-outline:hover:not(:disabled) {
+  background: var(--danger);
+  color: var(--white);
+}
+
+.confirm-room-name {
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 24px 0;
+  padding: 15px 17px;
+  border: 1px solid var(--ink);
+  background: var(--white);
+}
+
+.confirm-room-name span {
+  color: var(--ink-muted);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.confirm-room-name b {
+  font-size: 15px;
+  font-weight: 950;
+  text-align: right;
+}
+
+.confirm-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.confirm-actions .button {
+  width: 100%;
+  padding-inline: 14px;
+}
+
+.confirm-error {
+  margin-top: 12px;
+}
+
+.delete-code-field {
+  margin-top: 26px;
+}
+
+.delete-code-field > span b {
+  color: var(--danger);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+.delete-code-field input {
+  text-transform: uppercase;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  font-variant-numeric: tabular-nums;
+}
+
+.delete-code-field input[aria-invalid="true"] {
+  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
+}
+
+.confirm-help {
+  margin: -10px 0 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
 /* Invite, toast, and failure states */
 
 .invite-sheet,
@@ -2995,6 +3177,51 @@ body:has(.dialog[open]) {
   .invite-code {
     min-height: 80px;
     font-size: 25px;
+  }
+}
+
+@media (max-width: 760px) {
+  .manage-sheet,
+  .confirm-sheet {
+    padding: 31px 22px max(28px, env(safe-area-inset-bottom));
+  }
+
+  .manage-action {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .manage-action-button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .room-manage-button {
+    width: 44px;
+    min-width: 44px;
+    padding: 0;
+  }
+
+  .room-manage-label {
+    display: none;
+  }
+
+  .manage-sheet,
+  .confirm-sheet {
+    padding: 26px 17px max(22px, env(safe-area-inset-bottom));
+  }
+
+  .danger-zone {
+    padding: 18px;
+  }
+
+  .confirm-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .delete-code-field input {
+    font-size: 16px;
   }
 }
 

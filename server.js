@@ -1173,6 +1173,64 @@ app.put(
   }
 );
 
+app.delete(
+  '/api/geurim-hankan/rooms/:code/members/me',
+  geurimWriteLimit,
+  async (req, res) => {
+    try {
+      const code = cleanGeurimCode(req.params.code);
+      const result = await geurimStore.leaveRoom({
+        code,
+        tokenHash:geurimTokenHashFromRequest(req)
+      });
+      return res.json({
+        left:true,
+        code,
+        alreadyLeft:Boolean(result.alreadyLeft),
+        ownershipTransferred:Boolean(result.ownershipTransferred),
+        newOwnerMemberId:result.newOwnerMemberId || null
+      });
+    } catch (error) {
+      return sendGeurimError(res, error);
+    }
+  }
+);
+
+app.delete(
+  '/api/geurim-hankan/rooms/:code',
+  geurimWriteLimit,
+  async (req, res) => {
+    try {
+      const code = cleanGeurimCode(req.params.code);
+      const confirmationKeys =
+        req.body &&
+        typeof req.body === 'object' &&
+        !Array.isArray(req.body)
+          ? Object.keys(req.body)
+          : [];
+      if (
+        confirmationKeys.length !== 1 ||
+        confirmationKeys[0] !== 'confirmCode' ||
+        typeof req.body.confirmCode !== 'string' ||
+        req.body.confirmCode !== code
+      ) {
+        throw geurimApiError(
+          400,
+          'ROOM_DELETE_CONFIRMATION_REQUIRED',
+          '방을 완전히 삭제하려면 초대코드를 정확히 입력해 주세요.'
+        );
+      }
+      await geurimStore.deleteRoom({
+        code,
+        tokenHash:geurimTokenHashFromRequest(req)
+      });
+      return res.json({ deleted:true, code });
+    } catch (error) {
+      return sendGeurimError(res, error);
+    }
+  }
+);
+
 function getAdminHash() {
   if (process.env.ADMIN_PASSWORD_HASH && process.env.ADMIN_PASSWORD_HASH.trim()) return process.env.ADMIN_PASSWORD_HASH.trim();
   if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim()) return sha256(process.env.ADMIN_PASSWORD.trim());

@@ -132,6 +132,18 @@
             <button class="icon-button icon-button--text button-quiet" id="inviteButton" type="button">
               <span aria-hidden="true">＋</span> 초대
             </button>
+            <button
+              class="icon-button icon-button--text button-quiet room-manage-button"
+              id="roomManageButton"
+              type="button"
+              aria-label="방 관리"
+              aria-haspopup="dialog"
+              aria-controls="roomManageDialog"
+              hidden
+            >
+              <span aria-hidden="true">•••</span>
+              <span class="room-manage-label">방 관리</span>
+            </button>
           </div>
         </header>
 
@@ -276,6 +288,110 @@
           <button id="copyInviteButton" class="button button-primary button-wide" type="button">초대코드 복사하기</button>
           <small>휴대폰과 컴퓨터 어디서든 같은 코드로 함께할 수 있어요.</small>
         </section>
+      </dialog>
+
+      <dialog
+        id="roomManageDialog"
+        class="dialog"
+        aria-labelledby="roomManageTitle"
+        aria-describedby="roomManageDescription"
+      >
+        <section class="dialog-card manage-sheet">
+          <button class="dialog-close close-button" type="button" data-close-dialog aria-label="방 관리 닫기">×</button>
+          <p class="eyebrow">ROOM SETTINGS</p>
+          <h2 id="roomManageTitle">방 관리</h2>
+          <p id="roomManageDescription" class="dialog-subtitle">
+            <b id="manageRoomName"></b>에서 나가거나 방을 정리할 수 있어요.
+          </p>
+
+          <section id="membershipAction" class="manage-action" aria-labelledby="leaveActionTitle">
+            <div>
+              <h3 id="leaveActionTitle">방 나가기</h3>
+              <p>이 방에서 나가도, 이미 공유한 그림은 그대로 남아요.</p>
+            </div>
+            <button id="openLeaveConfirmButton" class="button manage-action-button" type="button">
+              방 나가기
+            </button>
+          </section>
+
+          <section id="ownerDangerZone" class="danger-zone" aria-labelledby="dangerZoneTitle" hidden>
+            <p class="danger-zone__label">방장 전용</p>
+            <h3 id="dangerZoneTitle">방 완전 삭제</h3>
+            <p id="dangerZoneDescription">멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.</p>
+            <button id="openDeleteConfirmButton" class="button button-danger-outline" type="button">
+              방 완전 삭제
+            </button>
+          </section>
+        </section>
+      </dialog>
+
+      <dialog
+        id="leaveRoomDialog"
+        class="dialog"
+        aria-labelledby="leaveRoomTitle"
+        aria-describedby="leaveRoomDescription"
+      >
+        <section class="dialog-card confirm-sheet">
+          <p class="eyebrow">LEAVE ROOM</p>
+          <h2 id="leaveRoomTitle">이 방에서 나갈까요?</h2>
+          <p id="leaveRoomDescription" class="dialog-subtitle">
+            이 브라우저의 입장 정보와 작성 중인 그림이 삭제돼요.
+            이미 공유한 그림은 방에 남고, 다시 들어오려면 초대코드가 필요해요.
+          </p>
+          <div class="confirm-room-name">
+            <span>나갈 방</span>
+            <b id="leaveRoomName"></b>
+          </div>
+          <p id="leaveRoomError" class="form-error confirm-error" role="alert" aria-live="assertive"></p>
+          <div class="confirm-actions">
+            <button id="leaveCancelButton" class="button button-paper" type="button" data-close-dialog autofocus>
+              계속 머물기
+            </button>
+            <button id="confirmLeaveRoomButton" class="button button-danger" type="button">
+              방 나가기
+            </button>
+          </div>
+        </section>
+      </dialog>
+
+      <dialog
+        id="deleteRoomDialog"
+        class="dialog"
+        aria-labelledby="deleteRoomTitle"
+        aria-describedby="deleteRoomDescription"
+      >
+        <form id="deleteRoomForm" class="dialog-card confirm-sheet delete-room-sheet" method="dialog">
+          <p class="eyebrow">DELETE FOREVER</p>
+          <h2 id="deleteRoomTitle">방을 완전히 삭제할까요?</h2>
+          <p id="deleteRoomDescription" class="dialog-subtitle">
+            <b id="deleteRoomName"></b>의 멤버, 그림, 반응이 모두 영구 삭제돼요.
+            이 작업은 되돌릴 수 없어요.
+          </p>
+          <label class="field delete-code-field" for="deleteConfirmInput">
+            <span>확인을 위해 초대코드 <b id="deleteExpectedCode"></b>를 입력하세요</span>
+            <input
+              id="deleteConfirmInput"
+              name="confirmCode"
+              type="text"
+              maxlength="7"
+              autocomplete="off"
+              autocapitalize="characters"
+              spellcheck="false"
+              aria-describedby="deleteConfirmHelp"
+              required
+            />
+          </label>
+          <p id="deleteConfirmHelp" class="confirm-help">여섯 자리가 일치해야 삭제할 수 있어요.</p>
+          <p id="deleteRoomError" class="form-error confirm-error" role="alert" aria-live="assertive"></p>
+          <div class="confirm-actions">
+            <button id="deleteCancelButton" class="button button-paper" type="button" data-close-dialog autofocus>
+              취소
+            </button>
+            <button id="confirmDeleteRoomButton" class="button button-danger" type="submit" disabled>
+              모든 기록 영구 삭제
+            </button>
+          </div>
+        </form>
       </dialog>
 
       <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
