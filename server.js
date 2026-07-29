@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const path = require('path');
 const JSZip = require('jszip');
 const store = require('./lib/store');
+const geurimStore = require('./lib/geurim-hankan-store');
 const { isJSX, wrapJSX, normalizeCode } = require('./lib/jsx');
 const {
   normalizeAiPostingConfig,
@@ -46,6 +47,20 @@ const ADS_TXT_LINE = `google.com, ${ADSENSE_PUBLISHER_ID}, DIRECT, f08c47fec0942
 const interactionLimit = rateLimit({
   windowMs: 10 * 60 * 1000,
   limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const geurimJoinLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+const geurimWriteLimit = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 45,
   standardHeaders: true,
   legacyHeaders: false
 });
@@ -767,6 +782,16 @@ async function renderArtifactHtml(artifact, options = {}) {
 }
 
 app.disable('x-powered-by');
+app.use('/api/geurim-hankan', (req, res, next) => {
+  const declaredLength = Number(req.headers['content-length'] || 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 1_100_000) {
+    return res.status(413).json({
+      code:'PAYLOAD_TOO_LARGE',
+      error:'그림 데이터는 1MB 이하여야 해요.'
+    });
+  }
+  return next();
+});
 app.use(express.json({ limit: process.env.JSON_LIMIT || '30mb' }));
 app.get('/vendor/jszip.min.js', (_req, res) => {
   try {
@@ -789,6 +814,13 @@ app.get('/tarot-entry/admin-config.js', (_req, res) => {
 app.get(['/tarot-entry', '/tarot-entry/'], (_req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'tarot-entry', 'index.html'));
 });
+app.get(/^\/geurim-hankan$/, (_req, res) => {
+  res.redirect(308, '/geurim-hankan/');
+});
+app.get(/^\/geurim-hankan\/$/, (_req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.sendFile(path.join(__dirname, 'public', 'geurim-hankan', 'index.html'));
+});
 app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 const apiLimit = rateLimit({ windowMs: 60_000, max: 120, standardHeaders: true, legacyHeaders: false });
@@ -799,6 +831,347 @@ app.use('/api/admin', adminLimit);
 function sha256(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
 }
+
+const GEURIM_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const GEURIM_MAX_STROKES_BYTES = 900_000;
+const GEURIM_MAX_STROKES = 800;
+const GEURIM_MAX_POINTS = 50_000;
+const GEURIM_REACTION_TYPES = new Set(geurimStore.REACTION_TYPES);
+
+function geurimApiError(status, code, message) {
+  const error = new Error(message);
+  error.statusCode = status;
+  error.publicCode = code;
+  return error;
+}
+
+function cleanGeurimCode(value) {
+  const code = String(value || '').toUpperCase().replace(/[\s\u2013\u2014-]+/g, '');
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    throw geurimApiError(400, 'INVALID_CODE', '초대코드는 영문과 숫자 6자리여야 해요.');
+  }
+  return code;
+}
+
+function generateGeurimCode() {
+  let code = '';
+  for (let index = 0; index < 6; index += 1) {
+    code += GEURIM_CODE_ALPHABET[crypto.randomInt(GEURIM_CODE_ALPHABET.length)];
+  }
+  return code;
+}
+
+function cleanGeurimText(value, options) {
+  const label = options.label;
+  if (typeof value !== 'string') {
+    throw geurimApiError(400, options.code, `${label}을(를) 입력해 주세요.`);
+  }
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (text.length < options.min || text.length > options.max) {
+    throw geurimApiError(
+      400,
+      options.code,
+      `${label}은(는) ${options.min}자 이상 ${options.max}자 이하여야 해요.`
+    );
+  }
+  return text;
+}
+
+function cleanGeurimNickname(value) {
+  return cleanGeurimText(value, {
+    label:'닉네임',
+    code:'INVALID_NICKNAME',
+    min:2,
+    max:12
+  });
+}
+
+function cleanGeurimRoomName(value, nickname) {
+  const fallback = `${nickname}의 그림방`;
+  return cleanGeurimText(
+    typeof value === 'string' && value.trim() ? value : fallback,
+    {
+      label:'방 이름',
+      code:'INVALID_ROOM_NAME',
+      min:1,
+      max:30
+    }
+  );
+}
+
+function cleanGeurimColor(value) {
+  const color = String(value || '').trim().toUpperCase();
+  if (!/^#[0-9A-F]{6}$/.test(color)) {
+    throw geurimApiError(400, 'INVALID_COLOR', '프로필 색상을 다시 골라 주세요.');
+  }
+  return color;
+}
+
+function cleanGeurimSchedule(value) {
+  const schedule = value && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : null;
+  if (!schedule) {
+    throw geurimApiError(400, 'INVALID_SCHEDULE', '공유 주기를 선택해 주세요.');
+  }
+  if (schedule.kind === 'hourly') return { kind:'hourly' };
+  if (
+    schedule.kind === 'daily' &&
+    typeof schedule.time === 'string' &&
+    /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(schedule.time)
+  ) {
+    return { kind:'daily', time:schedule.time };
+  }
+  throw geurimApiError(400, 'INVALID_SCHEDULE', '공유 시간 설정을 확인해 주세요.');
+}
+
+function cleanGeurimCaption(value) {
+  if (typeof value !== 'string') {
+    throw geurimApiError(400, 'INVALID_CAPTION', '한줄 기록을 입력해 주세요.');
+  }
+  const caption = value.trim();
+  if (caption.length > 300) {
+    throw geurimApiError(400, 'INVALID_CAPTION', '한줄 기록은 300자 이하여야 해요.');
+  }
+  return caption;
+}
+
+function cleanGeurimStrokes(value) {
+  if (!Array.isArray(value)) {
+    throw geurimApiError(400, 'INVALID_STROKES', '그림 데이터 형식이 올바르지 않아요.');
+  }
+  let serialized = '';
+  try {
+    serialized = JSON.stringify(value);
+  } catch (_) {
+    throw geurimApiError(400, 'INVALID_STROKES', '그림 데이터 형식이 올바르지 않아요.');
+  }
+  if (Buffer.byteLength(serialized, 'utf8') > GEURIM_MAX_STROKES_BYTES) {
+    throw geurimApiError(413, 'DRAWING_TOO_LARGE', '그림 데이터는 900KB 이하여야 해요.');
+  }
+  if (value.length > GEURIM_MAX_STROKES) {
+    throw geurimApiError(413, 'DRAWING_TOO_COMPLEX', '획이 너무 많아요. 조금 단순하게 그려 주세요.');
+  }
+
+  let totalPoints = 0;
+  return value.map((stroke, strokeIndex) => {
+    if (!stroke || typeof stroke !== 'object' || Array.isArray(stroke)) {
+      throw geurimApiError(400, 'INVALID_STROKES', '그림 데이터 형식이 올바르지 않아요.');
+    }
+    const color = String(stroke.color || '').toUpperCase();
+    const width = Number(stroke.width);
+    const points = stroke.points;
+    if (
+      !/^#[0-9A-F]{6}$/.test(color) ||
+      !Number.isFinite(width) ||
+      width <= 0 ||
+      width > 64 ||
+      !Array.isArray(points) ||
+      points.length === 0
+    ) {
+      throw geurimApiError(400, 'INVALID_STROKES', '그림 데이터 형식이 올바르지 않아요.');
+    }
+    totalPoints += points.length;
+    if (totalPoints > GEURIM_MAX_POINTS) {
+      throw geurimApiError(413, 'DRAWING_TOO_COMPLEX', '그림 점이 너무 많아요. 조금 단순하게 그려 주세요.');
+    }
+    const cleanPoints = points.map(point => {
+      const x = point && Number(point.x);
+      const y = point && Number(point.y);
+      if (
+        !Number.isFinite(x) ||
+        !Number.isFinite(y) ||
+        x < 0 ||
+        x > 1 ||
+        y < 0 ||
+        y > 1
+      ) {
+        throw geurimApiError(400, 'INVALID_STROKES', '그림 좌표가 올바르지 않아요.');
+      }
+      return { x, y };
+    });
+    const rawId = typeof stroke.id === 'string' ? stroke.id.trim() : '';
+    return {
+      id: rawId && rawId.length <= 100
+        ? rawId
+        : `stroke-${strokeIndex + 1}-${crypto.randomUUID()}`,
+      color,
+      width,
+      points:cleanPoints
+    };
+  });
+}
+
+function cleanGeurimEntryId(value) {
+  const id = String(value || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(id)) {
+    throw geurimApiError(400, 'INVALID_ENTRY_ID', '그림 ID가 올바르지 않아요.');
+  }
+  return id;
+}
+
+function cleanGeurimReactionType(value) {
+  const type = String(value || '').trim().toLowerCase();
+  if (!GEURIM_REACTION_TYPES.has(type)) {
+    throw geurimApiError(400, 'INVALID_REACTION', '지원하지 않는 반응이에요.');
+  }
+  return type;
+}
+
+function createGeurimSessionToken() {
+  return crypto.randomBytes(32).toString('base64url');
+}
+
+function geurimTokenHashFromRequest(req) {
+  const authorization = String(req.headers.authorization || '');
+  const match = authorization.match(/^Bearer\s+([A-Za-z0-9_-]{43})$/i);
+  if (!match) {
+    throw geurimApiError(401, 'SESSION_REQUIRED', '이 방에 다시 입장해 주세요.');
+  }
+  return sha256(match[1]);
+}
+
+function sendGeurimError(res, error) {
+  if (error instanceof geurimStore.GeurimStoreError) {
+    return res.status(error.status).json({
+      code:error.code,
+      error:error.message
+    });
+  }
+  if (error && error.publicCode && Number(error.statusCode)) {
+    return res.status(Number(error.statusCode)).json({
+      code:error.publicCode,
+      error:error.message
+    });
+  }
+  console.error('Geurim Hankan API failed:', error && error.message ? error.message : error);
+  return res.status(500).json({
+    code:'GEURIM_REQUEST_FAILED',
+    error:'잠시 문제가 생겼어요. 조금 뒤에 다시 시도해 주세요.'
+  });
+}
+
+app.use('/api/geurim-hankan', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
+app.post('/api/geurim-hankan/rooms', geurimJoinLimit, async (req, res) => {
+  try {
+    const nickname = cleanGeurimNickname(req.body && req.body.nickname);
+    const input = {
+      nickname,
+      color:cleanGeurimColor(req.body && req.body.color),
+      name:cleanGeurimRoomName(req.body && req.body.name, nickname),
+      schedule:cleanGeurimSchedule(req.body && req.body.schedule)
+    };
+    const token = createGeurimSessionToken();
+    const tokenHash = sha256(token);
+
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      const code = generateGeurimCode();
+      if (code === 'DRAW24') continue;
+      try {
+        const result = await geurimStore.createRoom({
+          ...input,
+          code,
+          tokenHash
+        });
+        return res.status(201).json({
+          room:result.room,
+          session:{ memberId:result.memberId, token }
+        });
+      } catch (error) {
+        if (
+          error instanceof geurimStore.GeurimStoreError &&
+          error.code === 'CODE_COLLISION'
+        ) {
+          continue;
+        }
+        throw error;
+      }
+    }
+    throw geurimApiError(
+      503,
+      'CODE_GENERATION_FAILED',
+      '초대코드를 만들지 못했어요. 잠시 뒤에 다시 시도해 주세요.'
+    );
+  } catch (error) {
+    return sendGeurimError(res, error);
+  }
+});
+
+app.post('/api/geurim-hankan/rooms/:code/join', geurimJoinLimit, async (req, res) => {
+  try {
+    const code = cleanGeurimCode(req.params.code);
+    const token = createGeurimSessionToken();
+    const result = await geurimStore.joinRoom({
+      code,
+      nickname:cleanGeurimNickname(req.body && req.body.nickname),
+      color:cleanGeurimColor(req.body && req.body.color),
+      tokenHash:sha256(token)
+    });
+    return res.json({
+      room:result.room,
+      session:{ memberId:result.memberId, token }
+    });
+  } catch (error) {
+    return sendGeurimError(res, error);
+  }
+});
+
+app.get('/api/geurim-hankan/rooms/:code', async (req, res) => {
+  try {
+    const room = await geurimStore.getRoom({
+      code:cleanGeurimCode(req.params.code),
+      tokenHash:geurimTokenHashFromRequest(req)
+    });
+    return res.json({ room });
+  } catch (error) {
+    return sendGeurimError(res, error);
+  }
+});
+
+app.post('/api/geurim-hankan/rooms/:code/entries', geurimWriteLimit, async (req, res) => {
+  try {
+    const caption = cleanGeurimCaption(req.body && req.body.caption);
+    const strokes = cleanGeurimStrokes(req.body && req.body.strokes);
+    if (!caption && strokes.length === 0) {
+      throw geurimApiError(400, 'EMPTY_ENTRY', '글이나 그림을 하나 이상 남겨 주세요.');
+    }
+    const entry = await geurimStore.createEntry({
+      code:cleanGeurimCode(req.params.code),
+      tokenHash:geurimTokenHashFromRequest(req),
+      caption,
+      strokes
+    });
+    return res.status(201).json({ entry });
+  } catch (error) {
+    return sendGeurimError(res, error);
+  }
+});
+
+app.put(
+  '/api/geurim-hankan/rooms/:code/entries/:entryId/reactions/:type',
+  geurimWriteLimit,
+  async (req, res) => {
+    try {
+      if (!req.body || typeof req.body.active !== 'boolean') {
+        throw geurimApiError(400, 'INVALID_REACTION_STATE', '반응 상태를 확인해 주세요.');
+      }
+      const entry = await geurimStore.setReaction({
+        code:cleanGeurimCode(req.params.code),
+        tokenHash:geurimTokenHashFromRequest(req),
+        entryId:cleanGeurimEntryId(req.params.entryId),
+        type:cleanGeurimReactionType(req.params.type),
+        active:req.body.active
+      });
+      return res.json({ entry });
+    } catch (error) {
+      return sendGeurimError(res, error);
+    }
+  }
+);
 
 function getAdminHash() {
   if (process.env.ADMIN_PASSWORD_HASH && process.env.ADMIN_PASSWORD_HASH.trim()) return process.env.ADMIN_PASSWORD_HASH.trim();
