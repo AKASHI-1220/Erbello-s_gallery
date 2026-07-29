@@ -3,13 +3,24 @@
 
   var COLORS = ["#F36B5B", "#5E83E6", "#51A17D", "#D88B3E", "#9B72CF", "#E25E91"];
   var REACTIONS = {
-    heart: { emoji: "🧡", label: "좋아요" },
-    sparkle: { emoji: "✨", label: "반짝여요" },
-    laugh: { emoji: "😆", label: "재밌어요" },
-    tear: { emoji: "🥹", label: "뭉클해요" },
-    clap: { emoji: "👏", label: "박수" },
+    heart: { emoji: "🧡", labelKey: "reaction.heart" },
+    sparkle: { emoji: "✨", labelKey: "reaction.sparkle" },
+    laugh: { emoji: "😆", labelKey: "reaction.laugh" },
+    tear: { emoji: "🥹", labelKey: "reaction.tear" },
+    clap: { emoji: "👏", labelKey: "reaction.clap" },
+  };
+  var DEMO_MEMBER_KEYS = {
+    "demo-bomi": "demo.memberBomi",
+    "demo-haru": "demo.memberHaru",
+    "demo-maru": "demo.memberMaru",
+  };
+  var DEMO_ENTRY_KEYS = {
+    "demo-entry-3": "demo.entry3",
+    "demo-entry-2": "demo.entry2",
+    "demo-entry-1": "demo.entry1",
   };
 
+  var i18n;
   var store;
   var drawing;
   var currentRoom = null;
@@ -22,6 +33,12 @@
 
   function byId(id) {
     return document.getElementById(id);
+  }
+
+  function tr(key, replacements, fallback) {
+    return i18n && typeof i18n.t === "function"
+      ? i18n.t(key, replacements, fallback)
+      : fallback || key;
   }
 
   function makeElement(tagName, className, text) {
@@ -44,7 +61,7 @@
   }
 
   function formatLongDate() {
-    return new Intl.DateTimeFormat("ko-KR", {
+    return new Intl.DateTimeFormat(i18n ? i18n.localeTag() : "ko-KR", {
       month: "long",
       day: "numeric",
       weekday: "long",
@@ -52,7 +69,7 @@
   }
 
   function formatTime(value) {
-    return new Intl.DateTimeFormat("ko-KR", {
+    return new Intl.DateTimeFormat(i18n ? i18n.localeTag() : "ko-KR", {
       hour: "numeric",
       minute: "2-digit",
     }).format(new Date(value));
@@ -70,20 +87,23 @@
 
   function scheduleLabel(schedule) {
     if (!schedule || schedule.kind === "hourly") {
-      return "매시간 함께 기록";
+      return tr("schedule.hourly", null, "매시간 함께 기록");
     }
 
     var parts = String(schedule.time || "22:00").split(":");
     var hour = Number(parts[0]);
-    var minute = parts[1] || "00";
-    var period = hour < 12 ? "오전" : "오후";
-    return "매일 " + period + " " + (hour % 12 || 12) + ":" + minute;
+    var minute = Number(parts[1] || "00");
+    var time = new Intl.DateTimeFormat(i18n ? i18n.localeTag() : "ko-KR", {
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(2024, 0, 1, hour, minute));
+    return tr("schedule.daily", { time: time }, "매일 " + time);
   }
 
   function promptForSchedule(schedule) {
     return schedule && schedule.kind === "hourly"
-      ? "지금 가장 눈에 들어오는 장면은?"
-      : "오늘 가장 오래 머문 장면은?";
+      ? tr("prompt.hourly", null, "지금 가장 눈에 들어오는 장면은?")
+      : tr("prompt.daily", null, "오늘 가장 오래 머문 장면은?");
   }
 
   function showToast(message) {
@@ -102,7 +122,15 @@
   }
 
   function errorMessage(error, fallback) {
-    return error && typeof error.message === "string" ? error.message : fallback;
+    if (error && typeof error.code === "string") {
+      var codeKey = "errors." + error.code;
+      if (i18n && i18n.has(codeKey)) return tr(codeKey);
+    }
+    if (error && Number(error.status)) {
+      var statusKey = "errors.HTTP_" + Number(error.status);
+      if (i18n && i18n.has(statusKey)) return tr(statusKey);
+    }
+    return fallback || tr("errors.UNKNOWN_ERROR", null, "요청을 처리하지 못했어요.");
   }
 
   function normalizeRoomCodeInput(value) {
@@ -163,7 +191,14 @@
         input.name = "profileColor";
         input.value = color;
         input.checked = colorIndex === 0;
-        input.setAttribute("aria-label", "프로필 색상 " + (colorIndex + 1));
+        input.setAttribute(
+          "aria-label",
+          tr(
+            "profile.colorAria",
+            { number: colorIndex + 1 },
+            "프로필 색상 " + (colorIndex + 1),
+          ),
+        );
         if (groupIndex > 0) input.name = "profileColor";
         label.append(input, check);
         group.appendChild(label);
@@ -186,8 +221,10 @@
     if (!Number.isFinite(timestamp) || timestamp <= 0) return "";
     var date = new Date(timestamp);
     if (!Number.isFinite(date.getTime())) return "";
-    if (isToday(date)) return "오늘 " + formatTime(date);
-    return new Intl.DateTimeFormat("ko-KR", {
+    if (isToday(date)) {
+      return tr("date.todayAt", { time: formatTime(date) }, "오늘 " + formatTime(date));
+    }
+    return new Intl.DateTimeFormat(i18n ? i18n.localeTag() : "ko-KR", {
       month: "long",
       day: "numeric",
     }).format(date);
@@ -199,18 +236,42 @@
       : [];
   }
 
+  function displayRoomName(room) {
+    return room && room.isDemo
+      ? tr("demo.room", null, room.name)
+      : room && room.name
+        ? room.name
+        : "";
+  }
+
+  function displayMemberNickname(room, member) {
+    if (room && room.isDemo && member && DEMO_MEMBER_KEYS[member.id]) {
+      return tr(DEMO_MEMBER_KEYS[member.id], null, member.nickname);
+    }
+    return member && member.nickname
+      ? member.nickname
+      : tr("member.unknown", null, "방 멤버");
+  }
+
+  function displayEntryCaption(room, entry) {
+    if (room && room.isDemo && entry && DEMO_ENTRY_KEYS[entry.id]) {
+      return tr(DEMO_ENTRY_KEYS[entry.id], null, entry.caption);
+    }
+    return entry && entry.caption ? entry.caption : "";
+  }
+
   function copyRoomCode(code) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard
         .writeText(code)
         .then(function copied() {
-          showToast("초대코드를 복사했어요");
+          showToast(tr("toast.codeCopied", null, "초대코드를 복사했어요"));
         })
         .catch(function fallback() {
-          showToast("초대코드는 " + code + "예요");
+          showToast(tr("toast.codeFallback", { code: code }, "초대코드는 " + code + "예요"));
         });
     } else {
-      showToast("초대코드는 " + code + "예요");
+      showToast(tr("toast.codeFallback", { code: code }, "초대코드는 " + code + "예요"));
     }
   }
 
@@ -218,12 +279,12 @@
     var originalLabel = button.textContent;
     button.disabled = true;
     button.setAttribute("aria-busy", "true");
-    button.textContent = "방을 여는 중…";
+    button.textContent = tr("status.openRoom", null, "방을 여는 중…");
     try {
       var room = await store.openSavedRoom(code);
       showRoom(room);
     } catch (error) {
-      showToast(errorMessage(error, "방을 불러오지 못했어요."));
+      showToast(errorMessage(error, tr("fallback.openRoom", null, "방을 불러오지 못했어요.")));
     } finally {
       button.disabled = false;
       button.removeAttribute("aria-busy");
@@ -255,30 +316,57 @@
     var meta = makeElement("p");
     var visited = formatLastVisited(room.lastVisitedAt);
     var actions = makeElement("div", "saved-room-card__actions");
-    var copyButton = makeElement("button", "saved-room-card__copy-button", "코드 복사");
-    var openButton = makeElement("button", "saved-room-card__open", "이어 그리기 →");
+    var copyButton = makeElement(
+      "button",
+      "saved-room-card__copy-button",
+      tr("saved.copyCode", null, "코드 복사"),
+    );
+    var openButton = makeElement(
+      "button",
+      "saved-room-card__open",
+      tr("saved.continue", null, "이어 그리기 →"),
+    );
 
     avatar.style.setProperty("--saved-room-color", room.color || COLORS[0]);
     meta.append(
       makeElement(
         "span",
         "",
-        Number(room.memberCount || 0) + "명 · " + scheduleLabel(room.schedule),
+        tr(
+          "saved.memberMeta",
+          {
+            count: Number(room.memberCount || 0),
+            schedule: scheduleLabel(room.schedule),
+          },
+          Number(room.memberCount || 0) + "명 · " + scheduleLabel(room.schedule),
+        ),
       ),
     );
     if (visited) {
-      meta.append(makeElement("small", "", "최근 " + visited));
+      meta.append(
+        makeElement(
+          "small",
+          "",
+          tr("saved.recent", { visited: visited }, "최근 " + visited),
+        ),
+      );
     }
     copy.append(title, meta);
     main.append(avatar, copy);
 
     copyButton.type = "button";
-    copyButton.setAttribute("aria-label", room.name + " 초대코드 복사");
+    copyButton.setAttribute(
+      "aria-label",
+      tr("saved.copyAria", { room: room.name }, room.name + " 초대코드 복사"),
+    );
     copyButton.addEventListener("click", function copySavedCode() {
       copyRoomCode(room.code);
     });
     openButton.type = "button";
-    openButton.setAttribute("aria-label", room.name + " 방 열기");
+    openButton.setAttribute(
+      "aria-label",
+      tr("saved.openAria", { room: room.name }, room.name + " 방 열기"),
+    );
     openButton.addEventListener("click", function openSaved() {
       openSavedRoom(room.code, openButton);
     });
@@ -304,7 +392,7 @@
     closeAllDialogs();
     byId("landingScreen").hidden = false;
     byId("roomScreen").hidden = true;
-    document.title = "그림한칸 — 우리끼리 쓰는 그림일기";
+    document.title = tr("meta.titleHome", null, "그림한칸 — 우리끼리 쓰는 그림일기");
     renderSavedRooms();
     global.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -327,7 +415,7 @@
     currentRoom = room;
     byId("landingScreen").hidden = true;
     byId("roomScreen").hidden = false;
-    document.title = room.name + " · 그림한칸";
+    document.title = tr("meta.titleRoom", { room: displayRoomName(room) }, room.name + " · 그림한칸");
     renderRoom();
     global.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -341,12 +429,18 @@
   }
 
   function getAuthor(room, entry) {
-    return (
+    var author =
       room.members.find(function findMember(member) {
         return member.id === entry.memberId;
       }) ||
-      entry.author || { id: entry.memberId, nickname: "방 멤버", color: "#8B817A" }
-    );
+      entry.author || {
+        id: entry.memberId,
+        nickname: tr("member.unknown", null, "방 멤버"),
+        color: "#8B817A",
+      };
+    return Object.assign({}, author, {
+      nickname: displayMemberNickname(room, author),
+    });
   }
 
   function clearPreviewObservers() {
@@ -384,9 +478,13 @@
         }),
     );
 
-    byId("roomName").textContent = fresh.name;
+    byId("roomName").textContent = displayRoomName(fresh);
     byId("roomMemberCount").textContent =
-      fresh.members.length + "명이 함께 그리는 중";
+      tr(
+        "room.memberCount",
+        { count: fresh.members.length },
+        fresh.members.length + "명이 함께 그리는 중",
+      );
     byId("scheduleBadge").textContent = scheduleLabel(fresh.schedule);
     byId("todayLabel").textContent = formatLongDate();
     byId("feedDate").textContent = formatLongDate();
@@ -405,17 +503,36 @@
     );
     byId("dangerZoneDescription").textContent =
       fresh.permissions && fresh.permissions.leaveRequiresDelete
-        ? "혼자 남은 방은 나가는 대신 완전히 삭제해야 해요. 모든 기록은 되돌릴 수 없어요."
-        : "멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.";
+        ? tr(
+            "manage.lastOwnerDescription",
+            null,
+            "혼자 남은 방은 나가는 대신 완전히 삭제해야 해요. 모든 기록은 되돌릴 수 없어요.",
+          )
+        : tr(
+            "manage.deleteDescription",
+            null,
+            "멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.",
+          );
     byId("progressStrong").textContent =
-      fresh.members.length + "명 중 " + postedMemberIds.size + "명";
+      tr(
+        "room.progressStrong",
+        { total: fresh.members.length, posted: postedMemberIds.size },
+        fresh.members.length + "명 중 " + postedMemberIds.size + "명",
+      );
     byId("progressBar").style.width =
       Math.min(100, (postedMemberIds.size / Math.max(fresh.members.length, 1)) * 100) + "%";
 
     var stack = byId("memberStack");
     stack.replaceChildren();
     fresh.members.slice(0, 5).forEach(function addAvatar(member) {
-      stack.appendChild(createAvatar(member, false));
+      stack.appendChild(
+        createAvatar(
+          Object.assign({}, member, {
+            nickname: displayMemberNickname(fresh, member),
+          }),
+          false,
+        ),
+      );
     });
 
     var statuses = byId("memberStatuses");
@@ -424,14 +541,20 @@
       var item = makeElement("span");
       var dot = makeElement("i", postedMemberIds.has(member.id) ? "is-done" : "");
       var name = makeElement("span", "member-status-name");
-      name.appendChild(document.createTextNode(member.nickname));
+      name.appendChild(document.createTextNode(displayMemberNickname(fresh, member)));
       var ownerBadge = member.isOwner
-        ? makeElement("b", "member-owner-badge", "방장")
+        ? makeElement(
+            "b",
+            "member-owner-badge",
+            tr("room.owner", null, "방장"),
+          )
         : null;
       var state = makeElement(
         "small",
         "",
-        postedMemberIds.has(member.id) ? "완료" : "기다리는 중",
+        postedMemberIds.has(member.id)
+          ? tr("room.completed", null, "완료")
+          : tr("room.waiting", null, "기다리는 중"),
       );
       dot.style.setProperty("--member-color", member.color);
       if (ownerBadge) name.appendChild(ownerBadge);
@@ -447,11 +570,11 @@
     entryButton.classList.toggle("is-complete", Boolean(myEntry));
     entryButton.querySelector(".my-entry-card__icon").textContent = myEntry ? "✓" : "✎";
     byId("myEntryTitle").textContent = myEntry
-      ? "오늘의 한 칸을 채웠어요"
-      : "내 한 칸이 비어 있어요";
+      ? tr("room.myEntryDone", null, "오늘의 한 칸을 채웠어요")
+      : tr("room.myEntryEmpty", null, "내 한 칸이 비어 있어요");
     byId("myEntryDescription").textContent = myEntry
-      ? "한 장 더 남길 수 있어요"
-      : "그림 한 장과 한 줄이면 충분해요";
+      ? tr("room.myEntryMore", null, "한 장 더 남길 수 있어요")
+      : tr("room.myEntryHint", null, "그림 한 장과 한 줄이면 충분해요");
 
     renderFeed(fresh, todayEntries, postedMemberIds);
   }
@@ -486,22 +609,39 @@
       });
 
       if (waitingMembers.length > 0) {
+        var waitingName = displayMemberNickname(room, waitingMembers[0]);
         var waitingCopy =
           waitingMembers.length === 1
-            ? waitingMembers[0].nickname + "님의 한 칸을 기다리는 중이에요"
-            : waitingMembers[0].nickname +
-              " 외 " +
-              (waitingMembers.length - 1) +
-              "명의 한 칸을 기다리는 중이에요";
+            ? tr(
+                "feed.waitingOne",
+                { name: waitingName },
+                waitingName + "님의 한 칸을 기다리는 중이에요",
+              )
+            : tr(
+                "feed.waitingMany",
+                { name: waitingName, count: waitingMembers.length - 1 },
+                waitingName +
+                  " 외 " +
+                  (waitingMembers.length - 1) +
+                  "명의 한 칸을 기다리는 중이에요",
+              );
         grid.appendChild(makeElement("p", "waiting-summary", waitingCopy));
       }
     }
 
     empty.hidden = entries.length > 0;
     if (!entries.length && currentFilter === "mine") {
-      empty.querySelector("h3").textContent = "아직 내가 남긴 그림이 없어요";
+      empty.querySelector("h3").textContent = tr(
+        "feed.emptyMine",
+        null,
+        "아직 내가 남긴 그림이 없어요",
+      );
     } else {
-      empty.querySelector("h3").textContent = "아직 올라온 한 칸이 없어요";
+      empty.querySelector("h3").textContent = tr(
+        "feed.empty",
+        null,
+        "아직 올라온 한 칸이 없어요",
+      );
     }
 
     global.requestAnimationFrame(function paintEntryPreviews() {
@@ -516,11 +656,16 @@
 
   function buildEntryCard(room, entry) {
     var author = getAuthor(room, entry);
+    var translatedCaption = displayEntryCaption(room, entry);
     var card = makeElement("article", "entry-card");
     var header = makeElement("div", "entry-card__header");
     var authorCopy = makeElement("div");
     var canvas = makeElement("canvas", "entry-card__drawing");
-    var caption = makeElement("p", "entry-card__caption", entry.caption || "말 없이 남긴 한 칸");
+    var caption = makeElement(
+      "p",
+      "entry-card__caption",
+      translatedCaption || tr("entry.emptyCaption", null, "말 없이 남긴 한 칸"),
+    );
     var footer = makeElement("div", "entry-card__footer");
     var list = makeElement("div", "reaction-list");
     var pickerWrap = makeElement("div", "reaction-picker-wrap");
@@ -535,14 +680,29 @@
 
     canvas.dataset.entryId = entry.id;
     canvas.setAttribute("role", "img");
-    canvas.setAttribute("aria-label", (entry.caption || author.nickname + "님의") + " 그림");
+    canvas.setAttribute(
+      "aria-label",
+      translatedCaption ||
+        tr(
+          "entry.canvasAria",
+          { name: author.nickname },
+          author.nickname + "님의 그림",
+        ),
+    );
 
     (entry.reactions || []).forEach(function addReaction(reaction) {
       if (!REACTIONS[reaction.type] || (!reaction.count && !reaction.mine)) return;
       var button = makeElement("button", reaction.mine ? "is-mine" : "");
       button.type = "button";
       button.setAttribute("aria-pressed", String(Boolean(reaction.mine)));
-      button.setAttribute("aria-label", REACTIONS[reaction.type].label);
+      button.setAttribute(
+        "aria-label",
+        tr(
+          REACTIONS[reaction.type].labelKey,
+          null,
+          reaction.type,
+        ),
+      );
       button.append(
         makeElement("span", "", REACTIONS[reaction.type].emoji),
         document.createTextNode(" " + reaction.count),
@@ -552,7 +712,12 @@
         try {
           await store.toggleReaction(room.code, entry.id, reaction.type);
         } catch (error) {
-          showToast(errorMessage(error, "반응을 남기지 못했어요."));
+          showToast(
+            errorMessage(
+              error,
+              tr("fallback.react", null, "반응을 남기지 못했어요."),
+            ),
+          );
         } finally {
           button.disabled = false;
         }
@@ -561,20 +726,35 @@
     });
 
     addButton.type = "button";
-    addButton.innerHTML = '<span aria-hidden="true">☺</span> 반응';
+    addButton.append(
+      makeElement("span", "", "☺"),
+      document.createTextNode(" " + tr("reaction.add", null, "반응")),
+    );
+    addButton.firstChild.setAttribute("aria-hidden", "true");
     addButton.setAttribute("aria-expanded", "false");
     picker.hidden = true;
-    picker.setAttribute("aria-label", "반응 고르기");
+    picker.setAttribute(
+      "aria-label",
+      tr("reaction.picker", null, "반응 고르기"),
+    );
     Object.keys(REACTIONS).forEach(function addPickerReaction(type) {
       var button = makeElement("button", "", REACTIONS[type].emoji);
       button.type = "button";
-      button.setAttribute("aria-label", REACTIONS[type].label);
+      button.setAttribute(
+        "aria-label",
+        tr(REACTIONS[type].labelKey, null, type),
+      );
       button.addEventListener("click", async function chooseReaction() {
         button.disabled = true;
         try {
           await store.toggleReaction(room.code, entry.id, type);
         } catch (error) {
-          showToast(errorMessage(error, "반응을 남기지 못했어요."));
+          showToast(
+            errorMessage(
+              error,
+              tr("fallback.react", null, "반응을 남기지 못했어요."),
+            ),
+          );
         } finally {
           button.disabled = false;
         }
@@ -618,7 +798,12 @@
           strokes: strokes,
         });
       } catch (error) {
-        showToast(errorMessage(error, "임시 저장하지 못했어요."));
+        showToast(
+          errorMessage(
+            error,
+            tr("fallback.saveDraft", null, "임시 저장하지 못했어요."),
+          ),
+        );
       }
     }, 120);
   }
@@ -644,9 +829,15 @@
       });
       closeDialog(byId("createDialog"));
       showRoom(room);
-      showToast("새 그림방을 열었어요");
+      showToast(tr("toast.roomCreated", null, "새 그림방을 열었어요"));
     } catch (error) {
-      showFormError(form, errorMessage(error, "방을 만들지 못했어요."));
+      showFormError(
+        form,
+        errorMessage(
+          error,
+          tr("fallback.createRoom", null, "방을 만들지 못했어요."),
+        ),
+      );
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
@@ -668,9 +859,21 @@
       });
       closeDialog(byId("joinDialog"));
       showRoom(room);
-      showToast("‘" + room.name + "’에 들어왔어요");
+      showToast(
+        tr(
+          "toast.roomJoined",
+          { room: displayRoomName(room) },
+          "‘" + room.name + "’에 들어왔어요",
+        ),
+      );
     } catch (error) {
-      showFormError(form, errorMessage(error, "초대코드를 다시 확인해 주세요."));
+      showFormError(
+        form,
+        errorMessage(
+          error,
+          tr("fallback.joinRoom", null, "초대코드를 다시 확인해 주세요."),
+        ),
+      );
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
@@ -680,13 +883,18 @@
     var saved = profile();
     try {
       var room = await store.openDemo({
-        nickname: saved.nickname || "해나",
+        nickname: saved.nickname || tr("demo.nickname", null, "해나"),
         color: saved.color || COLORS[0],
       });
       closeAllDialogs();
       showRoom(room);
     } catch (error) {
-      showToast(errorMessage(error, "샘플 방을 열지 못했어요."));
+      showToast(
+        errorMessage(
+          error,
+          tr("fallback.openDemo", null, "샘플 방을 열지 못했어요."),
+        ),
+      );
     }
   }
 
@@ -713,9 +921,17 @@
       currentFilter = "today";
       updateFilterTabs();
       renderRoom();
-      showToast("오늘의 한 칸을 함께 놓았어요");
+      showToast(
+        tr("toast.entryPublished", null, "오늘의 한 칸을 함께 놓았어요"),
+      );
     } catch (error) {
-      showFormError(form, errorMessage(error, "그림을 올리지 못했어요."));
+      showFormError(
+        form,
+        errorMessage(
+          error,
+          tr("fallback.publish", null, "그림을 올리지 못했어요."),
+        ),
+      );
     } finally {
       if (submitButton) submitButton.disabled = false;
     }
@@ -723,7 +939,7 @@
 
   function openInvite() {
     if (!currentRoom) return;
-    byId("inviteRoomName").textContent = currentRoom.name;
+    byId("inviteRoomName").textContent = displayRoomName(currentRoom);
     var code = currentRoom.code;
     var codeButton = byId("inviteCodeButton");
     codeButton.replaceChildren(
@@ -767,7 +983,7 @@
       return;
     }
     currentRoom = fresh;
-    byId("manageRoomName").textContent = fresh.name;
+    byId("manageRoomName").textContent = displayRoomName(fresh);
     byId("membershipAction").hidden = Boolean(
       fresh.permissions && fresh.permissions.canLeave === false,
     );
@@ -776,14 +992,22 @@
     );
     byId("dangerZoneDescription").textContent =
       fresh.permissions && fresh.permissions.leaveRequiresDelete
-        ? "혼자 남은 방은 나가는 대신 완전히 삭제해야 해요. 모든 기록은 되돌릴 수 없어요."
-        : "멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.";
+        ? tr(
+            "manage.lastOwnerDescription",
+            null,
+            "혼자 남은 방은 나가는 대신 완전히 삭제해야 해요. 모든 기록은 되돌릴 수 없어요.",
+          )
+        : tr(
+            "manage.deleteDescription",
+            null,
+            "멤버와 모든 그림을 영구 삭제해요. 삭제한 기록은 되돌릴 수 없어요.",
+          );
     openDialog(byId("roomManageDialog"));
   }
 
   function openLeaveRoomConfirm() {
     if (!currentRoom || roomActionPending) return;
-    byId("leaveRoomName").textContent = currentRoom.name;
+    byId("leaveRoomName").textContent = displayRoomName(currentRoom);
     byId("leaveRoomError").textContent = "";
     closeDialog(byId("roomManageDialog"));
     openDialog(byId("leaveRoomDialog"));
@@ -799,25 +1023,46 @@
     byId("leaveRoomError").textContent = "";
     clearPendingDraftTimer();
     cancelButton.disabled = true;
-    setRoomActionPending(dialog, button, true, "나가는 중…");
+    setRoomActionPending(
+      dialog,
+      button,
+      true,
+      tr("status.leaving", null, "나가는 중…"),
+    );
 
     try {
       var result = await store.leaveMembership(room.code);
       var nextOwner = room.members.find(function findNextOwner(member) {
         return member.id === result.newOwnerMemberId;
       });
-      var message = "‘" + room.name + "’ 방에서 나왔어요";
+      var message = tr(
+        "toast.leftRoom",
+        { room: displayRoomName(room) },
+        "‘" + room.name + "’ 방에서 나왔어요",
+      );
       if (result.ownershipTransferred) {
         message += nextOwner
-          ? " · 방장은 " + nextOwner.nickname + "님에게 넘어갔어요"
-          : " · 다른 멤버에게 방장이 넘어갔어요";
+          ? tr(
+              "toast.ownerTransferredNamed",
+              { name: displayMemberNickname(room, nextOwner) },
+              " · 방장은 " + nextOwner.nickname + "님에게 넘어갔어요",
+            )
+          : tr(
+              "toast.ownerTransferred",
+              null,
+              " · 다른 멤버에게 방장이 넘어갔어요",
+            );
       }
       finishRoomExit(message);
     } catch (error) {
       failed = true;
       byId("leaveRoomError").textContent = errorMessage(
         error,
-        "방에서 나가지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+        tr(
+          "fallback.leave",
+          null,
+          "방에서 나가지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+        ),
       );
     } finally {
       cancelButton.disabled = false;
@@ -846,7 +1091,7 @@
     ) {
       return;
     }
-    byId("deleteRoomName").textContent = currentRoom.name;
+    byId("deleteRoomName").textContent = displayRoomName(currentRoom);
     byId("deleteExpectedCode").textContent = currentRoom.code;
     byId("deleteConfirmInput").value = "";
     byId("deleteConfirmInput").setAttribute("aria-invalid", "false");
@@ -864,7 +1109,11 @@
     var confirmCode = normalizeRoomCodeInput(input.value);
     if (confirmCode !== room.code) {
       input.setAttribute("aria-invalid", "true");
-      byId("deleteRoomError").textContent = "초대코드가 일치하지 않아요.";
+      byId("deleteRoomError").textContent = tr(
+        "delete.codeMismatch",
+        null,
+        "초대코드가 일치하지 않아요.",
+      );
       input.focus();
       return;
     }
@@ -879,16 +1128,31 @@
     input.disabled = true;
     cancelButton.disabled = true;
     form.setAttribute("aria-busy", "true");
-    setRoomActionPending(dialog, button, true, "삭제하는 중…");
+    setRoomActionPending(
+      dialog,
+      button,
+      true,
+      tr("status.deleting", null, "삭제하는 중…"),
+    );
 
     try {
       await store.deleteRoom(room.code, confirmCode);
-      finishRoomExit("‘" + room.name + "’ 방을 완전히 삭제했어요");
+      finishRoomExit(
+        tr(
+          "toast.roomDeleted",
+          { room: displayRoomName(room) },
+          "‘" + room.name + "’ 방을 완전히 삭제했어요",
+        ),
+      );
     } catch (error) {
       failed = true;
       byId("deleteRoomError").textContent = errorMessage(
         error,
-        "방을 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+        tr(
+          "fallback.delete",
+          null,
+          "방을 삭제하지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+        ),
       );
     } finally {
       input.disabled = false;
@@ -919,6 +1183,42 @@
       var entry = mapping[canvas.dataset.demoDrawing] || demo.entries[0];
       drawing.renderPreview(canvas, entry.strokes);
     });
+  }
+
+  function refreshLocalizedView() {
+    renderColorOptions();
+    renderSavedRooms();
+    if (currentRoom && !byId("roomScreen").hidden) {
+      document.title = tr(
+        "meta.titleRoom",
+        { room: displayRoomName(currentRoom) },
+        currentRoom.name + " · 그림한칸",
+      );
+      renderRoom();
+      if (byId("roomManageDialog").open) {
+        byId("manageRoomName").textContent = displayRoomName(currentRoom);
+      }
+      if (byId("leaveRoomDialog").open) {
+        byId("leaveRoomName").textContent = displayRoomName(currentRoom);
+      }
+      if (byId("deleteRoomDialog").open) {
+        byId("deleteRoomName").textContent = displayRoomName(currentRoom);
+      }
+    } else {
+      document.title = tr(
+        "meta.titleHome",
+        null,
+        "그림한칸 — 우리끼리 쓰는 그림일기",
+      );
+    }
+    ["confirmLeaveRoomButton", "confirmDeleteRoomButton"].forEach(
+      function updateIdleLabel(id) {
+        var button = byId(id);
+        if (button && !roomActionPending) {
+          button.dataset.idleLabel = button.textContent;
+        }
+      },
+    );
   }
 
   function bindEvents() {
@@ -1051,19 +1351,37 @@
   }
 
   async function init() {
+    i18n = global.GeurimI18n;
     store = global.GeurimStore;
     drawing = global.GeurimDrawing;
-    if (!store || !drawing) {
+    if (!i18n || !store || !drawing) {
+      var missingMessage =
+        i18n && typeof i18n.t === "function"
+          ? i18n.t(
+              "errors.assetsMissing",
+              null,
+              "필요한 파일을 불러오지 못했어요.",
+            )
+          : "필요한 파일을 불러오지 못했어요. 잠시 뒤 다시 시도해 주세요.";
       document.body.innerHTML =
-        '<div class="noscript">필요한 파일을 불러오지 못했어요. index.html, store.js, drawing.js, app.js가 같은 폴더에 있는지 확인해 주세요.</div>';
+        '<div class="noscript"></div>';
+      document.body.firstElementChild.textContent = missingMessage;
       return;
     }
 
+    i18n.apply(document);
+    i18n.bind(document);
+    document.title = tr(
+      "meta.titleHome",
+      null,
+      "그림한칸 — 우리끼리 쓰는 그림일기",
+    );
     await store.ready;
     renderColorOptions();
     bindEvents();
     renderHeroPreviews();
     subscribeToStore();
+    i18n.subscribe(refreshLocalizedView);
     var snapshot = store.getState();
     var rooms = savedRooms();
     if (rooms.length > 1) {

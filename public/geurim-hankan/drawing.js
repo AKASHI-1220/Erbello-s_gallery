@@ -2,24 +2,31 @@
   "use strict";
 
   var COLORS = [
-    { value: "#292724", label: "먹색" },
-    { value: "#ef6a5b", label: "다홍색" },
-    { value: "#f2b84b", label: "노란색" },
-    { value: "#5a9f68", label: "초록색" },
-    { value: "#4c7fc0", label: "파란색" },
-    { value: "#8c67ad", label: "보라색" },
+    { value: "#292724", labelKey: "drawing.colorInk", label: "먹색" },
+    { value: "#ef6a5b", labelKey: "drawing.colorCoral", label: "다홍색" },
+    { value: "#f2b84b", labelKey: "drawing.colorYellow", label: "노란색" },
+    { value: "#5a9f68", labelKey: "drawing.colorGreen", label: "초록색" },
+    { value: "#4c7fc0", labelKey: "drawing.colorBlue", label: "파란색" },
+    { value: "#8c67ad", labelKey: "drawing.colorPurple", label: "보라색" },
   ];
 
   var WIDTHS = [
-    { value: 4, label: "얇게" },
-    { value: 8, label: "보통" },
-    { value: 14, label: "굵게" },
+    { value: 4, labelKey: "drawing.widthThin", label: "얇게" },
+    { value: 8, labelKey: "drawing.widthMedium", label: "보통" },
+    { value: 14, labelKey: "drawing.widthThick", label: "굵게" },
   ];
 
   var BASE_CANVAS_SIZE = 520;
   var mountSequence = 0;
   var mountedPads = new WeakMap();
   var previewRecords = new WeakMap();
+
+  function tr(key, replacements, fallback) {
+    var i18n = global.GeurimI18n;
+    return i18n && typeof i18n.t === "function"
+      ? i18n.t(key, replacements, fallback)
+      : fallback || key;
+  }
 
   var requestFrame =
     typeof global.requestAnimationFrame === "function"
@@ -275,14 +282,17 @@
     var instanceId = "geurim-drawing-" + (++mountSequence);
 
     var root = createElement("section", "drawing-canvas");
-    root.setAttribute("aria-label", "그림 그리기 도구");
+    root.setAttribute(
+      "aria-label",
+      tr("drawing.toolAria", null, "그림 그리기 도구"),
+    );
 
     var toolbar = createElement("div", "drawing-canvas__toolbar");
     var colorGroup = createElement("div", "drawing-canvas__group");
     var colorLabel = createElement(
       "span",
       "drawing-canvas__label",
-      "색",
+      tr("drawing.color", null, "색"),
     );
     colorLabel.id = instanceId + "-color-label";
     var palette = createElement("div", "drawing-canvas__palette");
@@ -295,9 +305,10 @@
         "drawing-canvas__color",
       );
       button.type = "button";
-      button.title = option.label;
+      var optionLabel = tr(option.labelKey, null, option.label);
+      button.title = optionLabel;
       button.style.backgroundColor = option.value;
-      button.setAttribute("aria-label", option.label);
+      button.setAttribute("aria-label", optionLabel);
       button.setAttribute(
         "aria-pressed",
         String(selectedColor === option.value),
@@ -316,7 +327,7 @@
     var widthLabel = createElement(
       "span",
       "drawing-canvas__label",
-      "굵기",
+      tr("drawing.width", null, "굵기"),
     );
     widthLabel.id = instanceId + "-width-label";
     var widths = createElement("div", "drawing-canvas__widths");
@@ -334,8 +345,9 @@
       );
 
       button.type = "button";
-      button.title = option.label;
-      button.setAttribute("aria-label", option.label);
+      var optionLabel = tr(option.labelKey, null, option.label);
+      button.title = optionLabel;
+      button.setAttribute("aria-label", optionLabel);
       button.setAttribute(
         "aria-pressed",
         String(selectedWidth === option.value),
@@ -357,28 +369,40 @@
     var undoButton = createElement(
       "button",
       "drawing-canvas__action",
-      "실행 취소",
+      tr("drawing.undo", null, "실행 취소"),
     );
     undoButton.type = "button";
-    undoButton.setAttribute("aria-label", "마지막 획 실행 취소");
+    undoButton.setAttribute(
+      "aria-label",
+      tr("drawing.undoAria", null, "마지막 획 실행 취소"),
+    );
 
     var clearButton = createElement(
       "button",
       "drawing-canvas__action drawing-canvas__action--clear",
-      "전체 지우기",
+      tr("drawing.clear", null, "전체 지우기"),
     );
     clearButton.type = "button";
-    clearButton.setAttribute("aria-label", "그림 전체 지우기");
+    clearButton.setAttribute(
+      "aria-label",
+      tr("drawing.clearAria", null, "그림 전체 지우기"),
+    );
     actions.append(undoButton, clearButton);
     toolbar.append(colorGroup, widthGroup, actions);
 
     var stage = createElement("div", "drawing-canvas__stage");
     var canvas = createElement("canvas", "drawing-canvas__surface");
-    canvas.textContent =
-      "이 브라우저에서는 그림 그리기 캔버스를 표시할 수 없습니다.";
+    canvas.textContent = tr(
+      "drawing.canvasFallback",
+      null,
+      "이 브라우저에서는 그림 그리기 캔버스를 표시할 수 없습니다.",
+    );
     canvas.tabIndex = 0;
     canvas.setAttribute("role", "application");
-    canvas.setAttribute("aria-label", "그림을 그리는 정사각형 캔버스");
+    canvas.setAttribute(
+      "aria-label",
+      tr("drawing.canvasAria", null, "그림을 그리는 정사각형 캔버스"),
+    );
     canvas.setAttribute("aria-keyshortcuts", "Control+Z Meta+Z");
     canvas.style.touchAction = "none";
     canvas.style.userSelect = "none";
@@ -387,7 +411,11 @@
     var hint = createElement(
       "p",
       "drawing-canvas__hint",
-      "마우스, 펜 또는 손가락으로 그려 보세요. Ctrl 또는 ⌘와 Z를 누르면 마지막 획을 되돌릴 수 있어요.",
+      tr(
+        "drawing.hint",
+        null,
+        "마우스, 펜 또는 손가락으로 그려 보세요. Ctrl 또는 ⌘와 Z를 누르면 마지막 획을 되돌릴 수 있어요.",
+      ),
     );
     hint.id = instanceId + "-help";
 
@@ -437,7 +465,11 @@
       undoButton.disabled = isEmpty;
       clearButton.disabled = isEmpty;
       hint.hidden = !isEmpty || draft !== null;
-      status.textContent = "현재 " + strokes.length + "개의 획";
+      status.textContent = tr(
+        "drawing.strokeCount",
+        { count: strokes.length },
+        "현재 " + strokes.length + "개의 획",
+      );
       canvas.setAttribute(
         "aria-describedby",
         hint.hidden ? status.id : hint.id + " " + status.id,
