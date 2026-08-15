@@ -1815,6 +1815,13 @@ function assertInviteUsable(invite, usedCount = 0) {
 }
 
 function sendTarotError(res, error, fallback = 'tarot_request_failed') {
+  const detail = [error && error.message, error && error.details, error && error.hint, error && error.constraint]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+  if (error && error.code === '23514' && detail.includes('spread_count')) {
+    return res.status(400).json({ error:'unsupported_spread_count' });
+  }
   const status = error && error.statusCode ? error.statusCode : 500;
   res.status(status).json({ error:error && error.message ? error.message : fallback });
 }

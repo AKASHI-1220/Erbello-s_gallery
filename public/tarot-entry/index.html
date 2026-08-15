@@ -522,7 +522,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <div class="field"><label>허용 리딩 종류</label><div class="type-check-grid" id="admin-reading-types"></div></div>
           <div class="field"><label>카드 장수</label><select id="admin-count" onchange="syncSpreadTypes()"><option>1</option><option selected>3</option><option>5</option><option>7</option><option>9</option><option>10</option></select></div>
           <div class="field"><label>배열</label><select id="admin-spread"></select></div>
-          <div class="field"><label>만료일</label><input id="admin-expires" type="date"></div>
+          <div class="field"><label>만료일 (비워도 30일 후 자동 정리)</label><input id="admin-expires" type="date"></div>
           <div class="field"><label>접수 가능 횟수</label><input id="admin-max-uses" type="number" min="1" max="999" step="1" value="1"></div>
           <label class="checkline"><input type="checkbox" id="admin-reversed" checked><span>정방향/역방향 사용</span></label>
           <label class="checkline"><input type="checkbox" id="admin-show-names" checked><span>참여자에게 카드 이름 표시</span></label>
@@ -536,6 +536,7 @@ button:disabled{cursor:not-allowed;opacity:.55}
           <label class="checkline"><input type="checkbox" id="admin-require-question" checked><span>질문 필수</span></label>
           <div class="field"><label>접수 완료 문구</label><textarea id="admin-completion">카드가 접수되었습니다. 해석이 준비되면 전달됩니다.</textarea></div>
           <button class="btn-main" type="button" onclick="createInvite()">코드 만들기</button>
+          <p>참여코드와 연결된 접수 기록은 보관 기간이 끝나면 함께 자동 정리됩니다.</p>
           <p class="status" id="admin-create-status"></p>
         </div>
       </section>
@@ -720,6 +721,7 @@ const ERROR_MESSAGES = {
   invalid_reading_type:'선택할 수 없는 리딩 종류입니다.',
   invalid_drawn_cards:'카드 접수 정보가 올바르지 않습니다.',
   duplicate_drawn_cards:'같은 카드가 중복 선택되었습니다.',
+  unsupported_spread_count:'선택한 카드 장수를 아직 저장할 수 없습니다. 타로 DB 마이그레이션 상태를 확인해 주세요.',
   restricted_personal_info:'연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.',
   sensitive_personal_info_not_allowed:'연락처, 이메일, 주소, 계좌번호 같은 개인정보는 빼고 작성해 주세요.',
   tarot_invite_not_found:'참여코드를 찾을 수 없습니다.',
